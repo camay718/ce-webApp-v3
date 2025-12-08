@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>総合配置分析 - CEスケジュール管理システムV2</title>
+    <title>総合配置分析 - CE web App v3</title>
     
     <!-- 外部ライブラリ -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -22,7 +22,7 @@
 <script src="../js/utils/audit-logger.js"></script>
     
 <style>
-/* V1版デザイン統合 */
+/* デザイン統合 */
 :root {
     --primary-gradient: linear-gradient(135deg, #E8F5E8 0%, #D4F1D4 100%);
     --accent-color: #B8E6B8;
@@ -209,7 +209,7 @@ body {
             </div>
         </div>
 
-        <!-- V1版集計機能の統合 -->
+        <!-- 集計機能の統合 -->
         <div class="space-y-6">
             <!-- 配置サマリテーブル -->
             <div class="glass-card p-6">
@@ -264,8 +264,8 @@ body {
     </div>
 
     <script>
-// V2統一配色定義
-const V2_COLORS = {
+// 統一配色定義
+const _COLORS = {
     '血液浄化': '#FFB6C1',
     '人工心肺・補助循環': '#4169E1', 
     '心・カテーテル': '#32CD32',
@@ -356,7 +356,7 @@ function setupDateInputs() {
     document.getElementById('endDate').value = today.toISOString().split('T')[0];
 }
 
-// データロード（V2構造対応）
+// データロード
 async function loadAllData() {
     try {
         const [eventsSnapshot, monthlySnapshot, ceListSnapshot] = await Promise.all([
@@ -397,13 +397,13 @@ async function loadAllData() {
             }
         });
 
-        // CE数の算出（V1/V2両対応）
+        // CE数の算出
         const ceListData = ceListSnapshot.val() || {};
         if (Array.isArray(ceListData.list)) {
-            // V2形式: ceList.list配列
+            // 形式: ceList.list配列
             globalCECount = ceListData.list.filter(Boolean).length;
         } else {
-            // V1形式: ルート直下のオブジェクト
+            // 形式: ルート直下のオブジェクト
             const denyList = new Set(['list','updatedAt','lastUpdated','timestamp','state','templates','metadata','default','scheduleData','workTypeOverrides']);
             globalCECount = Object.keys(ceListData).filter(k => !denyList.has(k)).length;
         }
@@ -545,13 +545,13 @@ const filteredMonthlyTasks = allData.monthlyTasks.filter(task => {
     // 統計カード更新
     updateQuickStats(filteredEvents, filteredMonthlyTasks);
     
-    // V1形式のデータ構造に変換して分析
+    // 形式のデータ構造に変換して分析
     buildPlacementSummaryTable(filteredEvents, filteredMonthlyTasks);
     updateDepartmentChart(filteredEvents, filteredMonthlyTasks);
     updateTimeSlotCharts(filteredEvents, filteredMonthlyTasks);
 }
 
-// V1版から移植した集計関数群
+// 
 function buildPlacementSummaryTable(events, monthlyTasks) {
     const container = document.getElementById('placementSummaryTable');
     const departments = ['血液浄化', '人工心肺・補助循環', '心・カテーテル', '手術・麻酔', '不整脈', '機器管理・人工呼吸'];
@@ -650,11 +650,11 @@ function updateDepartmentChart(events, monthlyTasks) {
     
     // 色の設定
     chartInstances.departmentChart.data.datasets[0].backgroundColor = allCategories.map(category => {
-        const color = V2_COLORS[category] || '#cccccc';
+        const color = _COLORS[category] || '#cccccc';
         return color + '80';
     });
     chartInstances.departmentChart.data.datasets[0].borderColor = allCategories.map(category => {
-        return V2_COLORS[category] || '#cccccc';
+        return _COLORS[category] || '#cccccc';
     });
     
     chartInstances.departmentChart.update();
@@ -674,8 +674,8 @@ chartInstances.timeSlotChartDept.data.labels = timeSlots;
 chartInstances.timeSlotChartDept.data.datasets = allCategories.map(category => ({
     label: category,
     data: timeSlots.map(slot => deptData[slot]?.[category] || 0),
-    borderColor: V2_COLORS[category],
-    backgroundColor: V2_COLORS[category] + '20',
+    borderColor: _COLORS[category],
+    backgroundColor: _COLORS[category] + '20',
     fill: false,
     tension: 0.4,
     borderWidth: 2
