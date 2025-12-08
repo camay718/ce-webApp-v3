@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>総合配置分析 - CEスケジュール管理システムV2</title>
+    
+    <!-- 外部ライブラリ -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="../js/config/firebase-config.js"></script>
+    <script src="../js/core/auth-guard.js"></script>
+
+    <!-- 監査ログシステム -->
+<script src="../js/utils/audit-logger.js"></script>
+    
+<style>
+/* V1版デザイン統合 */
+:root {
+    --primary-gradient: linear-gradient(135deg, #E8F5E8 0%, #D4F1D4 100%);
+    --accent-color: #B8E6B8;
+    --text-color: #2C3E50;
+    --shadow: 0 4px 12px rgba(0,0,0,0.1);
+    
+    /* 統一配色 */
+    --color-ope: #07E1FF;
+    --color-ope-a1: #0000FF;
+    --color-me: #CCFFCC;
+    --color-hd: #FFBCD4;
+    --color-flex: #FFFF00;
+    --color-white: #FFFFFF;
+}
+
+body {
+    background: var(--primary-gradient);
+    font-family: 'Noto Sans JP', sans-serif;
+    color: var(--text-color);
+    min-height: 100vh;
+}
+
+.glass-card {
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+}
+
+/* 部門カラー定義 */
+.dept-血液浄化 { --dept-color: var(--color-hd); }
+.dept-人工心肺・補助循環 { --dept-color: #4169E1; }
+.dept-心・カテーテル { --dept-color: #32CD32; }
+.dept-手術・麻酔 { --dept-color: var(--color-ope); }
+.dept-不整脈 { --dept-color: #9370DB; }
+.dept-機器管理・人工呼吸 { --dept-color: var(--color-me); }
+
+.department-area {
+    background: rgba(255,255,255,0.85);
+    border-radius: 14px;
+    padding: 12px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid var(--dept-color);
+    min-height: 120px;
+    transition: all 0.3s ease;
+}
+
+.department-area:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+
+/* 印刷対応 */
+@media print {
+    .no-print { display: none !important; }
+    body { background: white !important; color: #000 !important; }
+    .glass-card { background: white !important; border: 1px solid #ccc !important; }
+}
+</style>
+</head>
+<body class="theme-unified">
+    <!-- ローディング -->
+    <div id="loading" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="glass-card p-6 text-center">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
+            <p class="text-gray-600">配置データを分析中...</p>
+        </div>
+    </div>
+
+    <!-- メインコンテンツ -->
+    <div id="mainContent" class="min-h-screen p-4" style="display:none;">
+        <!-- ヘッダー -->
+        <div class="glass-card p-6 mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">
+    <i class="fas fa-clipboard-list text-green-600 mr-3"></i>
+    配置サマリ
+                    </h1>
+                    <p class="text-gray-600">配置サマリ・部門別充足率・時間帯別配置の総合分析</p>
+                </div>
+                <div class="text-right">
+                    <div class="text-sm text-gray-500">ログイン中</div>
+                    <div id="currentUserDisplay" class="font-semibold text-gray-800"></div>
+                </div>
+            </div>
+            
+              <!-- ナビゲーション -->
+            <div class="flex justify-center gap-4">
+                <button onclick="window.location.href='../pages/analytics.html'" 
+                        class="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg text-gray-700 transition-colors">
+                    <i class="fas fa-arrow-left mr-2"></i>集計・分析に戻る
+                </button>
+                <button onclick="window.print()" 
+                        class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors">
+                    <i class="fas fa-print mr-2"></i>印刷
+                </button>
+            </div>
+        </div>
+
+        <!-- 期間選択 -->
+        <div class="glass-card p-4 mb-6 no-print">
+            <h2 class="text-lg font-semibold mb-4">
+                <i class="fas fa-calendar-alt mr-2"></i>分析期間設定
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">開始日</label>
+                    <input type="date" id="startDate" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">終了日</label>
+                    <input type="date" id="endDate" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <div class="flex items-end">
+                    <button onclick="analyzeData()" class="btn-unified w-full">
+                        <i class="fas fa-search mr-2"></i>分析実行
+                    </button>
+                </div>
+            </div>
+        </div>
+
+                <!-- 統計サマリー -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
+            <div class="glass-card p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">総業務数</p>
+                        <p class="text-2xl font-bold text-emerald-600" id="totalTasks">0件</p>
+                    </div>
+                    <div class="bg-emerald-100 p-3 rounded-full">
+                        <i class="fas fa-tasks text-emerald-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass-card p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">登録CE数</p>
+                        <p class="text-2xl font-bold text-blue-600" id="registeredCEs">0名</p>
+                    </div>
+                    <div class="bg-blue-100 p-3 rounded-full">
+                        <i class="fas fa-user-md text-blue-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass-card p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">総配置数</p>
+                        <p class="text-2xl font-bold text-purple-600" id="totalAssignments">0件</p>
+                    </div>
+                    <div class="bg-purple-100 p-3 rounded-full">
+                        <i class="fas fa-users text-purple-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass-card p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">平均稼働率</p>
+                        <p class="text-2xl font-bold text-yellow-600" id="avgUtilization">0%</p>
+                    </div>
+                    <div class="bg-yellow-100 p-3 rounded-full">
+                        <i class="fas fa-percentage text-yellow-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass-card p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">総勤務時間</p>
+                        <p class="text-2xl font-bold text-red-600" id="totalHours">0時間</p>
+                    </div>
+                    <div class="bg-red-100 p-3 rounded-full">
+                        <i class="fas fa-clock text-red-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- V1版集計機能の統合 -->
+        <div class="space-y-6">
+            <!-- 配置サマリテーブル -->
+            <div class="glass-card p-6">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-lg font-bold">配置サマリ</h3>
+                    <button class="btn-unified text-sm" onclick="printElement('placementSummaryTable')">
+                        <i class="fas fa-print mr-1"></i>印刷
+                    </button>
+                </div>
+                <div id="placementSummaryTable"></div>
+            </div>
+
+            <!-- 部門別充足率 -->
+            <div class="glass-card p-6">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-lg font-bold">部門別充足率（%）</h3>
+                    <button class="btn-unified text-sm" onclick="printCanvas('departmentChart')">
+                        <i class="fas fa-print mr-1"></i>印刷
+                    </button>
+                </div>
+                <div class="h-72">
+                    <canvas id="departmentChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 時間帯別配置人数（部門別） -->
+            <div class="glass-card p-6">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-lg font-bold">時間帯別配置人数（部門別）</h3>
+                    <button class="btn-unified text-sm" onclick="printCanvas('timeSlotChartDept')">
+                        <i class="fas fa-print mr-1"></i>印刷
+                    </button>
+                </div>
+                <div class="h-72">
+                    <canvas id="timeSlotChartDept"></canvas>
+                </div>
+            </div>
+
+            <!-- 時間帯別配置人数（曜日別） -->
+            <div class="glass-card p-6">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-lg font-bold">時間帯別配置人数（曜日別）</h3>
+                    <button class="btn-unified text-sm" onclick="printCanvas('timeSlotChartDay')">
+                        <i class="fas fa-print mr-1"></i>印刷
+                    </button>
+                </div>
+                <div class="h-72">
+                    <canvas id="timeSlotChartDay"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+// V2統一配色定義
+const V2_COLORS = {
+    '血液浄化': '#FFB6C1',
+    '人工心肺・補助循環': '#4169E1', 
+    '心・カテーテル': '#32CD32',
+    '手術・麻酔': '#87CEEB',
+    '不整脈': '#9370DB',
+    '機器管理・人工呼吸': '#90EE90',
+    '会議・ミーティング・勉強会・打ち合わせ': '#FFD700',
+    '出張・研修内容': '#FFA07A',
+    'その他・連絡': '#D3D3D3'
+};
+
+// 特別カテゴリのキーワード定義
+const SPECIAL_KEYWORDS = {
+    '会議・ミーティング・勉強会・打ち合わせ': ['会議', 'ミーティング', '勉強会', '打ち合わせ', 'カンファレンス'],
+    '出張・研修内容': ['出張', '研修', '学会', 'セミナー', '講習'],
+    'その他・連絡': ['その他', '連絡', '雑務', '調整', '確認']
+};
+        
+        // グローバル変数とチャートインスタンス
+let chartInstances = {
+    departmentChart: null,
+    timeSlotChartDept: null,
+    timeSlotChartDay: null
+};
+
+let currentUserData = null;
+let allData = {
+    events: [],
+    monthlyTasks: [],
+    workSchedules: []
+};
+
+// CE数とQuick Stats更新用
+let globalCECount = 0;
+
+// 認証とログアウト処理
+window.handleLogout = async () => {
+    try {
+        if (window.auth && window.auth.currentUser) {
+            await window.auth.signOut();
+        }
+    } catch (error) {
+        console.error('ログアウトエラー:', error);
+    } finally {
+        sessionStorage.clear();
+        localStorage.clear();
+        window.location.href = '../index.html';
+    }
+};
+
+// 初期化
+async function init() {
+    try {
+        const authSuccess = await AuthGuard.init();
+        if (!authSuccess) return;
+
+        const userData = await AuthGuard.getUserData();
+        if (!userData || !userData.setupCompleted) {
+            location.href = '../index.html';
+            return;
+        }
+
+        currentUserData = userData;
+        showInterface();
+        await loadAllData();
+        setupDateInputs();
+        initCharts();
+        
+    } catch (error) {
+        console.error('初期化エラー:', error);
+        location.href = '../index.html';
+    }
+}
+
+function showInterface() {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'block';
+    
+    const displayName = currentUserData.displayName || currentUserData.username || 'ユーザー';
+    document.getElementById('currentUserDisplay').textContent = displayName;
+}
+
+function setupDateInputs() {
+    const today = new Date();
+    const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    
+    document.getElementById('startDate').value = oneWeekAgo.toISOString().split('T')[0];
+    document.getElementById('endDate').value = today.toISOString().split('T')[0];
+}
+
+// データロード（V2構造対応）
+async function loadAllData() {
+    try {
+        const [eventsSnapshot, monthlySnapshot, ceListSnapshot] = await Promise.all([
+            window.database.ref(`${window.DATA_ROOT}/events`).once('value'),
+            window.database.ref(`${window.DATA_ROOT}/monthlyTasks`).once('value'),
+            window.database.ref(`${window.DATA_ROOT}/ceList`).once('value')
+        ]);
+
+        // 日別業務データの処理
+        const eventsData = eventsSnapshot.val() || {};
+        if (eventsData.byDate) {
+            Object.entries(eventsData.byDate).forEach(([date, events]) => {
+                if (events && typeof events === 'object') {
+                    Object.entries(events).forEach(([id, event]) => {
+                        allData.events.push({
+                            ...event,
+                            id,
+                            date,
+                            assignedCount: event.assignedCEs ? event.assignedCEs.length : 0
+                        });
+                    });
+                }
+            });
+        }
+
+        // 月次業務データの処理
+        const monthlyData = monthlySnapshot.val() || {};
+        Object.entries(monthlyData).forEach(([month, tasks]) => {
+            if (tasks && typeof tasks === 'object') {
+                Object.entries(tasks).forEach(([id, task]) => {
+                    allData.monthlyTasks.push({
+                        ...task,
+                        id,
+                        month,
+                        assignedCount: task.assignedCEs ? task.assignedCEs.length : 0
+                    });
+                });
+            }
+        });
+
+        // CE数の算出（V1/V2両対応）
+        const ceListData = ceListSnapshot.val() || {};
+        if (Array.isArray(ceListData.list)) {
+            // V2形式: ceList.list配列
+            globalCECount = ceListData.list.filter(Boolean).length;
+        } else {
+            // V1形式: ルート直下のオブジェクト
+            const denyList = new Set(['list','updatedAt','lastUpdated','timestamp','state','templates','metadata','default','scheduleData','workTypeOverrides']);
+            globalCECount = Object.keys(ceListData).filter(k => !denyList.has(k)).length;
+        }
+
+        console.log('データ読み込み完了:', allData, 'CE数:', globalCECount);
+    } catch (error) {
+        console.error('データ読み込みエラー:', error);
+    }
+}
+
+// チャート初期化
+function initCharts() {
+    // 部門別充足率チャート
+    const deptCtx = document.getElementById('departmentChart').getContext('2d');
+    chartInstances.departmentChart = new Chart(deptCtx, {
+        type: 'bar',
+        data: {
+            labels: ['血液浄化', '人工心肺・補助循環', '心・カテーテル', '手術・麻酔', '不整脈', '機器管理・人工呼吸'],
+            datasets: [{
+                label: '充足率(%)',
+                data: [],
+                backgroundColor: ['#FFB6C180', '#4169E180', '#32CD3280', '#87CEEB80', '#9370DB80', '#90EE9080'],
+                borderColor: ['#FFB6C1', '#4169E1', '#32CD32', '#87CEEB', '#9370DB', '#90EE90'],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { 
+                    beginAtZero: true, 
+                    max: 120, 
+                    ticks: { callback: v => v + '%' } 
+                }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // 時間帯別配置チャート（部門別）
+    const timeSlotDeptCtx = document.getElementById('timeSlotChartDept').getContext('2d');
+chartInstances.timeSlotChartDept = new Chart(timeSlotDeptCtx, {
+    type: 'line',
+    data: { labels: [], datasets: [] },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: { beginAtZero: true, title: { display: true, text: '配置人数' } },
+            x: { title: { display: true, text: '時間帯' } }
+        },
+        plugins: { legend: { position: 'top' } }
+    }
+});
+
+    // 時間帯別配置チャート（曜日別）
+    const timeSlotDayCtx = document.getElementById('timeSlotChartDay').getContext('2d');
+    chartInstances.timeSlotChartDay = new Chart(timeSlotDayCtx, {
+        type: 'line',
+        data: { labels: [], datasets: [] },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+
+// 統計カード更新関数
+function updateQuickStats(filteredEvents, filteredMonthlyTasks) {
+    const all = [...filteredEvents, ...filteredMonthlyTasks];
+    const totalTasks = all.length;
+    
+    // 総配置数の計算
+    const totalAssignments = all.reduce((sum, e) => {
+        if (Array.isArray(e.assignedCEs)) {
+            return sum + e.assignedCEs.length;
+        }
+        return sum + (e.assignedCount || 0);
+    }, 0);
+
+    // 総勤務時間の計算（時間×配置人数で算出）
+    const totalHours = all.reduce((sum, e) => {
+        if (e.startTime && e.endTime) {
+            const [startHour, startMin = 0] = e.startTime.split(':').map(Number);
+            const [endHour, endMin = 0] = e.endTime.split(':').map(Number);
+            const startMinutes = startHour * 60 + startMin;
+            const endMinutes = endHour * 60 + endMin;
+            const duration = (endMinutes > startMinutes) ? (endMinutes - startMinutes) / 60 : 0;
+            const assignedCount = Array.isArray(e.assignedCEs) ? e.assignedCEs.length : (e.assignedCount || 0);
+            return sum + (duration * assignedCount);
+        }
+        return sum;
+    }, 0);
+
+    // 平均稼働率の計算
+    const totalCEs = globalCECount || 0;
+    const avgUtil = (totalCEs > 0 && totalTasks > 0)
+        ? Math.min(100, Math.round((totalAssignments / (totalTasks * totalCEs)) * 100))
+        : 0;
+
+    // DOM要素の更新
+    document.getElementById('totalTasks').textContent = `${totalTasks}件`;
+    document.getElementById('registeredCEs').textContent = `${totalCEs}名`;
+    document.getElementById('totalAssignments').textContent = `${totalAssignments}件`;
+    document.getElementById('avgUtilization').textContent = `${avgUtil}%`;
+    document.getElementById('totalHours').textContent = `${Math.round(totalHours * 10) / 10}時間`;
+}
+        
+// 分析実行
+async function analyzeData() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    
+    if (!startDate || !endDate) {
+        alert('期間を選択してください');
+        return;
+    }
+
+    // データフィルタリング
+    const filteredEvents = allData.events.filter(event => 
+        event.date >= startDate && event.date <= endDate
+    );
+const filteredMonthlyTasks = allData.monthlyTasks.filter(task => {
+    // dateプロパティがある場合
+    if (task.date) {
+        return task.date >= startDate && task.date <= endDate;
+    }
+    // monthプロパティのみの場合（YYYY-MM形式）
+    if (task.month) {
+        const taskYearMonth = task.month.slice(0, 7); // YYYY-MM
+        const startYearMonth = startDate.slice(0, 7);
+        const endYearMonth = endDate.slice(0, 7);
+        return taskYearMonth >= startYearMonth && taskYearMonth <= endYearMonth;
+    }
+    return false;
+});
+    // 統計カード更新
+    updateQuickStats(filteredEvents, filteredMonthlyTasks);
+    
+    // V1形式のデータ構造に変換して分析
+    buildPlacementSummaryTable(filteredEvents, filteredMonthlyTasks);
+    updateDepartmentChart(filteredEvents, filteredMonthlyTasks);
+    updateTimeSlotCharts(filteredEvents, filteredMonthlyTasks);
+}
+
+// V1版から移植した集計関数群
+function buildPlacementSummaryTable(events, monthlyTasks) {
+    const container = document.getElementById('placementSummaryTable');
+    const departments = ['血液浄化', '人工心肺・補助循環', '心・カテーテル', '手術・麻酔', '不整脈', '機器管理・人工呼吸'];
+    const specialCategories = Object.keys(SPECIAL_KEYWORDS);
+    const allCategories = [...departments, ...specialCategories];
+    
+    let tableHTML = `
+        <div class="overflow-x-auto">
+            <table class="w-full border-collapse border border-gray-300 text-sm">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="border border-gray-300 p-2 text-left">カテゴリ</th>
+                        <th class="border border-gray-300 p-2 text-center">業務数</th>
+                        <th class="border border-gray-300 p-2 text-center">必要人数</th>
+                        <th class="border border-gray-300 p-2 text-center">配置人数</th>
+                        <th class="border border-gray-300 p-2 text-center">充足率</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    allCategories.forEach(category => {
+        // カテゴリ分類ロジック
+        const categoryEvents = [...events, ...monthlyTasks].filter(e => {
+            if (departments.includes(category)) {
+                return e.department === category;
+            }
+            
+            // 特別カテゴリの判定
+            const eventText = ((e.title || e.name || '') + ' ' + (e.content || e.description || '')).toLowerCase();
+            const keywords = SPECIAL_KEYWORDS[category] || [];
+            return keywords.some(keyword => eventText.toLowerCase().includes(keyword.toLowerCase()));
+        });
+        
+        const totalRequired = categoryEvents.reduce((sum, e) => sum + (e.requiredPeople || 1), 0);
+        const totalAssigned = categoryEvents.reduce((sum, e) => {
+            // assignedCEsとassignedCountの両方に対応
+            if (Array.isArray(e.assignedCEs)) {
+                return sum + e.assignedCEs.length;
+            }
+            return sum + (e.assignedCount || 0);
+        }, 0);
+        const coverage = totalRequired > 0 ? (totalAssigned / totalRequired * 100) : 0;
+        
+        const colorClass = coverage >= 100 ? 'text-green-600' : 
+                          coverage >= 80 ? 'text-yellow-600' : 'text-red-600';
+
+        // データがある場合のみ表示
+        if (categoryEvents.length > 0) {
+            tableHTML += `
+                <tr>
+                    <td class="border border-gray-300 p-2 font-bold">${category}</td>
+                    <td class="border border-gray-300 p-2 text-center">${categoryEvents.length}</td>
+                    <td class="border border-gray-300 p-2 text-center">${totalRequired}</td>
+                    <td class="border border-gray-300 p-2 text-center">${totalAssigned}</td>
+                    <td class="border border-gray-300 p-2 text-center font-bold ${colorClass}">${coverage.toFixed(1)}%</td>
+                </tr>
+            `;
+        }
+    });
+
+    tableHTML += '</tbody></table></div>';
+    container.innerHTML = tableHTML;
+}
+
+function updateDepartmentChart(events, monthlyTasks) {
+    const departments = ['血液浄化', '人工心肺・補助循環', '心・カテーテル', '手術・麻酔', '不整脈', '機器管理・人工呼吸'];
+    const specialCategories = Object.keys(SPECIAL_KEYWORDS);
+    const allCategories = [...departments, ...specialCategories];
+    
+    const coverageData = allCategories.map(category => {
+        const categoryEvents = [...events, ...monthlyTasks].filter(e => {
+            if (departments.includes(category)) {
+                return e.department === category;
+            }
+            
+            const eventText = ((e.title || e.name || '') + ' ' + (e.content || e.description || '')).toLowerCase();
+            const keywords = SPECIAL_KEYWORDS[category] || [];
+            return keywords.some(keyword => eventText.includes(keyword.toLowerCase()));
+        });
+        
+        const totalRequired = categoryEvents.reduce((sum, e) => sum + (e.requiredPeople || 1), 0);
+        const totalAssigned = categoryEvents.reduce((sum, e) => {
+            if (Array.isArray(e.assignedCEs)) {
+                return sum + e.assignedCEs.length;
+            }
+            return sum + (e.assignedCount || 0);
+        }, 0);
+        
+        return totalRequired > 0 ? (totalAssigned / totalRequired * 100) : 0;
+    });
+
+    // チャートラベルとデータの更新
+    chartInstances.departmentChart.data.labels = allCategories;
+    chartInstances.departmentChart.data.datasets[0].data = coverageData;
+    
+    // 色の設定
+    chartInstances.departmentChart.data.datasets[0].backgroundColor = allCategories.map(category => {
+        const color = V2_COLORS[category] || '#cccccc';
+        return color + '80';
+    });
+    chartInstances.departmentChart.data.datasets[0].borderColor = allCategories.map(category => {
+        return V2_COLORS[category] || '#cccccc';
+    });
+    
+    chartInstances.departmentChart.update();
+}
+
+function updateTimeSlotCharts(events, monthlyTasks) {
+    // 時間帯別のデータ集計と更新
+    const timeSlots = Array.from({length: 12}, (_, i) => `${7+i}:00`);
+const departments = ['血液浄化', '人工心肺・補助循環', '心・カテーテル', '手術・麻酔', '不整脈', '機器管理・人工呼吸'];
+const specialCategories = Object.keys(SPECIAL_KEYWORDS);
+const allCategories = [...departments, ...specialCategories];
+
+// 拡張カテゴリ別チャート更新（折線グラフ）
+const deptData = calculateTimeSlotDataExtended([...events, ...monthlyTasks], timeSlots, allCategories);
+
+chartInstances.timeSlotChartDept.data.labels = timeSlots;
+chartInstances.timeSlotChartDept.data.datasets = allCategories.map(category => ({
+    label: category,
+    data: timeSlots.map(slot => deptData[slot]?.[category] || 0),
+    borderColor: V2_COLORS[category],
+    backgroundColor: V2_COLORS[category] + '20',
+    fill: false,
+    tension: 0.4,
+    borderWidth: 2
+}));
+    chartInstances.timeSlotChartDept.update();
+
+    // 曜日別チャート更新
+    const dayData = calculateTimeSlotData([...events, ...monthlyTasks], timeSlots, ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'], 'day');
+    const dayLabels = ['月', '火', '水', '木', '金', '土', '日'];
+    const dayColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#A1BBE6', '#D4A6E1'];
+    
+    chartInstances.timeSlotChartDay.data.labels = timeSlots;
+    chartInstances.timeSlotChartDay.data.datasets = dayLabels.map((label, idx) => ({
+        label: label,
+        data: timeSlots.map(slot => dayData[slot]?.[['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'][idx]] || 0),
+        borderColor: dayColors[idx],
+        backgroundColor: dayColors[idx] + '20',
+        fill: false,
+        tension: 0.4
+    }));
+    chartInstances.timeSlotChartDay.update();
+}
+
+function calculateTimeSlotData(allEvents, timeSlots, groups, type) {
+    const result = {};
+    timeSlots.forEach(slot => {
+        result[slot] = {};
+        groups.forEach(group => result[slot][group] = 0);
+    });
+
+    allEvents.forEach(event => {
+        if (!event.startTime || !event.endTime) return;
+        
+        const startHour = parseInt(event.startTime.split(':')[0]);
+        const endHour = parseInt(event.endTime.split(':')[0]);
+        
+        timeSlots.forEach(slot => {
+            const slotHour = parseInt(slot.split(':')[0]);
+            if (slotHour >= startHour && slotHour <= endHour) {
+                if (type === 'department') {
+                    result[slot][event.department] = (result[slot][event.department] || 0) + event.assignedCount;
+                } else if (type === 'day' && event.date) {
+                    const dayOfWeek = new Date(event.date).getDay();
+                    const dayKey = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][dayOfWeek];
+                    result[slot][dayKey] = (result[slot][dayKey] || 0) + event.assignedCount;
+                }
+            }
+        });
+    });
+
+    return result;
+}
+
+        // 拡張カテゴリ対応の集計関数
+function calculateTimeSlotDataExtended(allEvents, timeSlots, categories) {
+    const result = {};
+    timeSlots.forEach(slot => {
+        result[slot] = {};
+        categories.forEach(category => result[slot][category] = 0);
+    });
+
+    allEvents.forEach(event => {
+        if (!event.startTime || !event.endTime) return;
+        
+        const startHour = parseInt(event.startTime.split(':')[0]);
+        const endHour = parseInt(event.endTime.split(':')[0]);
+        
+        // 安全なassignedCount取得
+        const assignedCount = Array.isArray(event.assignedCEs) ? 
+            event.assignedCEs.length : (event.assignedCount || 0);
+        
+        // カテゴリ分類
+        let eventCategory = event.department;
+        
+        // 特別カテゴリの判定
+        const eventText = ((event.title || event.name || '') + ' ' + (event.content || event.description || '')).toLowerCase();
+        
+        for (const [category, keywords] of Object.entries(SPECIAL_KEYWORDS)) {
+            if (keywords.some(keyword => eventText.includes(keyword.toLowerCase()))) {
+                eventCategory = category;
+                break;
+            }
+        }
+        
+        // 時間帯別集計
+        timeSlots.forEach(slot => {
+            const slotHour = parseInt(slot.split(':')[0]);
+            if (slotHour >= startHour && slotHour <= endHour) {
+                if (categories.includes(eventCategory)) {
+                    result[slot][eventCategory] = (result[slot][eventCategory] || 0) + assignedCount;
+                }
+            }
+        });
+    });
+
+    return result;
+}
+
+// 印刷機能
+function printElement(elementId) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    const printWindow = window.open('', 'printWindow');
+    const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+                    .map(link => link.outerHTML).join('');
+
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>印刷</title>
+                ${styles}
+                <style>body { margin: 20px; } .no-print { display: none !important; }</style>
+            <link rel="stylesheet" href="../css/theme-unified.css?v=20241217">
+            </head>
+            <body>${element.outerHTML}</body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+}
+
+function printCanvas(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    
+    const printWindow = window.open('', 'printCanvas');
+    printWindow.document.write(`
+        <html>
+            <head><title>グラフ印刷</title></head>
+            <body style="margin: 20px; text-align: center;">
+                <img src="${canvas.toDataURL('image/png')}" style="max-width: 100%; height: auto;"/>
+            </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+}
+
+// グローバル関数の登録
+window.analyzeData = analyzeData;
+window.printElement = printElement;
+window.printCanvas = printCanvas;
+
+// 初期化実行
+document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

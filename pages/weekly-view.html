@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>週間表示 - CEスケジュール管理システム V2</title>
+    
+    <!-- 外部ライブラリ -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/theme-unified.css?v=20241217">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="../js/config/firebase-config.js"></script>
+
+    <!-- 監査ログシステム -->
+    <script src="../js/utils/audit-logger.js"></script>
+
+    <!-- 既存モジュール -->
+    <script src="../js/data/constants.js?v=20241213"></script>
+    <script src="../js/utils/ui-utils.js?v=20241213"></script>
+    <script src="../js/utils/date-utils.js?v=20241213"></script>
+    <script src="../js/core/auth-guard.js"></script>
+    <script src="../js/ui/ce-manager.js?v=20241213"></script>
+    <script src="../js/schedule/published-schedule-resolver.js"></script>
+
+    <style>
+        /* 週間表示専用スタイル */
+        .weekly-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .weekly-header {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95));
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .weekly-navigation {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .weekly-filter {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .filter-checkboxes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .filter-checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .filter-checkbox-label:hover {
+            background: rgba(0,0,0,0.05);
+        }
+
+        .weekly-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .day-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+        }
+
+        .day-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+
+        .day-card.today {
+            border-color: #3b82f6;
+            border-width: 2px;
+        }
+
+        .day-card-header {
+            text-align: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid rgba(0,0,0,0.1);
+        }
+
+        .day-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .day-title.today {
+            color: #3b82f6;
+        }
+
+        .day-summary {
+            text-align: center;
+            margin-bottom: 16px;
+            padding: 12px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 8px;
+        }
+
+        .department-section {
+            background: rgba(255,255,255,0.85);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 12px;
+            border-left: 4px solid var(--dept-color);
+        }
+
+        .dept-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .dept-name {
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .task-item {
+            background: rgba(255,255,255,0.9);
+            border-radius: 8px;
+            padding: 8px;
+            margin: 6px 0;
+            border-left: 3px solid var(--dept-color);
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .task-item:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        }
+
+        .task-title {
+            font-weight: bold;
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .task-info {
+            font-size: 11px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+
+        .task-memo {
+            font-size: 10px;
+            color: #059669;
+            background: #f0fdf4;
+            padding: 4px 6px;
+            border-radius: 4px;
+            margin-top: 4px;
+            font-style: italic;
+            border-left: 2px solid #10b981;
+        }
+
+        .ce-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 6px;
+        }
+
+        .ce-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 500;
+            white-space: nowrap;
+            position: relative;
+        }
+
+        /* 勤務区分別色分け */
+        .ce-chip.worktype-ope { background: #07E1FF; color: #1E3A8A; }
+        .ce-chip.worktype-me { background: #CCFFCC; color: #006400; }
+        .ce-chip.worktype-hd { background: #FFBCD4; color: #8B008B; }
+        .ce-chip.worktype-flex { background: #FFFF00; color: #B8860B; }
+        .ce-chip.worktype-error { background: #fee2e2; color: #dc2626; }
+
+        .status-badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            background: #4CAF50;
+            color: white;
+            font-size: 7px;
+            padding: 1px 2px;
+            border-radius: 2px;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .status-badge.status-A1 { background: #0000FF; }
+        .status-badge.status-× { background: #FFFFFF; color: #333; border: 1px solid #ddd; }
+        .status-badge.status-年 { background: #2196F3; }
+        .status-badge.status-出 { background: #2196F3; }
+        .status-badge.status-研 { background: #795548; }
+
+        .monthly-badge {
+            background: #f97316;
+            color: white;
+            font-size: 8px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: bold;
+            margin-left: 4px;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255,255,255,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        /* 印刷モード選択モーダル */
+        .print-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .print-modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .print-option {
+            padding: 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .print-option:hover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        .print-option input[type="radio"] {
+            margin-right: 12px;
+        }
+
+        /* 印刷用スタイル - コンパクトモード（週全体を1ページ） */
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 10mm;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            body {
+                background: white;
+                font-size: 9px;
+            }
+
+            .weekly-container {
+                max-width: 100%;
+                padding: 0;
+                margin: 0;
+            }
+
+            .weekly-header {
+                background: white;
+                box-shadow: none;
+                border: 1px solid #ddd;
+                padding: 8px;
+                margin-bottom: 8px;
+                page-break-after: avoid;
+            }
+
+            .weekly-header h1 {
+                font-size: 14px;
+            }
+
+            .weekly-filter {
+                display: none;
+            }
+
+            /* デフォルト: コンパクトモード（1ページ） */
+            body:not(.print-mode-department) .weekly-grid {
+                display: grid;
+                grid-template-columns: repeat(7, 1fr);
+                gap: 4px;
+                page-break-inside: avoid;
+            }
+
+            body:not(.print-mode-department) .day-card {
+                background: white;
+                border: 1px solid #ddd;
+                box-shadow: none;
+                padding: 4px;
+                page-break-inside: avoid;
+                font-size: 8px;
+            }
+
+            body:not(.print-mode-department) .day-card-header {
+                padding-bottom: 4px;
+                margin-bottom: 4px;
+            }
+
+            body:not(.print-mode-department) .day-title {
+                font-size: 10px;
+            }
+
+            body:not(.print-mode-department) .day-summary {
+                padding: 4px;
+                margin-bottom: 4px;
+                font-size: 8px;
+            }
+
+            body:not(.print-mode-department) .department-section {
+                padding: 4px;
+                margin-bottom: 4px;
+            }
+
+            body:not(.print-mode-department) .dept-header {
+                margin-bottom: 2px;
+            }
+
+            body:not(.print-mode-department) .dept-name {
+                font-size: 9px;
+            }
+
+            body:not(.print-mode-department) .task-item {
+                page-break-inside: avoid;
+                font-size: 7px;
+                padding: 3px;
+                margin: 2px 0;
+            }
+
+            body:not(.print-mode-department) .task-title {
+                font-size: 8px;
+            }
+
+            body:not(.print-mode-department) .task-info {
+                font-size: 7px;
+            }
+
+            body:not(.print-mode-department) .task-memo {
+                font-size: 7px;
+                padding: 2px 4px;
+                margin-top: 2px;
+            }
+
+            body:not(.print-mode-department) .ce-chip {
+                font-size: 7px;
+                padding: 1px 3px;
+                border: 1px solid #ddd;
+            }
+
+            /* 部門別モード */
+            body.print-mode-department .weekly-grid {
+                display: block;
+            }
+
+            body.print-mode-department .day-card {
+                background: white;
+                border: 1px solid #ddd;
+                box-shadow: none;
+                padding: 8px;
+                margin-bottom: 12px;
+                page-break-inside: avoid;
+            }
+
+            body.print-mode-department .department-section {
+                page-break-after: always;
+                padding: 12px;
+                margin-bottom: 0;
+            }
+
+            body.print-mode-department .department-section:last-child {
+                page-break-after: auto;
+            }
+
+            .day-card:hover {
+                transform: none;
+                box-shadow: none;
+            }
+        }
+
+        /* モバイル対応 */
+        @media (max-width: 768px) {
+            .weekly-container {
+                padding: 12px;
+            }
+
+            .weekly-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .filter-checkboxes {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .day-card {
+                padding: 12px;
+            }
+        }
+    </style>
+
+    <!-- PWA設定 -->
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="theme-color" content="#34495E">
+    <link rel="icon" type="image/x-icon" href="../assets/icons/app-icons/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="../assets/icons/app-icons/apple-touch-icon.png">
+</head>
+<body class="theme-unified">
+    <!-- ローディング -->
+    <div id="loading" class="loading-overlay">
+        <div class="text-center">
+            <div class="spinner mb-4"></div>
+            <p class="text-gray-600">週間スケジュールを読み込んでいます...</p>
+        </div>
+    </div>
+
+    <!-- 印刷モード選択モーダル -->
+    <div id="printModal" class="print-modal no-print" style="display: none;">
+        <div class="print-modal-content">
+            <h2 class="text-xl font-bold mb-4">
+                <i class="fas fa-print mr-2 text-blue-600"></i>印刷モード選択
+            </h2>
+            <p class="text-sm text-gray-600 mb-4">印刷レイアウトを選択してください</p>
+
+            <div class="space-y-3">
+                <!-- コンパクトモード -->
+                <label class="print-option">
+                    <input type="radio" name="printMode" value="compact" checked>
+                    <div>
+                        <div class="font-bold text-base mb-1">
+                            <i class="fas fa-compress-alt mr-2 text-green-600"></i>コンパクトモード（推奨）
+                        </div>
+                        <div class="text-sm text-gray-600">
+                            週全体を1ページに収めます（A4横向き推奨）<br>
+                            <span class="text-xs text-gray-500">※最もコンパクトで見やすい</span>
+                        </div>
+                    </div>
+                </label>
+
+                <!-- 部門別モード -->
+                <label class="print-option">
+                    <input type="radio" name="printMode" value="department">
+                    <div>
+                        <div class="font-bold text-base mb-1">
+                            <i class="fas fa-layer-group mr-2 text-blue-600"></i>部門別モード
+                        </div>
+                        <div class="text-sm text-gray-600">
+                            部門ごとに改ページして詳細表示<br>
+                            <span class="text-xs text-gray-500">※複数ページになりますが詳細が見やすい</span>
+                        </div>
+                    </div>
+                </label>
+            </div>
+
+            <div class="mt-6 flex gap-3">
+                <button id="cancelPrintBtn" class="btn-unified btn-outline-unified flex-1">
+                    <i class="fas fa-times mr-2"></i>キャンセル
+                </button>
+                <button id="executePrintBtn" class="btn-unified btn-primary-unified flex-1">
+                    <i class="fas fa-print mr-2"></i>印刷実行
+                </button>
+            </div>
+
+            <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div class="text-xs text-blue-800">
+                    <i class="fas fa-info-circle mr-1"></i><strong>印刷のヒント</strong><br>
+                    • コンパクトモードは<strong>A4横向き</strong>がおすすめです<br>
+                    • 印刷ダイアログで「背景のグラフィック」をONにすると色が表示されます<br>
+                    • PDFとして保存する場合は「送信先」を「PDFに保存」に変更してください
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- メインコンテンツ -->
+    <div id="mainContent" class="weekly-container" style="display:none;">
+        <!-- ヘッダー -->
+        <div class="weekly-header">
+            <div class="flex items-center justify-between mb-4">
+                <h1 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-calendar-week mr-2 text-blue-600"></i>
+                    週間スケジュール
+                </h1>
+                <div class="flex gap-2 no-print">
+                    <button id="printPdfBtn" class="btn-unified btn-primary-unified btn-small">
+                        <i class="fas fa-file-pdf mr-1"></i>PDF出力
+                    </button>
+                    <a href="./schedule.html" class="btn-unified btn-outline-unified btn-small">
+                        <i class="fas fa-calendar-day mr-1"></i>日別表示
+                    </a>
+                    <a href="./home.html" class="btn-unified btn-outline-unified btn-small">
+                        <i class="fas fa-home mr-1"></i>HOME
+                    </a>
+                </div>
+            </div>
+
+            <!-- 週間ナビゲーション -->
+            <div class="weekly-navigation">
+                <button id="prevWeekBtn" class="btn-unified btn-outline-unified btn-small no-print">
+                    <i class="fas fa-chevron-left"></i> 前週
+                </button>
+                <div class="text-center">
+                    <h2 id="weekDisplay" class="text-lg font-semibold text-gray-700"></h2>
+                    <p class="text-sm text-gray-500">週間スケジュール概要</p>
+                </div>
+                <button id="nextWeekBtn" class="btn-unified btn-outline-unified btn-small no-print">
+                    次週 <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+
+            <div class="text-center mt-4 no-print">
+                <button id="todayBtn" class="btn-unified btn-primary-unified btn-small">
+                    <i class="fas fa-calendar-day mr-1"></i>今週
+                </button>
+            </div>
+        </div>
+
+        <!-- 部門フィルター -->
+        <div class="weekly-filter no-print">
+            <h3 class="text-sm font-semibold mb-3">
+                <i class="fas fa-filter mr-2"></i>表示部門フィルター
+            </h3>
+            <div id="filterCheckboxes" class="filter-checkboxes">
+                <!-- チェックボックスが動的に生成されます -->
+            </div>
+        </div>
+
+        <!-- 週間グリッド -->
+        <div id="weeklyGrid" class="weekly-grid">
+            <!-- 各曜日のカードが動的に生成されます -->
+        </div>
+    </div>
+
+    <script>
+        // 週間表示管理クラス
+        class WeeklyViewManager {
+            constructor() {
+                this.isInitialized = false;
+                this.selectedWeekStart = this.getStartOfWeek(new Date());
+                this.monthlyTasks = {};
+            }
+
+            async init() {
+                if (this.isInitialized) return;
+                this.isInitialized = true;
+
+                try {
+                    const authSuccess = await AuthGuard.init();
+                    if (!authSuccess) return;
+
+                    const userData = await AuthGuard.getUserData();
+                    if (!userData || !userData.setupCompleted) {
+                        location.href = '../index.html';
+                        return;
+                    }
+
+                    window.userRole = userData.role || 'viewer';
+                    window.currentUserData = userData;
+
+                    if (!window.ceManager && window.CEManager) {
+                        window.ceManager = new window.CEManager();
+                    }
+
+                    if (!window.publishedScheduleResolver && window.PublishedScheduleResolver) {
+                        window.publishedScheduleResolver = new window.PublishedScheduleResolver();
+                    }
+
+                    this.setupEventListeners();
+                    this.initDepartmentFilter();
+                    await this.renderWeeklyView();
+
+                    if (window.auditLogger) {
+                        await window.auditLogger.logPageAccess('weekly-view');
+                    }
+
+                    this.showContent();
+                    console.log('✅ 週間表示初期化完了');
+
+                } catch (error) {
+                    console.error('❌ 週間表示初期化エラー:', error);
+                    window.showMessage('週間表示の初期化に失敗しました', 'error');
+                }
+            }
+
+            showContent() {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+            }
+
+            getStartOfWeek(date) {
+                const d = new Date(date);
+                const day = d.getDay();
+                const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+                d.setDate(diff);
+                d.setHours(0, 0, 0, 0);
+                return d;
+            }
+
+            formatDate(date) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
+            setupEventListeners() {
+                document.getElementById('prevWeekBtn').onclick = () => this.navigateWeek(-1);
+                document.getElementById('nextWeekBtn').onclick = () => this.navigateWeek(1);
+                document.getElementById('todayBtn').onclick = () => this.goToCurrentWeek();
+                document.getElementById('printPdfBtn').onclick = () => this.showPrintModal();
+
+                // 印刷モーダルのイベント
+                document.getElementById('cancelPrintBtn').onclick = () => this.hidePrintModal();
+                document.getElementById('executePrintBtn').onclick = () => this.executePrint();
+            }
+
+            navigateWeek(weeks) {
+                this.selectedWeekStart.setDate(this.selectedWeekStart.getDate() + (weeks * 7));
+                this.renderWeeklyView();
+            }
+
+            goToCurrentWeek() {
+                this.selectedWeekStart = this.getStartOfWeek(new Date());
+                this.renderWeeklyView();
+            }
+
+            // 印刷モーダル表示
+            showPrintModal() {
+                document.getElementById('printModal').style.display = 'flex';
+            }
+
+            // 印刷モーダル非表示
+            hidePrintModal() {
+                document.getElementById('printModal').style.display = 'none';
+            }
+
+            // 印刷実行
+            executePrint() {
+                const selectedMode = document.querySelector('input[name="printMode"]:checked').value;
+                
+                // 印刷モードに応じてbodyクラスを設定
+                if (selectedMode === 'department') {
+                    document.body.classList.add('print-mode-department');
+                } else {
+                    document.body.classList.remove('print-mode-department');
+                }
+
+                // モーダルを閉じる
+                this.hidePrintModal();
+
+                // タイトル設定
+                const originalTitle = document.title;
+                const weekDisplay = document.getElementById('weekDisplay').textContent;
+                const modeLabel = selectedMode === 'department' ? '部門別' : 'コンパクト';
+                document.title = `週間スケジュール_${weekDisplay}_${modeLabel}`;
+
+                // 印刷実行
+                setTimeout(() => {
+                    window.print();
+                    
+                    // 印刷後にクリーンアップ
+                    setTimeout(() => {
+                        document.title = originalTitle;
+                        document.body.classList.remove('print-mode-department');
+                    }, 100);
+                }, 100);
+
+                // 監査ログ記録
+                if (window.auditLogger) {
+                    window.auditLogger.logAction('weekly-view-print', {
+                        weekStart: this.formatDate(this.selectedWeekStart),
+                        weekDisplay: weekDisplay,
+                        printMode: selectedMode
+                    });
+                }
+            }
+
+            initDepartmentFilter() {
+                const container = document.getElementById('filterCheckboxes');
+                if (!container) return;
+
+                const departments = window.DEPARTMENTS || [];
+                const savedFilter = this.loadDepartmentFilter();
+
+                container.innerHTML = departments.map(dept => {
+                    const checked = savedFilter[dept] !== false ? 'checked' : '';
+                    const color = window.DEPARTMENT_COLORS?.[dept] || '#6b7280';
+                    const icon = window.DEPARTMENT_ICONS?.[dept] || 'cog';
+                    return `
+                        <label class="filter-checkbox-label">
+                            <input type="checkbox" 
+                                   class="dept-filter-checkbox" 
+                                   data-department="${dept}" 
+                                   ${checked}>
+                            <span style="color: ${color}; font-weight: 500;">
+                                <i class="fas fa-${icon}"></i>
+                                ${dept}
+                            </span>
+                        </label>
+                    `;
+                }).join('');
+
+                container.querySelectorAll('.dept-filter-checkbox').forEach(checkbox => {
+                    checkbox.addEventListener('change', () => {
+                        this.saveDepartmentFilter();
+                        this.renderWeeklyView();
+                    });
+                });
+            }
+
+            saveDepartmentFilter() {
+                const checkboxes = document.querySelectorAll('.dept-filter-checkbox');
+                const filter = {};
+                checkboxes.forEach(checkbox => {
+                    filter[checkbox.dataset.department] = checkbox.checked;
+                });
+                localStorage.setItem('weeklyDepartmentFilter', JSON.stringify(filter));
+            }
+
+            loadDepartmentFilter() {
+                try {
+                    const saved = localStorage.getItem('weeklyDepartmentFilter');
+                    return saved ? JSON.parse(saved) : {};
+                } catch (e) {
+                    return {};
+                }
+            }
+
+            getVisibleDepartments() {
+                const filter = this.loadDepartmentFilter();
+                const allDepartments = window.DEPARTMENTS || [];
+                
+                if (Object.keys(filter).length === 0) {
+                    return allDepartments;
+                }
+                
+                return allDepartments.filter(dept => filter[dept] !== false);
+            }
+
+            async renderWeeklyView() {
+                const container = document.getElementById('weeklyGrid');
+                const weekDisplay = document.getElementById('weekDisplay');
+                
+                if (!container || !weekDisplay) return;
+
+                container.innerHTML = '<div class="col-span-full text-center py-8"><div class="spinner"></div><p class="mt-4 text-gray-600">読み込み中...</p></div>';
+
+                const startOfWeek = new Date(this.selectedWeekStart);
+                const endOfWeek = new Date(this.selectedWeekStart);
+                endOfWeek.setDate(endOfWeek.getDate() + 6);
+
+                weekDisplay.textContent = `${this.formatDate(startOfWeek)} - ${this.formatDate(endOfWeek)}`;
+
+                const visibleDepartments = this.getVisibleDepartments();
+                const daysOfWeek = ['月', '火', '水', '木', '金', '土', '日'];
+
+                const weekDataPromises = [];
+                for (let i = 0; i < 7; i++) {
+                    const currentDate = new Date(startOfWeek);
+                    currentDate.setDate(startOfWeek.getDate() + i);
+                    const dateKey = this.formatDate(currentDate);
+                    weekDataPromises.push(this.getDayData(currentDate, dateKey, daysOfWeek[i]));
+                }
+
+                const weekData = await Promise.all(weekDataPromises);
+
+                container.innerHTML = '';
+
+                for (const dayInfo of weekData) {
+                    const dayCard = await this.createDayCard(dayInfo, visibleDepartments);
+                    container.appendChild(dayCard);
+                }
+            }
+
+            async getDayData(date, dateKey, dayLabel) {
+                const snap = await window.database.ref(`${window.DATA_ROOT}/events/byDate/${dateKey}`).once('value');
+                const eventsById = snap.val() || {};
+                const dailyEvents = Object.values(eventsById);
+
+                const yearMonth = dateKey.substring(0, 7);
+                const monthlySnap = await window.database.ref(`${window.DATA_ROOT}/monthlyTasks/${yearMonth}`).once('value');
+                const monthlyTasks = monthlySnap.val() || {};
+                
+                const dailyMonthlyTasks = Object.values(monthlyTasks).filter(task => {
+                    const assignedForDate = task.assignedCEs && task.assignedCEs[dateKey] && task.assignedCEs[dateKey].length > 0;
+                    const actualForDate = task.dailyActuals && task.dailyActuals[dateKey] && task.dailyActuals[dateKey].count > 0;
+                    return assignedForDate || actualForDate;
+                }).map(task => ({
+                    ...task,
+                    isMonthly: true,
+                    assignedCEs: (task.assignedCEs && task.assignedCEs[dateKey]) ? task.assignedCEs[dateKey] : [],
+                    dailyActuals: (task.dailyActuals && task.dailyActuals[dateKey]) ? task.dailyActuals[dateKey] : { count: 0 }
+                }));
+
+                return {
+                    date: date,
+                    dateKey: dateKey,
+                    dayLabel: dayLabel,
+                    events: dailyEvents,
+                    monthlyTasks: dailyMonthlyTasks
+                };
+            }
+
+            async createDayCard(dayInfo, departments) {
+                const dayCard = document.createElement('div');
+                dayCard.className = 'day-card';
+                
+                const today = new Date();
+                const isToday = dayInfo.date.toDateString() === today.toDateString();
+                if (isToday) {
+                    dayCard.classList.add('today');
+                }
+
+                let totalDayRequired = 0;
+                let totalDayAssigned = 0;
+                let departmentSections = '';
+
+                for (const dept of departments) {
+                    const deptEvents = dayInfo.events.filter(e => e.department === dept);
+                    const deptMonthlyTasks = dayInfo.monthlyTasks.filter(t => t.department === dept);
+
+                    if (deptEvents.length === 0 && deptMonthlyTasks.length === 0) continue;
+
+                    const deptColor = window.DEPARTMENT_COLORS?.[dept] || '#6b7280';
+                    let deptAssigned = 0;
+                    let deptRequired = 0;
+                    let tasksHtml = '';
+
+                    for (const event of deptEvents) {
+                        const normalizedAssigned = await this.normalizeAssignedCEs(event.assignedCEs || []);
+                        const assignedCount = normalizedAssigned.length;
+                        const need = Number.isFinite(event.requiredPeople) ? event.requiredPeople : 0;
+                        
+                        deptAssigned += assignedCount;
+                        deptRequired += need;
+                        totalDayAssigned += assignedCount;
+                        totalDayRequired += need;
+
+                        const ceChipsHtml = await this.generateCEChipsWithStatus(normalizedAssigned, dayInfo.dateKey);
+                        const memoHtml = event.description ? 
+                            `<div class="task-memo"><i class="fas fa-sticky-note mr-1"></i>${this.escapeHtml(event.description)}</div>` : '';
+
+                        tasksHtml += `
+                            <div class="task-item" style="--dept-color: ${deptColor}">
+                                <div class="task-title">
+                                    <span><i class="fas fa-briefcase mr-1"></i>${this.escapeHtml(event.name)}</span>
+                                    <span class="text-xs text-gray-500">${event.startTime || ''}-${event.endTime || ''}</span>
+                                </div>
+                                <div class="task-info">
+                                    ${event.count > 0 ? `${event.count}件 | ` : ''}必要: ${need}名 / 配置: ${assignedCount}名
+                                </div>
+                                ${memoHtml}
+                                <div class="ce-chips">${ceChipsHtml}</div>
+                            </div>
+                        `;
+                    }
+
+                    for (const task of deptMonthlyTasks) {
+                        const normalizedAssigned = await this.normalizeAssignedCEs(task.assignedCEs || []);
+                        const assignedCount = normalizedAssigned.length;
+                        const need = Number.isFinite(task.requiredPeople) ? task.requiredPeople : 0;
+
+                        deptAssigned += assignedCount;
+                        deptRequired += need;
+                        totalDayAssigned += assignedCount;
+                        totalDayRequired += need;
+
+                        const ceChipsHtml = await this.generateCEChipsWithStatus(normalizedAssigned, dayInfo.dateKey);
+                        const actualCount = task.dailyActuals?.count || 0;
+                        const memoHtml = task.description ? 
+                            `<div class="task-memo"><i class="fas fa-sticky-note mr-1"></i>${this.escapeHtml(task.description)}</div>` : '';
+
+                        tasksHtml += `
+                            <div class="task-item" style="--dept-color: ${deptColor}">
+                                <div class="task-title">
+                                    <span>
+                                        <i class="fas fa-calendar-alt mr-1 text-orange-600"></i>${this.escapeHtml(task.name)}
+                                        <span class="monthly-badge">月次</span>
+                                    </span>
+                                    <span class="text-xs text-gray-500">実績: ${actualCount}件</span>
+                                </div>
+                                <div class="task-info">
+                                    必要: ${need}名 / 配置: ${assignedCount}名
+                                </div>
+                                ${memoHtml}
+                                <div class="ce-chips">${ceChipsHtml}</div>
+                            </div>
+                        `;
+                    }
+
+                    const deptPercentage = deptRequired > 0 ? Math.round((deptAssigned / deptRequired) * 100) : 0;
+                    const deptColorClass = deptPercentage >= 100 ? 'text-green-600' : deptPercentage >= 80 ? 'text-yellow-600' : 'text-red-600';
+
+                    departmentSections += `
+                        <div class="department-section" style="--dept-color: ${deptColor}">
+                            <div class="dept-header">
+                                <div class="dept-name">
+                                    <i class="fas fa-${window.DEPARTMENT_ICONS?.[dept] || 'cog'}" style="color: ${deptColor}"></i>
+                                    ${dept}
+                                </div>
+                                <div class="text-xs ${deptColorClass}">${deptAssigned}/${deptRequired}名 (${deptPercentage}%)</div>
+                            </div>
+                            ${tasksHtml}
+                        </div>
+                    `;
+                }
+
+                const overallPercentage = totalDayRequired > 0 ? Math.round((totalDayAssigned / totalDayRequired) * 100) : 0;
+                const overallColorClass = overallPercentage >= 100 ? 'text-green-700' : overallPercentage >= 80 ? 'text-yellow-700' : 'text-red-700';
+
+                dayCard.innerHTML = `
+                    <div class="day-card-header">
+                        <h3 class="day-title ${isToday ? 'today' : ''}">
+                            ${dayInfo.dayLabel}曜 (${dayInfo.date.getMonth() + 1}/${dayInfo.date.getDate()})
+                            ${isToday ? '<i class="fas fa-star ml-1 text-yellow-500"></i>' : ''}
+                        </h3>
+                    </div>
+                    <div class="day-summary">
+                        <div class="text-lg font-bold ${overallColorClass}">${totalDayAssigned}/${totalDayRequired}名</div>
+                        <div class="text-xs ${overallColorClass}">(${overallPercentage}%)</div>
+                        <div class="text-xs text-gray-600 mt-1">${dayInfo.events.length + dayInfo.monthlyTasks.length}件の業務</div>
+                    </div>
+                    <div>
+                        ${departmentSections || '<div class="text-center py-4 text-gray-400 text-sm">業務なし</div>'}
+                    </div>
+                `;
+
+                return dayCard;
+            }
+
+            escapeHtml(text) {
+                if (!text) return '';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            async normalizeAssignedCEs(assignedCEs) {
+                if (!Array.isArray(assignedCEs)) return [];
+                
+                return assignedCEs.map(entry => {
+                    if (typeof entry === 'string') {
+                        const ce = window.ceManager?.ceList?.find(c => c.id === entry);
+                        return ce ? { 
+                            id: ce.id, 
+                            name: ce.iconName || ce.displayName || ce.name, 
+                            workType: ce.workType || 'ME' 
+                        } : { id: entry, name: entry, workType: 'ME' };
+                    } else if (entry && typeof entry === 'object') {
+                        return { 
+                            id: entry.id, 
+                            name: entry.name, 
+                            workType: entry.workType || 'ME' 
+                        };
+                    }
+                    return null;
+                }).filter(Boolean);
+            }
+
+            async generateCEChipsWithStatus(normalizedAssigned, dateKey) {
+                const chips = [];
+                
+                for (const assigned of normalizedAssigned) {
+                    let effectiveWorkType = assigned.workType || 'ME';
+                    let statusBadge = '';
+                    let statusText = '';
+                    
+                    if (window.publishedScheduleResolver) {
+                        try {
+                            const workStatus = await window.publishedScheduleResolver.getCEWorkStatusForDate(assigned.id, dateKey);
+                            if (workStatus?.workType) {
+                                effectiveWorkType = workStatus.workType;
+                            }
+                            statusText = workStatus?.status || '';
+                            if (statusText && statusText !== 'A') {
+                                statusBadge = `<span class="status-badge status-${statusText}">${statusText}</span>`;
+                            }
+                        } catch (error) {
+                            console.warn('⚠️ 勤務状態取得失敗:', assigned.name, error);
+                        }
+                    }
+                    
+                    const titleExtra = statusBadge ? ` (${statusText})` : '';
+                    chips.push(`
+                        <span class="ce-chip worktype-${effectiveWorkType.toLowerCase()}" 
+                              title="${this.escapeHtml(assigned.name)}${titleExtra}" 
+                              style="position: relative;">
+                            ${this.escapeHtml(assigned.name)}${statusBadge}
+                        </span>
+                    `);
+                }
+                
+                return chips.join('');
+            }
+        }
+
+        window.handleLogout = async () => {
+            try {
+                if (window.auditLogger) {
+                    await window.auditLogger.logAction('logout');
+                }
+                if (window.auth && window.auth.currentUser) {
+                    await window.auth.signOut();
+                }
+            } catch (error) {
+                console.error('ログアウトエラー:', error);
+            } finally {
+                sessionStorage.clear();
+                localStorage.clear();
+                window.location.href = '../index.html';
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                window.weeklyViewManager = new WeeklyViewManager();
+                await window.weeklyViewManager.init();
+                console.log('✅ 週間表示ページ初期化完了');
+            } catch (error) {
+                console.error('❌ 週間表示ページ初期化エラー:', error);
+                window.showMessage('週間表示の初期化に失敗しました', 'error');
+            }
+        });
+    </script>
+</body>
+</html>

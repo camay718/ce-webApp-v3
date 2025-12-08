@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOME - CEスケジュール管理システム V2</title>
+    
+    <!-- 外部ライブラリ -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/theme-unified.css">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="../js/config/firebase-config.js"></script>
+
+    <!-- 監査ログシステム -->
+<script src="../js/utils/audit-logger.js"></script>
+
+    <style>
+        /* 中央配置レイアウト */
+        .center-layout {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        .center-card {
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        /* ナビゲーショングリッド */
+        .home-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 40px 0;
+        }
+
+        /* ナビゲーションカード */
+        .nav-card {
+            background: var(--glass-bg);
+            border: 2px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: var(--text-color-default);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--brand-primary);
+            box-shadow: 0 10px 25px rgba(76, 175, 80, 0.2);
+            background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(76, 175, 80, 0.05));
+        }
+
+        .nav-card i {
+            font-size: 2.5rem;
+            margin-bottom: 16px;
+            background: linear-gradient(45deg, var(--brand-primary), #66bb6a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            transition: transform 0.3s ease;
+        }
+
+        .nav-card:hover i {
+            transform: scale(1.1);
+        }
+
+        .nav-card h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #2e7d32;
+        }
+
+        .nav-card p {
+            font-size: 0.875rem;
+            color: var(--text-color-light);
+            line-height: 1.4;
+        }
+
+        /* ヘッダーレスポンシブ */
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        /* スマートフォン対応 */
+        @media (max-width: 768px) {
+            .center-layout {
+                padding: 16px;
+                align-items: flex-start;
+                padding-top: 40px;
+            }
+
+            .center-card {
+                padding: 20px !important;
+            }
+
+            h1 {
+                font-size: 1.8rem !important;
+                text-align: center;
+            }
+
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .home-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+                margin: 24px 0;
+            }
+
+            .nav-card {
+                padding: 20px;
+            }
+
+            .nav-card i {
+                font-size: 2rem;
+            }
+
+            .nav-card h2 {
+                font-size: 1.1rem;
+            }
+
+            .nav-card p {
+                font-size: 0.8rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .center-layout {
+                padding: 12px;
+                padding-top: 20px;
+            }
+
+            .nav-card {
+                padding: 16px;
+            }
+
+            .nav-card i {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+    
+    <!-- PWA・アプリアイコン設定 -->
+<link rel="manifest" href="../manifest.webmanifest">
+<meta name="theme-color" content="#34495E">
+
+<!-- ファビコン（ブラウザタブ用） -->
+<link rel="icon" type="image/x-icon" href="../assets/icons/app-icons/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/icons/app-icons/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="../assets/icons/app-icons/favicon-16x16.png">
+
+<!-- Apple Touch Icon（iOS用） -->
+<link rel="apple-touch-icon" sizes="180x180" href="../assets/icons/app-icons/apple-touch-icon.png">
+
+<!-- PWA設定 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+</head>
+<body class="theme-unified">
+    <!-- ローディング画面 -->
+    <div id="loading" class="center-layout">
+        <div class="glass-card center-card text-center">
+            <div class="spinner mb-4"></div>
+            <p class="text-gray-600">HOMEを読み込んでいます...</p>
+        </div>
+    </div>
+
+    <!-- メインコンテンツ -->
+    <div id="mainContent" class="center-layout" style="display: none;">
+        <div class="glass-card center-card">
+            <!-- ヘッダー -->
+            <div class="text-center mb-10">
+                <h1 class="text-4xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-home text-green-600 mr-3"></i>
+                    CEスケジュール管理システム V2
+                </h1>
+                <div class="header-content">
+                    <p class="text-gray-600 text-lg">ようこそ、<span id="userNameDisplay" class="font-semibold text-green-700"></span>さん</p>
+                    <div class="text-right">
+                        <div class="text-xs text-gray-500">権限</div>
+                        <span id="roleBadge" class="badge-unified">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ナビゲーションカード -->
+            <div class="home-grid">
+                <!-- 日別スケジュール -->
+                <div class="nav-card" onclick="navigateToSchedule()">
+                    <i class="fas fa-calendar-day"></i>
+                    <h2>日別スケジュール</h2>
+                    <p>日別の業務とCE配置を管理</p>
+                </div>
+
+                <!-- ★追加: 週間表示 -->
+                <div class="nav-card" onclick="navigateToWeeklyView()">
+                    <i class="fas fa-calendar-week"></i>
+                    <h2>週間表示</h2>
+                    <p>週間スケジュールの概要を確認</p>
+                </div>
+
+                <!-- CE勤務表 -->
+                <div class="nav-card" onclick="navigateToCESchedule()">
+                    <i class="fas fa-table"></i>
+                    <h2>CE勤務表</h2>
+                    <p>勤務シフトの作成・閲覧</p>
+                </div>
+
+                <!-- 集計・分析 -->
+                <div class="nav-card" onclick="navigateToAnalysis()">
+                    <i class="fas fa-chart-line"></i>
+                    <h2>集計・分析</h2>
+                    <p>業務配置や勤務状況を分析</p>
+                </div>
+
+                <!-- 設定 -->
+                <div class="nav-card" onclick="navigateToSettings()">
+                    <i class="fas fa-cogs"></i>
+                    <h2>設定</h2>
+                    <p>システム設定と個人情報の管理</p>
+                </div>
+
+                <!-- 管理者ダッシュボード（admin のみ表示） -->
+                <div class="nav-card" id="adminLink" onclick="navigateToAdmin()" style="display: none;">
+                    <i class="fas fa-shield-alt"></i>
+                    <h2>管理者ダッシュボード</h2>
+                    <p>ユーザー管理やシステム権限設定</p>
+                </div>
+            </div>
+
+            <!-- ログアウトボタン -->
+            <div class="text-center mt-8">
+                <button onclick="handleLogout()" class="btn-unified btn-outline-unified">
+                    <i class="fas fa-sign-out-alt mr-2"></i>ログアウト
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 軽量メッセージ機能
+        window.showMessage = window.showMessage || function(msg, type='info') {
+            console.log(`[${type}] ${msg}`);
+        };
+
+        // 認証情報を確実に引き継ぐナビゲーション関数
+        function navigateToSchedule() {
+            location.href = 'schedule.html';
+        }
+
+        // ★追加: 週間表示へのナビゲーション
+        function navigateToWeeklyView() {
+            location.href = 'weekly-view.html';
+        }
+
+        function navigateToCESchedule() {
+            location.href = 'ce-schedule.html';
+        }
+
+        function navigateToAnalysis() {
+            location.href = 'analytics.html';
+        }
+
+        function navigateToSettings() {
+            location.href = 'settings.html';
+        }
+
+        function navigateToAdmin() {
+            location.href = 'admin-dashboard.html';
+        }
+
+        // 認証確認と初期化
+        async function initHome() {
+            try {
+                await window.waitForFirebase();
+                
+                // セッション情報の確認
+                const uid = sessionStorage.getItem('targetUID');
+                const username = sessionStorage.getItem('currentUsername');
+                let role = sessionStorage.getItem('userRole') || 'viewer';
+
+                if (!uid || !username) {
+                    showMessage('認証が必要です。ログインに戻ります。', 'warning');
+                    return location.href = '../index.html';
+                }
+
+                // 匿名認証の確保
+                if (!window.auth.currentUser) {
+                    await window.auth.signInAnonymously();
+                }
+
+                // ユーザーデータの再取得
+                const userSnapshot = await window.database.ref(`${window.DATA_ROOT}/users/${uid}`).once('value');
+                if (!userSnapshot.exists()) {
+                    showMessage('ユーザーデータが見つかりません', 'error');
+                    return location.href = '../index.html';
+                }
+                
+                const userData = userSnapshot.val();
+                role = userData.role || role;
+
+                // Dashboard用のlocalStorage保存（セッション復元用）
+                try {
+                    localStorage.setItem('dashboardAuth', JSON.stringify({
+                        uid: uid,
+                        username: userData.username || username,
+                        displayName: userData.displayName || userData.username || username,
+                        role: role,
+                        timestamp: Date.now()
+                    }));
+                } catch (e) {
+                    console.warn('dashboardAuth保存失敗:', e);
+                }
+
+                // UI更新
+                document.getElementById('userNameDisplay').textContent = userData.displayName || userData.username || username;
+                
+                const roleMap = { admin: '管理者', editor: '編集者', viewer: '閲覧者' };
+                const badge = document.getElementById('roleBadge');
+                badge.textContent = roleMap[role] || '不明';
+                badge.className = `badge-unified badge-${role}`;
+
+                // 管理者リンクの表示制御
+                if (role === 'admin') {
+                    document.getElementById('adminLink').style.display = 'flex';
+                }
+
+// 画面表示
+document.getElementById('loading').style.display = 'none';
+document.getElementById('mainContent').style.display = 'flex';
+
+// ページアクセスログ記録
+if (window.auditLogger) {
+    await window.auditLogger.logPageAccess('home');
+}
+
+} catch (error) {
+
+                console.error('HOME初期化エラー:', error);
+                alert('初期化に失敗しました。ログイン画面に戻ります。');
+                location.href = '../index.html';
+            }
+        }
+
+// ログアウト処理
+async function handleLogout() {
+    try {
+        // 監査ログ記録（共通ロガー使用）
+        if (window.auditLogger) {
+            await window.auditLogger.logAction('logout');
+        }
+
+        if (window.auth && window.auth.currentUser) {
+            await window.auth.signOut();
+        }
+    } catch (error) {
+        console.error('ログアウトエラー:', error);
+    } finally {
+        sessionStorage.clear();
+        localStorage.clear();
+        location.href = '../index.html';
+    }
+}
+
+
+        // 初期化実行
+        document.addEventListener('DOMContentLoaded', initHome);
+    </script>
+</body>
+</html>

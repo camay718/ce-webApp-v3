@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理者ダッシュボード - CEスケジュール管理システム V2</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    
+    <!-- 統一テーマ -->
+    <link rel="stylesheet" href="../css/theme-unified.css">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    
+    <!-- Firebase設定 -->
+    <script src="../js/config/firebase-config.js"></script>
+
+    <!-- 監査ログシステム -->
+<script src="../js/utils/audit-logger.js"></script>
+
+    <style>
+        .password-display {
+            font-family: 'Courier New', monospace;
+            background: #f7fafc;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .error-banner {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            max-width: 400px;
+        }
+        .error-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .error-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            font-weight: bold;
+            color: #dc2626;
+            cursor: pointer;
+            margin-left: 12px;
+        }
+    </style>
+</head>
+<body class="theme-unified">
+    <div class="admin-layout">
+        <header class="glass-card text-center mb-6 p-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                <i class="fas fa-shield-alt text-purple-600 mr-3"></i>
+                管理者ダッシュボード
+            </h1>
+            <p class="text-gray-600">CEスケジュール管理システム V2 - ユーザー管理</p>
+        </header>
+
+        <main>
+            <!-- ユーザー作成セクション -->
+            <section class="glass-card p-6 mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i class="fas fa-user-plus text-blue-600 mr-3"></i>
+                    新規ユーザー作成
+                </h2>
+                
+                <form id="createUserForm">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="username" class="block text-sm font-bold mb-2">
+                                <i class="fas fa-user mr-2"></i>ユーザー名 *
+                            </label>
+                            <input 
+                                type="text" 
+                                id="username" 
+                                class="input-unified" 
+                                placeholder="例: tanaka または 田中太郎"
+                                required
+                                autocomplete="off"
+                            >
+                            <p class="text-xs text-gray-500 mt-1">全角文字・半角文字どちらでも使用できます</p>
+                        </div>
+                        
+                        <div>
+                            <label for="role" class="block text-sm font-bold mb-2">
+                                <i class="fas fa-key mr-2"></i>権限レベル *
+                            </label>
+                            <select id="role" class="input-unified" required>
+                                <option value="">権限を選択</option>
+                                <option value="viewer">スタッフ (閲覧のみ)</option>
+                                <option value="editor">エディタ (スケジュール編集可)</option>
+                                <option value="admin">管理者 (全権限)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <label class="block text-sm font-bold mb-2">
+                            <i class="fas fa-lock mr-2"></i>初回パスワード
+                        </label>
+                        <div class="flex items-center gap-3">
+                            <div id="generatedPassword" class="password-display flex-1">
+                                パスワードを生成してください
+                            </div>
+                            <button type="button" id="generatePasswordBtn" class="btn-unified btn-outline-unified btn-small">
+                                <i class="fas fa-random mr-1"></i>パスワード生成
+                            </button>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-2">
+                            生成されたパスワードを新規ユーザーに伝達してください
+                        </p>
+                    </div>
+                    
+                    <button type="button" id="createUserBtn" class="btn-unified btn-primary-unified mt-4" disabled>
+                        <i class="fas fa-plus mr-2"></i>ユーザーを作成
+                    </button>
+                </form>
+
+                <div class="mt-6 p-4 bg-blue-50 border-l-4 border-blue-400 rounded">
+                    <h4 class="font-semibold text-blue-800 mb-2">
+                        <i class="fas fa-info-circle mr-2"></i>作成フロー
+                    </h4>
+                    <ol class="text-blue-700 text-sm space-y-1">
+                        <li>1. 上記フォームで新規ユーザー情報を入力</li>
+                        <li>2. パスワード生成ボタンで安全なパスワードを生成</li>
+                        <li>3. 生成されたパスワードを新規ユーザーに伝達</li>
+                        <li>4. 新規ユーザーが初回ログイン後、表示名とパスワードを自身で設定</li>
+                    </ol>
+                </div>
+            </section>
+
+            <!-- エラー表示エリア -->
+            <div id="errorDisplay" class="error-banner" style="display: none;">
+                <div class="error-content">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span id="errorMessage"></span>
+                    <button onclick="hideError()" class="error-close">×</button>
+                </div>
+            </div>
+
+            <!-- 初回ログイン待機リスト -->
+            <section class="glass-card p-6 mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i class="fas fa-clock text-yellow-600 mr-3"></i>
+                    初回ログイン待機リスト
+                </h2>
+                
+                <div class="overflow-x-auto">
+                    <table class="table-unified">
+                        <thead>
+                            <tr>
+                                <th><i class="fas fa-user mr-2"></i>ユーザー名</th>
+                                <th><i class="fas fa-key mr-2"></i>権限</th>
+                                <th><i class="fas fa-lock mr-2"></i>初回パスワード</th>
+                                <th><i class="fas fa-calendar mr-2"></i>作成日時</th>
+                                <th><i class="fas fa-cog mr-2"></i>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingUsersTableBody">
+                            <tr>
+                                <td colspan="5" class="text-center text-gray-500">
+                                    <i class="fas fa-spinner fa-spin mr-2"></i>データを読み込み中...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- アクティブユーザー一覧 -->
+            <section class="glass-card p-6 mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i class="fas fa-users text-green-600 mr-3"></i>
+                    アクティブユーザー一覧
+                </h2>
+                
+                <div class="overflow-x-auto">
+                    <table class="table-unified">
+                        <thead>
+                            <tr>
+                                <th><i class="fas fa-user mr-2"></i>ユーザー名</th>
+                                <th><i class="fas fa-id-card mr-2"></i>表示名</th>
+                                <th><i class="fas fa-key mr-2"></i>権限</th>
+                                <th><i class="fas fa-calendar mr-2"></i>最終ログイン</th>
+                                <th><i class="fas fa-cog mr-2"></i>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activeUsersTableBody">
+                            <tr>
+                                <td colspan="5" class="text-center text-gray-500">
+                                    <i class="fas fa-spinner fa-spin mr-2"></i>データを読み込み中...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 権限設定セクション -->
+            <section class="glass-card p-6 mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i class="fas fa-user-shield text-purple-600 mr-3"></i>
+                    システム権限設定
+                </h2>
+                
+                <div class="space-y-6">
+                    <!-- Viewer権限設定 -->
+                    <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                        <h3 class="text-lg font-semibold mb-4 text-gray-800">
+                            <i class="fas fa-eye mr-2 text-blue-600"></i>Viewer（閲覧者）権限
+                        </h3>
+                        
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between p-3 bg-white rounded border">
+                                <div>
+                                    <div class="font-medium text-gray-800">業務の編集を許可</div>
+                                    <div class="text-sm text-gray-600">日別スケジュールでの業務追加・編集・削除を許可します</div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="viewerCanEdit" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+                            
+                            <div class="flex items-center justify-between p-3 bg-white rounded border">
+                                <div>
+                                    <div class="font-medium text-gray-800">CE配置の変更を許可</div>
+                                    <div class="text-sm text-gray-600">業務への担当CE配置の変更を許可します</div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="viewerCanAssign" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Editor権限設定（将来の拡張用） -->
+                    <div class="p-4 border border-gray-200 rounded-lg bg-gray-50 opacity-60">
+                        <h3 class="text-lg font-semibold mb-4 text-gray-800">
+                            <i class="fas fa-edit mr-2 text-green-600"></i>Editor（編集者）権限
+                        </h3>
+                        <div class="text-sm text-gray-500 italic">
+                            <i class="fas fa-info-circle mr-2"></i>Editor権限の詳細設定は今後のバージョンで実装予定です
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-6 flex items-center justify-between">
+                    <div id="permissionsStatus" class="text-sm"></div>
+                    <button id="savePermissionsBtn" class="btn-unified btn-primary-unified">
+                        <i class="fas fa-save mr-2"></i>権限設定を保存
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <!-- ナビゲーション -->
+        <footer class="text-center">
+            <div class="flex justify-center space-x-4">
+                <a href="../index.html" class="btn-unified btn-outline-unified">
+                    <i class="fas fa-arrow-left mr-2"></i>ログイン画面に戻る
+                </a>
+                <a href="../pages/home.html" class="btn-unified btn-primary-unified">
+                  <i class="fas fa-home mr-2"></i>ホームに戻る
+                </a>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 統一メッセージシステム -->
+    <script>
+    window.showMessage = window.showMessage || ((msg, type='info') => {
+        let cont = document.getElementById('messageContainer');
+        if (!cont) {
+            cont = document.createElement('div');
+            cont.id = 'messageContainer';
+            cont.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:9999;width:min(92vw,480px);';
+            document.body.appendChild(cont);
+        }
+        const div = document.createElement('div');
+        div.className = `status-unified ${type}`;
+        div.style.marginBottom = '8px';
+        div.textContent = msg;
+        cont.appendChild(div);
+        setTimeout(() => div.remove(), 5000);
+    });
+
+    // エラー表示関数
+    function showError(message) {
+        document.getElementById('errorMessage').textContent = message;
+        document.getElementById('errorDisplay').style.display = 'block';
+        
+        // 10秒後に自動で非表示
+        setTimeout(hideError, 10000);
+    }
+
+    function hideError() {
+        document.getElementById('errorDisplay').style.display = 'none';
+    }
+    </script>
+
+    <!-- メインスクリプト -->
+    <script>
+class AdminUserManagement {
+    constructor() {
+        this.database = null;
+        this.pendingUsers = [];
+        this.activeUsers = [];
+        this.currentPassword = '';
+        this.isReady = false;
+        this.permissions = {};
+        this.init();
+    }
+
+    async init() {
+        try {
+            console.log('⏳ Firebase初期化待機中...');
+            await window.waitForFirebase();
+            console.log('✅ Firebase準備完了');
+            
+            this.database = window.database;
+            
+            // 匿名認証を確実に実行
+            if (!window.auth.currentUser) {
+                await window.auth.signInAnonymously();
+                console.log('✅ 匿名認証完了');
+            }
+            
+            this.initializeAdminFunctions();
+            
+        } catch (error) {
+            console.error('❌ 初期化エラー:', error);
+            window.showMessage('管理者ダッシュボードの初期化に失敗しました', 'error');
+        }
+    }
+
+    initializeAdminFunctions() {
+        console.log('🚀 管理機能初期化開始');
+        
+        this.isReady = true;
+        this.setupEventListeners();
+        
+        this.loadPermissions().then(() => {
+            this.loadPendingUsers();
+            this.loadActiveUsers();
+            console.log('✅ 管理機能初期化完了');
+        }).catch((error) => {
+            console.error('❌ 権限設定読み込みエラー:', error);
+            this.loadPendingUsers();
+            this.loadActiveUsers();
+        });
+    }
+
+    setupEventListeners() {
+        const generateBtn = document.getElementById('generatePasswordBtn');
+        if (generateBtn) generateBtn.onclick = () => this.generatePassword();
+
+        const createBtn = document.getElementById('createUserBtn');
+        if (createBtn) createBtn.onclick = () => this.createUser();
+
+        const savePermissionsBtn = document.getElementById('savePermissionsBtn');
+        if (savePermissionsBtn) savePermissionsBtn.onclick = () => this.savePermissions();
+        
+        console.log('✅ イベントリスナー設定完了');
+    }
+
+    // 待機ユーザー読み込み（エラー処理強化版）
+    loadPendingUsers() {
+        if (!this.database) {
+            console.error('❌ データベース未初期化');
+            setTimeout(() => this.loadPendingUsers(), 2000);
+            return;
+        }
+
+        console.log('📋 待機ユーザー読み込み開始');
+        
+        const pendingRef = this.database.ref(`${window.DATA_ROOT}/pendingUsers`);
+        
+        // 一度だけ読み込んでからリスナー設定
+        pendingRef.once('value', (snapshot) => {
+            try {
+                const pendingUsers = snapshot.val() || {};
+                this.pendingUsers = Object.entries(pendingUsers).map(([username, userData]) => ({
+                    username,
+                    ...userData
+                }));
+                
+                console.log('✅ 待機ユーザー初回読み込み完了:', this.pendingUsers.length + '人');
+                this.renderPendingUsersTable();
+                
+                // リアルタイム監視開始
+                pendingRef.on('value', (snapshot) => {
+                    try {
+                        const pendingUsers = snapshot.val() || {};
+                        this.pendingUsers = Object.entries(pendingUsers).map(([username, userData]) => ({
+                            username,
+                            ...userData
+                        }));
+                        
+                        this.renderPendingUsersTable();
+                        console.log('🔄 待機ユーザー更新:', this.pendingUsers.length + '人');
+                    } catch (error) {
+                        console.error('❌ 待機ユーザーデータ処理エラー:', error);
+                    }
+                });
+                
+            } catch (error) {
+                console.error('❌ 待機ユーザー初回読み込みエラー:', error);
+                this.pendingUsers = [];
+                this.renderPendingUsersTable();
+            }
+        }, (error) => {
+            console.error('❌ 待機ユーザー読み込みエラー:', error);
+            this.pendingUsers = [];
+            this.renderPendingUsersTable();
+            
+            // エラー時は5秒後にリトライ
+            setTimeout(() => this.loadPendingUsers(), 5000);
+        });
+    }
+
+    // アクティブユーザー読み込み（エラー処理強化版）
+    loadActiveUsers() {
+        if (!this.database) {
+            console.error('❌ データベース未初期化');
+            setTimeout(() => this.loadActiveUsers(), 2000);
+            return;
+        }
+
+        console.log('👥 アクティブユーザー読み込み開始');
+        
+        const usersRef = this.database.ref(`${window.DATA_ROOT}/users`);
+        
+        usersRef.once('value', (snapshot) => {
+            try {
+                const users = snapshot.val() || {};
+                this.activeUsers = Object.entries(users).map(([uid, userData]) => ({
+                    uid,
+                    ...userData
+                }));
+                
+                console.log('✅ アクティブユーザー初回読み込み完了:', this.activeUsers.length + '人');
+                this.renderActiveUsersTable();
+                
+                // リアルタイム監視開始
+                usersRef.on('value', (snapshot) => {
+                    try {
+                        const users = snapshot.val() || {};
+                        this.activeUsers = Object.entries(users).map(([uid, userData]) => ({
+                            uid,
+                            ...userData
+                        }));
+                        
+                        this.renderActiveUsersTable();
+                        console.log('🔄 アクティブユーザー更新:', this.activeUsers.length + '人');
+                    } catch (error) {
+                        console.error('❌ アクティブユーザーデータ処理エラー:', error);
+                    }
+                });
+                
+            } catch (error) {
+                console.error('❌ アクティブユーザー初回読み込みエラー:', error);
+                this.activeUsers = [];
+                this.renderActiveUsersTable();
+            }
+        }, (error) => {
+            console.error('❌ アクティブユーザー読み込みエラー:', error);
+            this.activeUsers = [];
+            this.renderActiveUsersTable();
+            setTimeout(() => this.loadActiveUsers(), 5000);
+        });
+    }
+
+    // 権限設定読み込み
+    async loadPermissions() {
+        try {
+            const snapshot = await this.database.ref(`${window.DATA_ROOT}/permissions`).once('value');
+            this.permissions = snapshot.val() || {};
+            
+            const defaults = { viewerCanEdit: false, viewerCanAssign: false };
+            
+            Object.keys(defaults).forEach(key => {
+                const checkbox = document.getElementById(key);
+                if (checkbox) {
+                    checkbox.checked = this.permissions[key] !== undefined ? this.permissions[key] : defaults[key];
+                }
+            });
+            
+            console.log('✅ 権限設定読み込み完了:', this.permissions);
+        } catch (error) {
+            console.error('❌ 権限設定読み込みエラー:', error);
+        }
+    }
+
+    // その他のメソッド（generatePassword, createUser, renderPendingUsersTable等）は既存のものを維持
+    generatePassword() {
+        const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+        let password = '';
+        for (let i = 0; i < 8; i++) {
+            password += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        
+        this.currentPassword = password;
+        const display = document.getElementById('generatedPassword');
+        if (display) display.textContent = password;
+
+        const createBtn = document.getElementById('createUserBtn');
+        if (createBtn) createBtn.disabled = false;
+        
+        console.log('🔑 パスワード生成完了');
+        window.showMessage('パスワードを生成しました', 'success');
+    }
+
+    async createUser() {
+        if (!this.isReady) {
+            window.showMessage('初期化中です。少し待ってから再度お試しください', 'error');
+            return;
+        }
+
+        const username = document.getElementById('username')?.value?.trim();
+        const role = document.getElementById('role')?.value;
+
+        if (!username || !role || !this.currentPassword) {
+            window.showMessage('ユーザー名・権限・初回パスワード（生成）が必要です', 'error');
+            return;
+        }
+
+        const forbiddenChars = /[.#$\[\]\/\s]/;
+        if (username.length < 2 || username.length > 50 || forbiddenChars.test(username)) {
+            window.showMessage('ユーザー名は2-50文字で、記号やスペースを含まないでください', 'error');
+            return;
+        }
+
+        try {
+            const [usernameSnap, pendingSnap] = await Promise.all([
+                this.database.ref(`${window.DATA_ROOT}/usernames/${username}`).once('value'),
+                this.database.ref(`${window.DATA_ROOT}/pendingUsers/${username}`).once('value')
+            ]);
+
+            if (usernameSnap.exists() || pendingSnap.exists()) {
+                window.showMessage('このユーザー名は既に存在します', 'error');
+                return;
+            }
+
+            const pendingUserData = {
+                username: username,
+                role: role,
+                initialPassword: this.currentPassword,
+                createdAt: firebase.database.ServerValue.TIMESTAMP,
+                createdBy: window.currentUserData?.displayName || 'admin',
+                status: 'waiting_initial_login'
+            };
+
+            await this.database.ref(`${window.DATA_ROOT}/pendingUsers/${username}`).set(pendingUserData);
+
+            window.showMessage(`✅ ユーザー「${username}」を作成しました\n\n初回パスワード: ${this.currentPassword}\n\n※この情報を本人に伝達してください`, 'success');
+            
+            // フォームリセット
+            document.getElementById('createUserForm')?.reset();
+            const passwordDisplay = document.getElementById('generatedPassword');
+            if (passwordDisplay) passwordDisplay.textContent = 'パスワードを生成してください';
+            const createBtn = document.getElementById('createUserBtn');
+            if (createBtn) createBtn.disabled = true;
+            this.currentPassword = '';
+
+        } catch (error) {
+            console.error('❌ ユーザー作成エラー:', error);
+            window.showMessage(`ユーザー作成に失敗しました: ${error.message}`, 'error');
+        }
+    }
+
+    renderPendingUsersTable() {
+        const tbody = document.getElementById('pendingUsersTableBody');
+        if (!tbody) return;
+
+        if (this.pendingUsers.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-500">初回ログイン待機中のユーザーはありません</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = this.pendingUsers.map(user => {
+            const createdAt = user.createdAt ? new Date(user.createdAt).toLocaleString('ja-JP') : '不明';
+            const roleClass = `badge-${user.role}`;
+
+            return `
+                <tr>
+                    <td class="font-medium">${user.username}</td>
+                    <td><span class="badge-unified ${roleClass}">${user.role}</span></td>
+                    <td class="password-display">${user.initialPassword}</td>
+                    <td class="text-sm text-gray-600">${createdAt}</td>
+                    <td>
+                        <button onclick="window.adminUserManagement.showPassword('${user.username}', '${user.initialPassword}')" 
+                                class="text-blue-600 hover:text-blue-800 mr-2 text-sm">
+                            <i class="fas fa-eye"></i> 確認
+                        </button>
+                        <button onclick="window.adminUserManagement.deletePendingUser('${user.username}')" 
+                                class="text-red-600 hover:text-red-800 text-sm">
+                            <i class="fas fa-trash"></i> 削除
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    renderActiveUsersTable() {
+        const tbody = document.getElementById('activeUsersTableBody');
+        if (!tbody) return;
+
+        if (this.activeUsers.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-500">アクティブユーザーがありません</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = this.activeUsers.map(user => {
+            const lastLogin = user.lastLogin ? new Date(user.lastLogin).toLocaleString('ja-JP') : '未ログイン';
+            const roleClass = `badge-${user.role}`;
+
+            return `
+                <tr>
+                    <td class="font-medium">${user.username}</td>
+                    <td>${user.displayName || '-'}</td>
+                    <td><span class="badge-unified ${roleClass}">${user.role}</span></td>
+                    <td class="text-sm text-gray-600">${lastLogin}</td>
+                    <td>
+                        <button onclick="window.adminUserManagement.editUser('${user.uid}')" 
+                                class="text-blue-600 hover:text-blue-800 mr-2 text-sm">
+                            <i class="fas fa-edit"></i> 編集
+                        </button>
+                        <button onclick="window.adminUserManagement.resetUserPassword('${user.uid}', '${user.username}')" 
+                                class="text-orange-600 hover:text-orange-800 mr-2 text-sm">
+                            <i class="fas fa-key"></i> リセット
+                        </button>
+                        <button onclick="window.adminUserManagement.deleteUser('${user.uid}', '${user.username}')" 
+                                class="text-red-600 hover:text-red-800 text-sm">
+                            <i class="fas fa-trash"></i> 削除
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    showPassword(username, password) {
+        alert(`${username} の初回パスワード:\n\n${password}\n\nこのパスワードを本人に伝達してください。`);
+    }
+
+    async deletePendingUser(username) {
+        if (!confirm(`初回ログイン待機中のユーザー「${username}」を削除しますか？`)) return;
+
+        try {
+            await this.database.ref(`${window.DATA_ROOT}/pendingUsers/${username}`).remove();
+            window.showMessage(`待機中ユーザー「${username}」を削除しました`, 'success');
+        } catch (error) {
+            console.error('❌ 待機ユーザー削除エラー:', error);
+            window.showMessage('待機ユーザーの削除に失敗しました', 'error');
+        }
+    }
+
+    async editUser(uid) {
+        const user = this.activeUsers.find(u => u.uid === uid);
+        if (!user) return;
+
+        const newRole = prompt(`${user.username}の権限を変更してください:\n\nviewer: スタッフ\neditor: エディタ\nadmin: 管理者\n\n現在: ${user.role}`, user.role);
+        
+        if (newRole && ['admin', 'editor', 'viewer'].includes(newRole) && newRole !== user.role) {
+            try {
+                await this.database.ref(`${window.DATA_ROOT}/users/${uid}`).update({
+                    role: newRole,
+                    updatedAt: firebase.database.ServerValue.TIMESTAMP
+                });
+
+                window.showMessage(`${user.username}の権限を${newRole}に変更しました`, 'success');
+            } catch (error) {
+                console.error('❌ 権限変更エラー:', error);
+                window.showMessage('権限の変更に失敗しました', 'error');
+            }
+        }
+    }
+
+    async resetUserPassword(uid, username) {
+        if (!confirm(`ユーザー「${username}」のパスワードをリセットしますか？\n\n⚠️ 実行内容:\n• ユーザーが初回ログイン待機リストに移行されます\n• 新しい初回パスワードが生成されます\n• ユーザーは新パスワードで再ログインが必要になります`)) {
+            return;
+        }
+
+        try {
+            window.showMessage('パスワードリセット処理中...', 'info');
+
+            const userSnapshot = await this.database.ref(`${window.DATA_ROOT}/users/${uid}`).once('value');
+            const userData = userSnapshot.val();
+            
+            if (!userData) {
+                window.showMessage('ユーザーデータが見つかりません', 'error');
+                return;
+            }
+
+            // 新しい初回パスワード生成
+            const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+            let newPassword = '';
+            for (let i = 0; i < 8; i++) {
+                newPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+
+            const pendingUserData = {
+                username: userData.username,
+                role: userData.role,
+                initialPassword: newPassword,
+                createdAt: firebase.database.ServerValue.TIMESTAMP,
+                createdBy: 'admin_reset',
+                resetFrom: uid,
+                isPasswordReset: true,
+                originalDisplayName: userData.displayName
+            };
+
+            const updates = {};
+            updates[`${window.DATA_ROOT}/pendingUsers/${userData.username}`] = pendingUserData;
+            updates[`${window.DATA_ROOT}/users/${uid}`] = null;
+            updates[`${window.DATA_ROOT}/usernames/${userData.username}`] = null;
+
+            await this.database.ref().update(updates);
+
+            alert(`✅ パスワードリセット完了！\n\nユーザー名: ${username}\n新しい初回パスワード: ${newPassword}\n\n※この情報を本人に伝達してください`);
+            window.showMessage('パスワードリセットが完了しました', 'success');
+
+            // クリップボードにコピー
+            try {
+                await navigator.clipboard.writeText(newPassword);
+                console.log('📋 新しい初回パスワードをクリップボードにコピーしました');
+            } catch (clipError) {
+                console.log('📋 クリップボードコピー非対応');
+            }
+
+        } catch (error) {
+            console.error('❌ パスワードリセットエラー:', error);
+            window.showMessage(`パスワードリセットに失敗しました: ${error.message}`, 'error');
+        }
+    }
+
+    async deleteUser(uid, username) {
+        if (!confirm(`ユーザー「${username}」を削除しますか？\n\nこの操作は元に戻せません。`)) return;
+
+        try {
+            await this.database.ref(`${window.DATA_ROOT}/users/${uid}`).remove();
+            await this.database.ref(`${window.DATA_ROOT}/usernames/${username}`).remove();
+
+            window.showMessage(`ユーザー「${username}」を削除しました`, 'success');
+        } catch (error) {
+            console.error('❌ ユーザー削除エラー:', error);
+            window.showMessage('ユーザーの削除に失敗しました', 'error');
+        }
+    }
+
+    async savePermissions() {
+        try {
+            const newPermissions = {
+                viewerCanEdit: document.getElementById('viewerCanEdit')?.checked || false,
+                viewerCanAssign: document.getElementById('viewerCanAssign')?.checked || false,
+                updatedAt: firebase.database.ServerValue.TIMESTAMP,
+                updatedBy: window.currentUserData?.displayName || 'admin'
+            };
+            
+            await this.database.ref(`${window.DATA_ROOT}/permissions`).set(newPermissions);
+            this.permissions = newPermissions;
+            
+            window.showMessage('権限設定を保存しました', 'success');
+            
+        } catch (error) {
+            console.error('❌ 権限設定保存エラー:', error);
+            window.showMessage('権限設定の保存に失敗しました', 'error');
+        }
+    }
+}
+
+// グローバル変数として初期化（修正版）
+window.adminUserManagement = null;
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        window.adminUserManagement = new AdminUserManagement();
+        console.log('✅ AdminUserManagement初期化完了');
+    } catch (error) {
+        console.error('❌ AdminUserManagement初期化エラー:', error);
+        window.showMessage('管理者ダッシュボードの初期化に失敗しました', 'error');
+    }
+});
+</script>
+</body>
+</html>

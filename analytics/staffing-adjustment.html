@@ -1,0 +1,1703 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人員配置調整 - CEスケジュール管理システム V2</title>
+    
+    <!-- 外部ライブラリ -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="../js/config/firebase-config.js"></script>
+    <script src="../js/core/auth-guard.js"></script>
+
+    <style>
+        :root {
+            --timeline-start: 7;
+            --timeline-end: 18;
+            --timeline-hours: 12;
+            --hour-width: 80px;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            font-size: 13px;
+        }
+
+        .container-main {
+            max-width: 1900px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        .header-section {
+            background: white;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        .controls-bar {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .btn {
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 12px;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+            color: white;
+        }
+
+        /* タイムラインコンテナ */
+        .timeline-container {
+            background: white;
+            border-radius: 10px;
+            padding: 16px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .timeline-wrapper {
+            min-width: calc(var(--hour-width) * var(--timeline-hours) + 200px);
+            position: relative;
+        }
+
+        /* 時間軸ヘッダー */
+        .timeline-header {
+            display: flex;
+            margin-bottom: 12px;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 6px;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
+        }
+
+        .timeline-label {
+            width: 200px;
+            font-weight: 700;
+            font-size: 12px;
+            color: #2e7d32;
+            display: flex;
+            align-items: center;
+            padding-left: 8px;
+        }
+
+        .timeline-hours {
+            display: flex;
+            flex: 1;
+            position: relative;
+        }
+
+        .hour-slot {
+            width: var(--hour-width);
+            text-align: center;
+            font-weight: 600;
+            font-size: 11px;
+            color: #555;
+            border-left: 1px solid #e0e0e0;
+            padding: 6px 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .hour-slot:hover {
+            background: rgba(76, 175, 80, 0.1);
+        }
+
+        /* 業務行 */
+        .task-row {
+            display: flex;
+            margin-bottom: 6px;
+            border-radius: 6px;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+            min-height: 50px;
+        }
+
+        .task-row:hover {
+            box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+            transform: translateX(3px);
+        }
+
+        .task-info {
+            width: 200px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border-radius: 6px 0 0 6px;
+            position: relative;
+        }
+
+        .task-name {
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 4px;
+            font-size: 12px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .task-meta {
+            font-size: 10px;
+            color: rgba(255,255,255,0.95);
+            background: rgba(0,0,0,0.15);
+            padding: 3px 6px;
+            border-radius: 3px;
+            margin-top: 3px;
+        }
+
+        .department-badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.3);
+            color: white;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .task-timeline {
+            display: flex;
+            flex: 1;
+            position: relative;
+            background: #f9f9f9;
+            border-radius: 0 6px 6px 0;
+        }
+
+        /* 時間セル（背景グリッド） */
+        .hour-cell {
+            width: var(--hour-width);
+            border-left: 1px solid #e0e0e0;
+            position: relative;
+            min-height: 50px;
+        }
+
+        /* 業務バー（時間範囲を結合） */
+        .task-bar {
+            position: absolute;
+            top: 3px;
+            bottom: 3px;
+            background: white;
+            border-radius: 5px;
+            padding: 6px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            overflow: visible;
+        }
+
+        .task-bar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .staff-required {
+            font-size: 10px;
+            font-weight: 700;
+            color: #1976D2;
+            background: #E3F2FD;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .staff-assigned {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .staff-assigned.sufficient {
+            background: #C8E6C9;
+            color: #2E7D32;
+        }
+
+        .staff-assigned.shortage {
+            background: #FFCDD2;
+            color: #C62828;
+        }
+
+        /* 配置アイコンリスト */
+        .staff-icons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 3px 0;
+            align-items: flex-start;
+        }
+
+        .staff-icon {
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            color: white;
+        }
+
+        /* 勤務タイプ別の色分け */
+        .staff-icon.OPE {
+            background: linear-gradient(135deg, #07E1FF, #0BC5E0);
+        }
+
+        .staff-icon.ME {
+            background: linear-gradient(135deg, #66BB6A, #4CAF50);
+        }
+
+        .staff-icon.HD {
+            background: linear-gradient(135deg, #FF80AB, #F06292);
+        }
+
+        .staff-icon.FLEX {
+            background: linear-gradient(135deg, #FFD54F, #FFC107);
+            color: #333;
+        }
+
+        .staff-icon:hover {
+            transform: scale(1.05) translateY(-1px);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+        }
+
+        .staff-icon .remove-btn {
+            cursor: pointer;
+            margin-left: 3px;
+            opacity: 0.8;
+            font-weight: 700;
+            font-size: 11px;
+        }
+
+        .staff-icon .remove-btn:hover {
+            opacity: 1;
+            transform: scale(1.2);
+        }
+
+        /* 縦ラインとメニュー */
+        .vertical-line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(180deg, #4CAF50, #2196F3);
+            box-shadow: 0 0 6px rgba(76, 175, 80, 0.6);
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .vertical-line.active {
+            opacity: 1;
+        }
+
+        /* 箱ひげメニュー */
+        .whisker-menu {
+            position: fixed;
+            width: 280px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            z-index: 200;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            max-height: 450px;
+            overflow-y: auto;
+        }
+
+        .whisker-menu.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .whisker-menu-header {
+            background: linear-gradient(135deg, #4CAF50, #2196F3);
+            color: white;
+            padding: 10px 12px;
+            border-radius: 10px 10px 0 0;
+            font-weight: 700;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .whisker-menu-help {
+            font-size: 10px;
+            opacity: 0.9;
+        }
+
+        /* 部門状況サマリー */
+        .dept-status-summary {
+            padding: 10px;
+            border-bottom: 2px solid #e0e0e0;
+            background: #f9f9f9;
+        }
+
+        .dept-status-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #555;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .dept-status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 3px 0;
+            font-size: 10px;
+        }
+
+        .dept-name {
+            font-weight: 600;
+            color: #333;
+            flex: 1;
+        }
+
+        .dept-fill-rate {
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 3px;
+            min-width: 45px;
+            text-align: center;
+            font-size: 10px;
+        }
+
+        .dept-fill-rate.high {
+            background: #C8E6C9;
+            color: #2E7D32;
+        }
+
+        .dept-fill-rate.medium {
+            background: #FFF9C4;
+            color: #F57F17;
+        }
+
+        .dept-fill-rate.low {
+            background: #FFCDD2;
+            color: #C62828;
+        }
+
+        /* 人員リスト */
+        .whisker-staff-section {
+            padding: 10px;
+        }
+
+        .whisker-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .whisker-staff-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .whisker-staff-item {
+            background: #f5f5f5;
+            border: 2px solid #e0e0e0;
+            padding: 6px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 11px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .whisker-staff-item:hover {
+            background: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+            transform: translateX(3px);
+        }
+
+        .whisker-staff-item.selected {
+            background: #2196F3;
+            color: white;
+            border-color: #2196F3;
+        }
+
+        .whisker-staff-item.concurrent {
+            background: #FFF3E0;
+            border-color: #FFB300;
+        }
+
+        .whisker-staff-item.concurrent:hover {
+            background: #FF9800;
+            border-color: #FF9800;
+        }
+
+        .whisker-staff-item.concurrent.selected {
+            background: #F57C00;
+            border-color: #F57C00;
+        }
+
+        .work-type-badge {
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: 600;
+        }
+
+        .work-type-badge.OPE {
+            background: #B3E5FC;
+            color: #01579B;
+        }
+
+        .work-type-badge.ME {
+            background: #C8E6C9;
+            color: #1B5E20;
+        }
+
+        .work-type-badge.HD {
+            background: #F8BBD0;
+            color: #880E4F;
+        }
+
+        .work-type-badge.FLEX {
+            background: #FFF9C4;
+            color: #F57F17;
+        }
+
+        /* サマリーセクション */
+        .summary-section {
+            background: white;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #f5f5f5, #e0e0e0);
+            padding: 16px;
+            border-radius: 6px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .summary-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 14px rgba(0,0,0,0.15);
+        }
+
+        .summary-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .summary-label {
+            font-size: 11px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .summary-card.shortage .summary-value {
+            color: #C62828;
+        }
+
+        /* 保留リスト */
+        .pending-list-section {
+            background: white;
+            border-radius: 10px;
+            padding: 16px;
+            margin-top: 16px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        .pending-item {
+            background: #f9f9f9;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .pending-item:hover {
+            border-color: #4CAF50;
+            box-shadow: 0 2px 6px rgba(76, 175, 80, 0.2);
+        }
+
+        .pending-info {
+            flex: 1;
+        }
+
+        .pending-actions {
+            display: flex;
+            gap: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-main">
+        <!-- ヘッダー -->
+        <div class="header-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h1 style="font-size: 1.4rem; font-weight: 700; color: #2e7d32;">
+                    <i class="fas fa-users-cog"></i> 人員配置調整
+                </h1>
+                <button class="btn btn-secondary" onclick="window.location.href='analytics.html'">
+                    <i class="fas fa-arrow-left"></i> 分析ハブに戻る
+                </button>
+            </div>
+
+            <!-- コントロールバー -->
+            <div class="controls-bar">
+                <div>
+                    <label style="font-weight: 600; margin-right: 6px; font-size: 12px;">対象日:</label>
+                    <input type="date" id="targetDate" class="form-input" style="padding: 6px; border-radius: 5px; border: 1px solid #ddd; font-size: 12px;">
+                </div>
+                <button class="btn btn-primary" onclick="staffingAdjustment.loadData()">
+                    <i class="fas fa-sync-alt"></i> データ読み込み
+                </button>
+                <button class="btn btn-warning" onclick="staffingAdjustment.saveAsPending()">
+                    <i class="fas fa-save"></i> 保留
+                </button>
+                <button class="btn btn-primary" onclick="staffingAdjustment.confirmAndSave()">
+                    <i class="fas fa-check-circle"></i> 確定して保存
+                </button>
+            </div>
+        </div>
+
+        <!-- サマリーセクション -->
+        <div class="summary-section" id="summarySection" style="display: none;">
+            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; color: #2e7d32;">
+                <i class="fas fa-chart-bar"></i> 配置サマリー
+            </h3>
+            <div class="summary-grid" id="summaryGrid"></div>
+        </div>
+
+        <!-- タイムラインコンテナ -->
+        <div class="timeline-container">
+            <div class="timeline-wrapper" id="timelineWrapper">
+                <div class="timeline-header">
+                    <div class="timeline-label">
+                        <i class="fas fa-tasks"></i> 業務名 / 部門
+                    </div>
+                    <div class="timeline-hours" id="timelineHours"></div>
+                </div>
+                <div id="taskRows"></div>
+
+                <!-- 縦ライン -->
+                <div class="vertical-line" id="verticalLine"></div>
+            </div>
+        </div>
+
+        <!-- 保留リスト -->
+        <div class="pending-list-section">
+            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; color: #2e7d32;">
+                <i class="fas fa-clock"></i> 保留中の配置
+            </h3>
+            <div id="pendingList"></div>
+        </div>
+    </div>
+
+    <!-- 箱ひげメニュー（固定位置） -->
+    <div class="whisker-menu" id="whiskerMenu">
+        <div class="whisker-menu-header" id="whiskerMenuHeader">
+            <span>8:00 の配置調整</span>
+            <span class="whisker-menu-help">↑↓:選択 Enter:配置 Esc:閉じる</span>
+        </div>
+        
+        <!-- 部門状況サマリー -->
+        <div class="dept-status-summary">
+            <div class="dept-status-title">
+                <i class="fas fa-chart-pie"></i>
+                <span>各部門の配置状況</span>
+            </div>
+            <div id="deptStatusList"></div>
+        </div>
+
+        <!-- 空き人員 -->
+        <div class="whisker-staff-section">
+            <div class="whisker-section-title">
+                <i class="fas fa-user-check"></i>
+                <span>空き人員</span>
+            </div>
+            <div class="whisker-staff-list" id="whiskerAvailableList"></div>
+        </div>
+
+        <!-- 兼務可能人員 -->
+        <div class="whisker-staff-section">
+            <div class="whisker-section-title">
+                <i class="fas fa-user-clock"></i>
+                <span>兼務可能人員</span>
+            </div>
+            <div class="whisker-staff-list" id="whiskerConcurrentList"></div>
+        </div>
+    </div>
+
+    <script>
+        // 部門色定義
+        const DEPARTMENT_COLORS = {
+            '機器管理・人工呼吸': '#90EE90',
+            '血液浄化': '#FFB6C1',
+            '不整脈': '#9370DB',
+            '心・カテーテル': '#32CD32',
+            '人工心肺・補助循環': '#4169E1',
+            '手術・麻酔': '#87CEEB',
+            '会議・ミーティング・勉強会・打ち合わせ': '#9E9E9E',
+            '出張・研修内容': '#9E9E9E',
+            'その他・連絡': '#9E9E9E'
+        };
+
+        // showMessage のダミー実装
+        if (!window.showMessage) {
+            window.showMessage = (msg, type) => {
+                console.log(`[${type}] ${msg}`);
+                const colors = {
+                    'success': '#4CAF50',
+                    'error': '#f44336',
+                    'warning': '#FF9800',
+                    'info': '#2196F3'
+                };
+                const div = document.createElement('div');
+                div.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: ${colors[type] || '#333'};
+                    color: white;
+                    padding: 12px 18px;
+                    border-radius: 6px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                    z-index: 10000;
+                    font-weight: 600;
+                    font-size: 12px;
+                `;
+                div.textContent = msg;
+                document.body.appendChild(div);
+                setTimeout(() => div.remove(), 3000);
+            };
+        }
+
+        class StaffingAdjustmentSystem {
+            constructor() {
+                this.selectedDate = null;
+                this.tasks = [];
+                this.ceList = [];
+                this.ceStatus = {};
+                this.assignments = {};
+                this.pendingAssignments = [];
+                this.departmentColors = DEPARTMENT_COLORS;
+                this.currentHour = null;
+                this.currentTargetTask = null;
+                this.isMenuOpen = false;
+                this.selectedIndex = -1;
+                this.staffList = [];
+                this.init();
+            }
+
+            async init() {
+                try {
+                    await this.waitForDependencies();
+                    this.setupEventListeners();
+                    this.renderTimelineHeader();
+                    this.loadPendingList();
+                    this.setupInteractiveTimeline();
+                    this.setupKeyboardControls();
+                    console.log('✅ 人員配置調整システム初期化完了');
+                } catch (error) {
+                    console.error('❌ 初期化エラー:', error);
+                    window.showMessage('システムの初期化に失敗しました', 'error');
+                }
+            }
+
+            async waitForDependencies() {
+                let attempts = 0;
+                while (attempts < 50) {
+                    if (window.database && window.DATA_ROOT) {
+                        return;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+                throw new Error('依存関係の初期化タイムアウト');
+            }
+
+            setupEventListeners() {
+                const dateInput = document.getElementById('targetDate');
+                if (dateInput) {
+                    const today = new Date();
+                    dateInput.value = this.formatDate(today);
+                    this.selectedDate = today;
+                }
+            }
+
+            formatDate(date) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
+            renderTimelineHeader() {
+                const hoursContainer = document.getElementById('timelineHours');
+                hoursContainer.innerHTML = '';
+                
+                for (let hour = 7; hour <= 18; hour++) {
+                    const hourSlot = document.createElement('div');
+                    hourSlot.className = 'hour-slot';
+                    hourSlot.textContent = `${hour}:00`;
+                    hourSlot.dataset.hour = hour;
+                    hoursContainer.appendChild(hourSlot);
+                }
+            }
+
+            setupInteractiveTimeline() {
+                const timelineWrapper = document.getElementById('timelineWrapper');
+                const verticalLine = document.getElementById('verticalLine');
+                const whiskerMenu = document.getElementById('whiskerMenu');
+
+                timelineWrapper.addEventListener('mousemove', (e) => {
+                    if (this.isMenuOpen) return; // メニューが開いている場合は無視
+
+                    const rect = timelineWrapper.getBoundingClientRect();
+                    const timelineHours = document.getElementById('timelineHours');
+                    const hoursRect = timelineHours.getBoundingClientRect();
+                    const hoursX = e.clientX - hoursRect.left;
+
+                    if (hoursX >= 0 && hoursX <= hoursRect.width) {
+                        const hourWidth = 80;
+                        const hourIndex = Math.floor(hoursX / hourWidth);
+                        const hour = 7 + hourIndex;
+
+                        if (hour >= 7 && hour <= 18) {
+                            this.currentHour = hour;
+                            
+                            // 縦ラインの位置を更新
+                            const lineX = 200 + (hourIndex * hourWidth) + (hourWidth / 2);
+                            verticalLine.style.left = `${lineX}px`;
+                            verticalLine.classList.add('active');
+                        }
+                    }
+                });
+
+                // クリックでメニューを固定表示
+                timelineWrapper.addEventListener('click', (e) => {
+                    const rect = timelineWrapper.getBoundingClientRect();
+                    const timelineHours = document.getElementById('timelineHours');
+                    const hoursRect = timelineHours.getBoundingClientRect();
+                    const hoursX = e.clientX - hoursRect.left;
+
+                    if (hoursX >= 0 && hoursX <= hoursRect.width && this.currentHour !== null) {
+                        this.isMenuOpen = true;
+                        this.selectedIndex = 0;
+                        
+                        // メニューを固定位置に表示
+                        const menuX = Math.min(e.clientX + 10, window.innerWidth - 300);
+                        const menuY = Math.min(e.clientY + 10, window.innerHeight - 500);
+                        whiskerMenu.style.left = `${menuX}px`;
+                        whiskerMenu.style.top = `${menuY}px`;
+                        whiskerMenu.classList.add('active');
+
+                        // メニュー内容を更新
+                        this.updateWhiskerMenu(this.currentHour);
+                    }
+                });
+
+                // メニュー外をクリックで閉じる
+                document.addEventListener('click', (e) => {
+                    if (!timelineWrapper.contains(e.target) && !whiskerMenu.contains(e.target)) {
+                        this.closeMenu();
+                    }
+                });
+
+                // マウスが離れたら縦ラインを非表示
+                timelineWrapper.addEventListener('mouseleave', () => {
+                    if (!this.isMenuOpen) {
+                        verticalLine.classList.remove('active');
+                    }
+                });
+            }
+
+            setupKeyboardControls() {
+                document.addEventListener('keydown', (e) => {
+                    if (!this.isMenuOpen) return;
+
+                    switch(e.key) {
+                        case 'ArrowUp':
+                            e.preventDefault();
+                            this.moveSelection(-1);
+                            break;
+                        case 'ArrowDown':
+                            e.preventDefault();
+                            this.moveSelection(1);
+                            break;
+                        case 'Enter':
+                            e.preventDefault();
+                            this.assignSelected();
+                            break;
+                        case 'Escape':
+                            e.preventDefault();
+                            this.closeMenu();
+                            break;
+                        case 'Delete':
+                        case 'Backspace':
+                            e.preventDefault();
+                            // 削除機能は業務バーの×ボタンで対応
+                            break;
+                    }
+                });
+            }
+
+            moveSelection(direction) {
+                if (this.staffList.length === 0) return;
+
+                this.selectedIndex += direction;
+                
+                // 範囲チェック
+                if (this.selectedIndex < 0) {
+                    this.selectedIndex = this.staffList.length - 1;
+                } else if (this.selectedIndex >= this.staffList.length) {
+                    this.selectedIndex = 0;
+                }
+
+                // 選択状態を更新
+                this.updateSelection();
+            }
+
+            updateSelection() {
+                const availableItems = document.querySelectorAll('#whiskerAvailableList .whisker-staff-item');
+                const concurrentItems = document.querySelectorAll('#whiskerConcurrentList .whisker-staff-item');
+                const allItems = [...availableItems, ...concurrentItems];
+
+                allItems.forEach((item, index) => {
+                    if (index === this.selectedIndex) {
+                        item.classList.add('selected');
+                        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    } else {
+                        item.classList.remove('selected');
+                    }
+                });
+            }
+
+            assignSelected() {
+                if (this.selectedIndex < 0 || this.selectedIndex >= this.staffList.length) return;
+
+                const selectedStaff = this.staffList[this.selectedIndex];
+                this.showTaskSelectionForAssignment(selectedStaff.name, this.currentHour);
+            }
+
+            closeMenu() {
+                this.isMenuOpen = false;
+                this.selectedIndex = -1;
+                this.staffList = [];
+                document.getElementById('whiskerMenu').classList.remove('active');
+                document.getElementById('verticalLine').classList.remove('active');
+            }
+
+            updateWhiskerMenu(hour) {
+                const whiskerMenuHeader = document.getElementById('whiskerMenuHeader');
+                whiskerMenuHeader.querySelector('span:first-child').textContent = `${hour}:00 の配置調整`;
+
+                // 部門状況を更新
+                this.updateDepartmentStatus(hour);
+
+                // 空き人員と兼務可能人員を更新
+                const available = this.getAvailableStaff(hour);
+                const concurrent = this.getConcurrentStaff(hour, null);
+                
+                this.staffList = [...available, ...concurrent];
+                
+                this.updateAvailableStaff(available);
+                this.updateConcurrentStaff(concurrent);
+
+                // 初期選択
+                if (this.staffList.length > 0) {
+                    this.selectedIndex = 0;
+                    this.updateSelection();
+                }
+            }
+
+            updateDepartmentStatus(hour) {
+                const deptStatusList = document.getElementById('deptStatusList');
+                deptStatusList.innerHTML = '';
+
+                const departments = ['機器管理・人工呼吸', '血液浄化', '不整脈', '心・カテーテル', '人工心肺・補助循環', '手術・麻酔'];
+                
+                departments.forEach(dept => {
+                    const deptTasks = this.tasks.filter(t => t.department === dept);
+                    let totalRequired = 0;
+                    let totalAssigned = 0;
+
+                    deptTasks.forEach(task => {
+                        const startHour = this.parseTimeToHour(task.startTime);
+                        const endHour = this.parseTimeToHour(task.endTime);
+
+                        if (hour >= startHour && hour < endHour) {
+                            const required = task.requiredStaff || task.requiredPeople || 1;
+                            const assigned = this.assignments[task.id]?.[hour]?.length || 0;
+                            totalRequired += required;
+                            totalAssigned += assigned;
+                        }
+                    });
+
+                    if (totalRequired > 0) {
+                        const fillRate = Math.round((totalAssigned / totalRequired) * 100);
+                        const rateClass = fillRate >= 80 ? 'high' : fillRate >= 50 ? 'medium' : 'low';
+
+                        const item = document.createElement('div');
+                        item.className = 'dept-status-item';
+                        item.innerHTML = `
+                            <div class="dept-name">${this.getDepartmentShortName(dept)}</div>
+                            <div class="dept-fill-rate ${rateClass}">${fillRate}%</div>
+                        `;
+                        deptStatusList.appendChild(item);
+                    }
+                });
+            }
+
+            updateAvailableStaff(available) {
+                const availableList = document.getElementById('whiskerAvailableList');
+                availableList.innerHTML = '';
+
+                if (available.length === 0) {
+                    availableList.innerHTML = '<p style="color: #999; padding: 6px; font-size: 10px;">空き人員がいません</p>';
+                    return;
+                }
+
+                available.forEach((ce, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'whisker-staff-item';
+                    item.dataset.index = index;
+                    item.innerHTML = `
+                        <i class="fas fa-user-plus"></i>
+                        <span style="flex: 1;">${ce.name}</span>
+                        <span class="work-type-badge ${ce.workType}">${ce.workType}</span>
+                    `;
+                    item.onclick = () => {
+                        this.selectedIndex = index;
+                        this.assignSelected();
+                    };
+                    availableList.appendChild(item);
+                });
+            }
+
+            updateConcurrentStaff(concurrent) {
+                const concurrentList = document.getElementById('whiskerConcurrentList');
+                concurrentList.innerHTML = '';
+
+                if (concurrent.length === 0) {
+                    concurrentList.innerHTML = '<p style="color: #999; padding: 6px; font-size: 10px;">兼務可能な人員がいません</p>';
+                    return;
+                }
+
+                const availableCount = this.getAvailableStaff(this.currentHour).length;
+
+                concurrent.forEach((ce, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'whisker-staff-item concurrent';
+                    item.dataset.index = availableCount + index;
+                    item.innerHTML = `
+                        <i class="fas fa-user-clock"></i>
+                        <span style="flex: 1;">${ce.name}</span>
+                        <span class="work-type-badge ${ce.workType}">${ce.workType}</span>
+                    `;
+                    item.onclick = () => {
+                        this.selectedIndex = availableCount + index;
+                        this.assignSelected();
+                    };
+                    concurrentList.appendChild(item);
+                });
+            }
+
+            showTaskSelectionForAssignment(ceName, hour) {
+                const tasksAtHour = this.tasks.filter(task => {
+                    const startHour = this.parseTimeToHour(task.startTime);
+                    const endHour = this.parseTimeToHour(task.endTime);
+                    return hour >= startHour && hour < endHour;
+                });
+
+                if (tasksAtHour.length === 0) {
+                    window.showMessage('この時間帯に業務がありません', 'warning');
+                    return;
+                }
+
+                if (tasksAtHour.length === 1) {
+                    this.assignStaffToTask(tasksAtHour[0].id, hour, ceName);
+                    return;
+                }
+
+                // 複数業務がある場合は最初の業務に配置（簡易版）
+                this.assignStaffToTask(tasksAtHour[0].id, hour, ceName);
+            }
+
+            assignStaffToTask(taskId, hour, ceName) {
+                if (!this.assignments[taskId]) {
+                    this.assignments[taskId] = {};
+                }
+                if (!this.assignments[taskId][hour]) {
+                    this.assignments[taskId][hour] = [];
+                }
+
+                if (!this.assignments[taskId][hour].includes(ceName)) {
+                    this.assignments[taskId][hour].push(ceName);
+                    this.renderTasks();
+                    this.renderSummary();
+                    window.showMessage(`${ceName}さんを配置しました`, 'success');
+                    
+                    // メニューを更新
+                    this.updateWhiskerMenu(hour);
+                }
+            }
+
+            async loadData() {
+                const dateInput = document.getElementById('targetDate');
+                if (!dateInput.value) {
+                    window.showMessage('日付を選択してください', 'warning');
+                    return;
+                }
+
+                this.selectedDate = new Date(dateInput.value + 'T00:00:00');
+                const dateKeyFormatted = this.formatDate(this.selectedDate);
+                const dateKey = dateKeyFormatted.replace(/-/g, '');
+
+                try {
+                    window.showMessage('データを読み込んでいます...', 'info');
+
+                    // CEリストを取得
+                    const ceListSnap = await window.database.ref(`${window.DATA_ROOT}/ceList`).once('value');
+                    const ceListData = ceListSnap.val() || {};
+                    
+                    if (Array.isArray(ceListData.list)) {
+                        this.ceList = ceListData.list.filter(Boolean);
+                    } else if (Array.isArray(ceListData)) {
+                        this.ceList = ceListData.filter(Boolean);
+                    } else {
+                        const denyList = new Set(['list','updatedAt','lastUpdated','timestamp','state','templates','metadata','default','scheduleData','workTypeOverrides']);
+                        this.ceList = Object.entries(ceListData)
+                            .filter(([key]) => !denyList.has(key))
+                            .map(([id, data]) => ({
+                                id,
+                                name: data.name || data.displayName || id,
+                                workType: data.workType || 'OPE'
+                            }));
+                    }
+
+                    console.log('✅ CEリスト取得:', this.ceList.length, '名');
+
+                    // CE勤務状態を取得
+                    const statusSnap = await window.database.ref(`${window.DATA_ROOT}/ceStatus/byDate/${dateKeyFormatted}`).once('value');
+                    this.ceStatus = statusSnap.val() || {};
+                    console.log('✅ CE勤務状態取得:', this.ceStatus);
+
+                    // 業務データを取得
+                    const eventsSnap = await window.database.ref(`${window.DATA_ROOT}/events/byDate/${dateKeyFormatted}`).once('value');
+                    const eventsData = eventsSnap.val() || {};
+                    
+                    this.tasks = Object.keys(eventsData).map(eventId => ({
+                        id: eventId,
+                        ...eventsData[eventId]
+                    }));
+
+                    console.log('📊 読み込んだ業務データ:', this.tasks.length, '件');
+
+                    // 配置データを初期化
+                    this.assignments = {};
+                    this.tasks.forEach(task => {
+                        this.assignments[task.id] = {};
+                        
+                        let assignedList = [];
+                        
+                        if (task.assignedCEs) {
+                            if (Array.isArray(task.assignedCEs)) {
+                                assignedList = task.assignedCEs;
+                            } else if (typeof task.assignedCEs === 'object') {
+                                assignedList = task.assignedCEs[dateKey] || [];
+                            }
+                        }
+                        
+                        if (!assignedList.length && task.assignments) {
+                            if (Array.isArray(task.assignments)) {
+                                assignedList = task.assignments;
+                            } else if (typeof task.assignments === 'object') {
+                                assignedList = task.assignments[dateKey] || [];
+                            }
+                        }
+                        
+                        if (assignedList.length > 0) {
+                            const startHour = this.parseTimeToHour(task.startTime);
+                            const endHour = this.parseTimeToHour(task.endTime);
+                            
+                            assignedList.forEach(assignment => {
+                                let ceName = '';
+                                
+                                if (typeof assignment === 'string') {
+                                    ceName = assignment;
+                                } else if (assignment && typeof assignment === 'object') {
+                                    ceName = assignment.ceName || assignment.name || '';
+                                }
+                                
+                                if (ceName) {
+                                    for (let h = startHour; h < endHour; h++) {
+                                        if (!this.assignments[task.id][h]) {
+                                            this.assignments[task.id][h] = [];
+                                        }
+                                        if (!this.assignments[task.id][h].includes(ceName)) {
+                                            this.assignments[task.id][h].push(ceName);
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                    });
+
+                    this.renderTasks();
+                    this.renderSummary();
+                    window.showMessage('データを読み込みました', 'success');
+                } catch (error) {
+                    console.error('❌ データ読み込みエラー:', error);
+                    window.showMessage('データの読み込みに失敗しました: ' + error.message, 'error');
+                }
+            }
+
+            parseTimeToHour(timeStr) {
+                if (!timeStr) return 8;
+                const match = timeStr.match(/(\d+):(\d+)/);
+                if (match) {
+                    return parseInt(match[1]);
+                }
+                return 8;
+            }
+
+            getDepartmentColor(department) {
+                return this.departmentColors[department] || '#9E9E9E';
+            }
+
+            getDepartmentShortName(department) {
+                const shortNames = {
+                    '機器管理・人工呼吸': '機器管理',
+                    '血液浄化': '血液浄化',
+                    '不整脈': '不整脈',
+                    '心・カテーテル': '心カテ',
+                    '人工心肺・補助循環': '人工心肺',
+                    '手術・麻酔': '手術麻酔',
+                    '会議・ミーティング・勉強会・打ち合わせ': '会議等',
+                    '出張・研修内容': '出張研修',
+                    'その他・連絡': 'その他'
+                };
+                return shortNames[department] || department;
+            }
+
+            renderTasks() {
+                const taskRowsContainer = document.getElementById('taskRows');
+                taskRowsContainer.innerHTML = '';
+
+                if (this.tasks.length === 0) {
+                    taskRowsContainer.innerHTML = '<p style="text-align: center; padding: 30px; color: #999; font-size: 12px;">業務データがありません</p>';
+                    return;
+                }
+
+                this.tasks.forEach(task => {
+                    const taskRow = document.createElement('div');
+                    taskRow.className = 'task-row';
+
+                    const departmentColor = this.getDepartmentColor(task.department);
+                    const departmentShort = this.getDepartmentShortName(task.department);
+
+                    // 業務情報
+                    const taskInfo = document.createElement('div');
+                    taskInfo.className = 'task-info';
+                    taskInfo.style.background = `linear-gradient(135deg, ${departmentColor}, ${this.adjustColor(departmentColor, -20)})`;
+                    taskInfo.innerHTML = `
+                        <div class="department-badge">${departmentShort}</div>
+                        <div class="task-name">${task.name || '無題'}</div>
+                        <div class="task-meta">
+                            <i class="fas fa-clock"></i> ${task.startTime || '8:00'} - ${task.endTime || '17:00'}<br>
+                            <i class="fas fa-users"></i> 必要: ${task.requiredStaff || task.requiredPeople || 1}名
+                        </div>
+                    `;
+
+                    // タイムライン
+                    const taskTimeline = document.createElement('div');
+                    taskTimeline.className = 'task-timeline';
+
+                    const startHour = this.parseTimeToHour(task.startTime);
+                    const endHour = this.parseTimeToHour(task.endTime);
+
+                    // 背景グリッド
+                    for (let hour = 7; hour <= 18; hour++) {
+                        const hourCell = document.createElement('div');
+                        hourCell.className = 'hour-cell';
+                        taskTimeline.appendChild(hourCell);
+                    }
+
+                    // 業務バー（結合表示）
+                    if (endHour > startHour) {
+                        const barLeft = (startHour - 7) * 80;
+                        const barWidth = (endHour - startHour) * 80;
+
+                        // 配置されている全CEを取得（重複排除）
+                        const assignedCEs = new Set();
+                        for (let h = startHour; h < endHour; h++) {
+                            if (this.assignments[task.id]?.[h]) {
+                                this.assignments[task.id][h].forEach(ceName => {
+                                    assignedCEs.add(ceName);
+                                });
+                            }
+                        }
+
+                        const required = task.requiredStaff || task.requiredPeople || 1;
+                        const assigned = assignedCEs.size;
+                        const shortage = required - assigned;
+
+                        const taskBar = document.createElement('div');
+                        taskBar.className = 'task-bar';
+                        taskBar.style.left = `${barLeft}px`;
+                        taskBar.style.width = `${barWidth - 6}px`;
+
+                        // ヘッダー
+                        taskBar.innerHTML = `
+                            <div class="task-bar-header">
+                                <div class="staff-required">必要: ${required}名</div>
+                                <div class="staff-assigned ${shortage > 0 ? 'shortage' : 'sufficient'}">
+                                    配置: ${assigned}名${shortage > 0 ? ` (不足 ${shortage})` : ''}
+                                </div>
+                            </div>
+                        `;
+
+                        // 配置済みCEアイコン
+                        if (assignedCEs.size > 0) {
+                            const iconsDiv = document.createElement('div');
+                            iconsDiv.className = 'staff-icons';
+                            
+                            assignedCEs.forEach(ceName => {
+                                const ce = this.ceList.find(c => c.name === ceName);
+                                const workType = ce?.workType || 'OPE';
+
+                                const icon = document.createElement('span');
+                                icon.className = `staff-icon ${workType}`;
+                                icon.innerHTML = `
+                                    <i class="fas fa-user"></i> ${ceName}
+                                    <span class="remove-btn" onclick="event.stopPropagation(); staffingAdjustment.removeAssignmentFromTask('${task.id}', '${ceName}')">×</span>
+                                `;
+                                iconsDiv.appendChild(icon);
+                            });
+                            
+                            taskBar.appendChild(iconsDiv);
+                        }
+
+                        taskTimeline.appendChild(taskBar);
+                    }
+
+                    taskRow.appendChild(taskInfo);
+                    taskRow.appendChild(taskTimeline);
+                    taskRowsContainer.appendChild(taskRow);
+                });
+            }
+
+            removeAssignmentFromTask(taskId, ceName) {
+                if (this.assignments[taskId]) {
+                    Object.keys(this.assignments[taskId]).forEach(hour => {
+                        const index = this.assignments[taskId][hour].indexOf(ceName);
+                        if (index > -1) {
+                            this.assignments[taskId][hour].splice(index, 1);
+                        }
+                    });
+                }
+                this.renderTasks();
+                this.renderSummary();
+                window.showMessage(`${ceName}さんの配置を解除しました`, 'success');
+                
+                // メニューが開いている場合は更新
+                if (this.isMenuOpen && this.currentHour !== null) {
+                    this.updateWhiskerMenu(this.currentHour);
+                }
+            }
+
+            adjustColor(color, amount) {
+                const clamp = (val) => Math.min(Math.max(val, 0), 255);
+                const num = parseInt(color.replace('#', ''), 16);
+                const r = clamp((num >> 16) + amount);
+                const g = clamp(((num >> 8) & 0x00FF) + amount);
+                const b = clamp((num & 0x0000FF) + amount);
+                return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+            }
+
+            getAvailableStaff(hour) {
+                const available = [];
+
+                this.ceList.forEach(ce => {
+                    // 🔧 修正: 勤務状態を正確にチェック
+                    const status = this.ceStatus[ce.id] || '';
+                    console.log(`CE: ${ce.name}, ID: ${ce.id}, Status: "${status}"`);
+                    
+                    // 非番(非)、欠勤(×)、年休(年)、B当番(B) をフィルタ
+                    if (status === '非' || status === '×' || status === '年' || status === 'B') {
+                        console.log(`  → 除外: ${status}`);
+                        return;
+                    }
+
+                    // 既に配置されているかチェック
+                    let isAssigned = false;
+                    this.tasks.forEach(task => {
+                        if (this.assignments[task.id]?.[hour]?.includes(ce.name)) {
+                            isAssigned = true;
+                        }
+                    });
+
+                    if (!isAssigned) {
+                        available.push(ce);
+                    }
+                });
+
+                console.log(`✅ ${hour}:00の空き人員: ${available.length}名`, available.map(c => c.name));
+                return available;
+            }
+
+            getConcurrentStaff(hour, currentTaskId) {
+                const concurrent = [];
+                const addedNames = new Set();
+
+                this.ceList.forEach(ce => {
+                    // 🔧 修正: 勤務状態を正確にチェック
+                    const status = this.ceStatus[ce.id] || '';
+                    if (status === '非' || status === '×' || status === '年' || status === 'B') {
+                        return;
+                    }
+
+                    this.tasks.forEach(task => {
+                        if (task.id === currentTaskId) return;
+
+                        const startHour = this.parseTimeToHour(task.startTime);
+                        const endHour = this.parseTimeToHour(task.endTime);
+                        const duration = endHour - startHour;
+
+                        if (duration >= 1 && 
+                            this.assignments[task.id]?.[hour]?.includes(ce.name) &&
+                            !addedNames.has(ce.name)) {
+                            concurrent.push({
+                                ...ce,
+                                currentTask: task.name
+                            });
+                            addedNames.add(ce.name);
+                        }
+                    });
+                });
+
+                return concurrent;
+            }
+
+            renderSummary() {
+                const summarySection = document.getElementById('summarySection');
+                const summaryGrid = document.getElementById('summaryGrid');
+                
+                if (this.tasks.length === 0) {
+                    summarySection.style.display = 'none';
+                    return;
+                }
+
+                summarySection.style.display = 'block';
+
+                let totalRequired = 0;
+                let totalAssigned = 0;
+                let shortageSlots = 0;
+
+                this.tasks.forEach(task => {
+                    const startHour = this.parseTimeToHour(task.startTime);
+                    const endHour = this.parseTimeToHour(task.endTime);
+                    
+                    const required = task.requiredStaff || task.requiredPeople || 1;
+                    const duration = endHour - startHour;
+                    totalRequired += required * duration;
+
+                    const assignedCEs = new Set();
+                    for (let h = startHour; h < endHour; h++) {
+                        if (this.assignments[task.id]?.[h]) {
+                            this.assignments[task.id][h].forEach(ceName => {
+                                assignedCEs.add(ceName);
+                            });
+                        }
+                    }
+                    
+                    totalAssigned += assignedCEs.size * duration;
+                    
+                    const shortage = required - assignedCEs.size;
+                    if (shortage > 0) {
+                        shortageSlots += shortage * duration;
+                    }
+                });
+
+                const fillRate = totalRequired > 0 ? Math.round((totalAssigned / totalRequired) * 100) : 0;
+
+                summaryGrid.innerHTML = `
+                    <div class="summary-card">
+                        <div class="summary-value" style="color: #1976D2;">${totalRequired}</div>
+                        <div class="summary-label">必要人員数（延べ）</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-value" style="color: #2E7D32;">${totalAssigned}</div>
+                        <div class="summary-label">配置済み人員数</div>
+                    </div>
+                    <div class="summary-card ${shortageSlots > 0 ? 'shortage' : ''}">
+                        <div class="summary-value">${shortageSlots}</div>
+                        <div class="summary-label">不足人員数</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-value" style="color: #7B1FA2;">${fillRate}%</div>
+                        <div class="summary-label">配置充足率</div>
+                    </div>
+                `;
+            }
+
+            saveAsPending() {
+                if (!this.selectedDate) {
+                    window.showMessage('日付を選択してください', 'warning');
+                    return;
+                }
+
+                const pendingData = {
+                    id: `pending_${Date.now()}`,
+                    date: this.formatDate(this.selectedDate),
+                    timestamp: Date.now(),
+                    assignments: JSON.parse(JSON.stringify(this.assignments)),
+                    tasks: this.tasks.map(t => ({ id: t.id, name: t.name, department: t.department })),
+                    savedBy: window.currentUserData?.displayName || 'unknown'
+                };
+
+                this.pendingAssignments.push(pendingData);
+                this.savePendingToLocalStorage();
+                this.renderPendingList();
+                window.showMessage('配置を保留しました', 'success');
+            }
+
+            savePendingToLocalStorage() {
+                try {
+                    localStorage.setItem('staffing_pending', JSON.stringify(this.pendingAssignments));
+                } catch (error) {
+                    console.error('❌ 保留データ保存エラー:', error);
+                }
+            }
+
+            loadPendingList() {
+                try {
+                    const saved = localStorage.getItem('staffing_pending');
+                    if (saved) {
+                        this.pendingAssignments = JSON.parse(saved);
+                        this.renderPendingList();
+                    }
+                } catch (error) {
+                    console.error('❌ 保留データ読み込みエラー:', error);
+                }
+            }
+
+            renderPendingList() {
+                const pendingListContainer = document.getElementById('pendingList');
+                
+                if (this.pendingAssignments.length === 0) {
+                    pendingListContainer.innerHTML = '<p style="color: #999; text-align: center; padding: 16px; font-size: 11px;"><i class="fas fa-inbox"></i> 保留中の配置はありません</p>';
+                    return;
+                }
+
+                pendingListContainer.innerHTML = '';
+                
+                this.pendingAssignments.forEach(pending => {
+                    const item = document.createElement('div');
+                    item.className = 'pending-item';
+                    
+                    const date = new Date(pending.timestamp);
+                    const dateStr = date.toLocaleString('ja-JP');
+                    
+                    item.innerHTML = `
+                        <div class="pending-info">
+                            <div style="font-weight: 700; margin-bottom: 4px; font-size: 12px;">
+                                <i class="fas fa-calendar-day"></i> ${pending.date} の配置
+                            </div>
+                            <div style="font-size: 10px; color: #666;">
+                                <i class="fas fa-clock"></i> ${dateStr}<br>
+                                <i class="fas fa-user"></i> ${pending.savedBy}
+                            </div>
+                        </div>
+                        <div class="pending-actions">
+                            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 11px;" 
+                                    onclick="staffingAdjustment.loadPending('${pending.id}')">
+                                <i class="fas fa-download"></i> 読込
+                            </button>
+                            <button class="btn btn-danger" style="padding: 6px 12px; font-size: 11px; background: #f44336;" 
+                                    onclick="staffingAdjustment.deletePending('${pending.id}')">
+                                <i class="fas fa-trash"></i> 削除
+                            </button>
+                        </div>
+                    `;
+                    
+                    pendingListContainer.appendChild(item);
+                });
+            }
+
+            loadPending(pendingId) {
+                const pending = this.pendingAssignments.find(p => p.id === pendingId);
+                if (!pending) {
+                    window.showMessage('保留データが見つかりません', 'error');
+                    return;
+                }
+
+                document.getElementById('targetDate').value = pending.date;
+                this.selectedDate = new Date(pending.date + 'T00:00:00');
+
+                this.loadData().then(() => {
+                    this.assignments = JSON.parse(JSON.stringify(pending.assignments));
+                    this.renderTasks();
+                    this.renderSummary();
+                    window.showMessage('保留データを読み込みました', 'success');
+                });
+            }
+
+            deletePending(pendingId) {
+                if (!confirm('この保留データを削除してもよろしいですか?')) {
+                    return;
+                }
+
+                const index = this.pendingAssignments.findIndex(p => p.id === pendingId);
+                if (index > -1) {
+                    this.pendingAssignments.splice(index, 1);
+                    this.savePendingToLocalStorage();
+                    this.renderPendingList();
+                    window.showMessage('保留データを削除しました', 'success');
+                }
+            }
+
+            async confirmAndSave() {
+                if (!this.selectedDate || this.tasks.length === 0) {
+                    window.showMessage('保存できるデータがありません', 'warning');
+                    return;
+                }
+
+                if (!confirm('この配置を確定してスケジュールに反映しますか？\n\n※スケジュール画面の配置結果が上書きされます')) {
+                    return;
+                }
+
+                try {
+                    const dateKey = this.formatDate(this.selectedDate);
+                    const updates = {};
+
+                    for (const task of this.tasks) {
+                        const taskAssignments = [];
+                        const hours = Object.keys(this.assignments[task.id] || {});
+                        
+                        const ceSet = new Set();
+                        hours.forEach(hour => {
+                            this.assignments[task.id][hour].forEach(ceName => {
+                                ceSet.add(ceName);
+                            });
+                        });
+
+                        ceSet.forEach(ceName => {
+                            taskAssignments.push({ ceName });
+                        });
+
+                        updates[`${window.DATA_ROOT}/events/byDate/${dateKey}/${task.id}/assignedCEs`] = Array.from(ceSet);
+                        updates[`${window.DATA_ROOT}/events/byDate/${dateKey}/${task.id}/assignments`] = taskAssignments;
+                    }
+
+                    await window.database.ref().update(updates);
+
+                    if (window.auditLogger) {
+                        window.auditLogger.log('staffing_adjustment_confirm', {
+                            date: dateKey,
+                            tasksCount: this.tasks.length,
+                            totalAssignments: Object.keys(updates).length / 2
+                        });
+                    }
+
+                    window.showMessage('✅ 配置を確定してスケジュールに反映しました', 'success');
+                    
+                    setTimeout(() => {
+                        this.loadData();
+                    }, 1000);
+                } catch (error) {
+                    console.error('❌ 保存エラー:', error);
+                    window.showMessage('配置の保存に失敗しました', 'error');
+                }
+            }
+        }
+
+        let staffingAdjustment;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            staffingAdjustment = new StaffingAdjustmentSystem();
+        });
+    </script>
+</body>
+</html>

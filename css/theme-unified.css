@@ -1,0 +1,1643 @@
+/**
+ * CEスケジュール管理システム V2 - 統一テーマ
+ * 勤務区分表・印刷最適化対応版
+ */
+
+:root {
+    --primary-gradient: linear-gradient(135deg, #E8F5E8 0%, #D4F1D4 100%);
+    --accent-color: #B8E6B8;
+    --text-color: #2C3E50;
+    --brand-primary: #4CAF50;
+    --brand-secondary: #45a049;
+    --glass-bg: rgba(255,255,255,0.7);
+    --glass-border: rgba(255,255,255,0.3);
+    --shadow-main: 0 8px 32px rgba(0,0,0,0.1);
+    --shadow-hover: 0 8px 25px rgba(76, 175, 80, 0.3);
+
+    /* 部門カラー定義 */
+    --dept-equipment: #90EE90;
+    --dept-purification: #FFB6C1;
+    --dept-arrhythmia: #9370DB;
+    --dept-cardiac: #32CD32;
+    --dept-circulation: #4169E1;
+    --dept-surgery: #87CEEB;
+    --dept-meeting: #9E9E9E;
+    --dept-business: #9E9E9E;
+    --dept-other: #9E9E9E;
+}
+
+/* 統一背景 */
+body.theme-unified {
+    background: var(--primary-gradient);
+    font-family: 'Noto Sans JP', 'Segoe UI', 'Hiragino Sans', sans-serif;
+    color: var(--text-color);
+    min-height: 100vh;
+    font-size: 14px;
+}
+
+/* ガラスモーフィズム統一カード */
+.glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-main);
+}
+
+/* 統一ボタンシステム */
+.btn-unified {
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: none;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+}
+
+.btn-unified.btn-small {
+    padding: 8px 15px;
+    font-size: 13px;
+}
+
+.btn-primary-unified {
+    background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
+    color: white;
+}
+
+.btn-primary-unified:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-hover);
+}
+
+.btn-outline-unified {
+    background: transparent;
+    border: 2px solid var(--brand-primary);
+    color: var(--brand-primary);
+}
+
+.btn-outline-unified:hover {
+    background: var(--brand-primary);
+    color: white;
+}
+
+/* 統一入力フィールド */
+.input-unified {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s ease;
+}
+
+.input-unified:focus {
+    outline: none;
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+}
+
+/* 統一ステータスメッセージ */
+.status-unified {
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-top: 15px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.status-unified.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status-unified.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.status-unified.info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+.status-unified.warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
+/* 中央配置レイアウト */
+.center-layout {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.center-card {
+    width: 100%;
+    max-width: 500px;
+    padding: 40px;
+}
+
+/* 管理者ダッシュボード専用 */
+.admin-layout {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* バッジシステム */
+.badge-unified {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.badge-admin { background: #fed7d7; color: #742a2a; }
+.badge-editor { background: #bee3f8; color: #2a4365; }
+.badge-viewer { background: #c6f6d5; color: #22543d; }
+.badge-initial { background: #faf089; color: #744210; }
+.badge-active { background: #9ae6b4; color: #22543d; }
+
+/* テーブル統一 */
+.table-unified {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.table-unified th,
+.table-unified td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.table-unified th {
+    background: #f7fafc;
+    font-weight: 600;
+    color: #2d3748;
+}
+
+.table-unified tr:hover {
+    background: #f7fafc;
+}
+
+/* サイドバー */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border-right: 1px solid var(--glass-border);
+    transition: all 0.3s ease;
+    width: 60px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.sidebar.expanded { width: 280px; }
+.sidebar-text { opacity: 0; transition: opacity 0.3s ease; white-space: nowrap; }
+.sidebar.expanded .sidebar-text { opacity: 1; }
+
+.main-content {
+    margin-left: 60px;
+    transition: margin-left 0.3s ease;
+    min-height: 100vh;
+}
+.sidebar.expanded + .main-content { margin-left: 280px; }
+
+/* ナビゲーション */
+.nav-tab { transition: all 0.3s ease; }
+.nav-tab:hover { background-color: rgba(76, 175, 80, 0.1); }
+.nav-tab.active { background-color: rgba(76, 175, 80, 0.2); font-weight: bold; }
+
+/* 同期インジケータ */
+.sync-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 700;
+}
+.sync-indicator.connected { background: rgba(76,175,80,0.1); color: #2E7D32; }
+.sync-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.sync-dot.pulse { animation: pulse 2s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
+
+/* 部門セクション */
+.department-section {
+    border: 4px solid var(--dept-color, #e5e7eb);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.8);
+    min-height: 200px;
+    transition: all 0.2s ease;
+    position: relative;
+}
+.department-section:hover { 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.department-section.drag-over { 
+    border-color: #10b981; 
+    background: rgba(16, 185, 129, 0.05);
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+}
+
+/* CEグリッド */
+.ce-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(90px,1fr));
+    gap: 8px;
+}
+
+.ce-item {
+    background: linear-gradient(135deg, var(--ce-color), var(--ce-color-light));
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-weight: 600;
+    text-align: center;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+    font-size: 12px;
+    cursor: grab;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.ce-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.ce-item-mini {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* 勤務区分色分け */
+.ce-item.worktype-ope, .ce-item-mini.worktype-ope { 
+    --ce-color:#87CEEB; --ce-color-light:#B0E0E6; 
+    background: linear-gradient(135deg, #87CEEB, #B0E0E6); 
+    color:#1E3A8A;
+}
+.ce-item.worktype-me, .ce-item-mini.worktype-me { 
+    --ce-color:#90EE90; --ce-color-light:#98FB98; 
+    background: linear-gradient(135deg, #90EE90, #98FB98); 
+    color:#006400;
+}
+.ce-item.worktype-hd, .ce-item-mini.worktype-hd { 
+    --ce-color:#FFB6C1; --ce-color-light:#FFC0CB; 
+    background: linear-gradient(135deg, #FFB6C1, #FFC0CB); 
+    color:#8B008B;
+}
+.ce-item.worktype-flex, .ce-item-mini.worktype-flex { 
+    --ce-color:#FFFF99; --ce-color-light:#FFFFE0; 
+    background: linear-gradient(135deg, #FFFF99, #FFFFE0); 
+    color:#B8860B;
+}
+
+/* 配置チップ */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 9999px;
+    padding: 2px 8px;
+    font-size: 11px;
+    margin: 2px;
+    font-weight: 600;
+}
+
+.chip.worktype-ope { background: linear-gradient(135deg, #87CEEB, #B0E0E6); color: #1E3A8A; }
+.chip.worktype-me { background: linear-gradient(135deg, #90EE90, #98FB98); color: #006400; }
+.chip.worktype-hd { background: linear-gradient(135deg, #FFB6C1, #FFC0CB); color: #8B008B; }
+.chip.worktype-flex { background: linear-gradient(135deg, #FFFF99, #FFFFE0); color: #B8860B; }
+
+.chip .remove {
+    cursor: pointer;
+    color: rgba(0,0,0,0.5);
+    margin-left: 4px;
+    font-weight: bold;
+}
+.chip .remove:hover { color: #ef4444; }
+
+/* ステータスバッジ */
+.status-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    background: #4CAF50;
+    color: white;
+    font-size: 8px;
+    padding: 1px 3px;
+    border-radius: 3px;
+    font-weight: bold;
+}
+
+.status-早 { background: #FF9800; }
+.status-当 { background: #9C27B0; }
+.status-非 { background: #607D8B; }
+.status-休 { background: #F44336; }
+.status-出 { background: #2196F3; }
+
+/* ローディング */
+#loading {
+    position: fixed;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    flex-direction: column;
+}
+
+.spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--brand-primary);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* 勤務区分表専用スタイル */
+.work-schedule-container {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.work-schedule-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.work-schedule-title {
+    font-size: 24px;
+    font-weight: bold;
+    color: #2d3748;
+    margin-bottom: 10px;
+}
+
+.work-schedule-table-wrapper {
+    overflow-x: auto;
+    margin: 20px 0;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    max-height: calc(100vh - 400px); /* 画面高さに応じた最大高さ */
+}
+
+.work-schedule-table {
+    width: 100%;
+    min-width: 1400px;
+    border-collapse: collapse;
+    font-size: 12px;
+    background: white;
+}
+
+.work-schedule-table th,
+.work-schedule-table td {
+    border: 1px solid #e0e0e0;
+    padding: 6px 4px;
+    text-align: center;
+    vertical-align: middle;
+    height: 32px;
+}
+
+.work-schedule-table th {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    font-weight: 600;
+    color: #495057;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.work-schedule-table .name-header {
+    position: sticky;
+    left: 0;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    z-index: 15;
+    min-width: 120px;
+    text-align: left;
+    padding-left: 8px;
+}
+
+.work-schedule-table .name-cell {
+    position: sticky;
+    left: 0;
+    background: white;
+    z-index: 5;
+    text-align: left;
+    padding-left: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.work-schedule-table .name-cell:hover {
+    background: #f8f9fa;
+}
+
+.work-schedule-table .date-header {
+    min-width: 50px;
+    writing-mode: horizontal-tb;
+}
+
+.work-schedule-table .weekend-header {
+    background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+    color: #856404;
+}
+
+.work-schedule-table .summary-header {
+    background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+    color: #0c5460;
+    min-width: 45px;
+}
+
+/* 勤務状態セル */
+.work-cell {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 600;
+    position: relative;
+}
+
+.work-cell:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+/* 勤務区分別背景色 */
+.work-cell.type-ope { 
+    background: #87CEEB; 
+    color: #1E3A8A; 
+}
+
+.work-cell.type-ope.status-A1 { 
+    background: #1E3A8A; /* 紺色 */
+    color: white; 
+}
+
+.work-cell.type-me { 
+    background: #90EE90; 
+    color: #006400; 
+}
+
+.work-cell.type-hd { 
+    background: #FFB6C1; 
+    color: #8B008B; 
+}
+
+.work-cell.type-flex { 
+    background: #FFFF99; 
+    color: #B8860B; 
+}
+
+/* 非、×、年、出、研 の場合は背景色なし（白） */
+.work-cell.status-非,
+.work-cell.status-×,
+.work-cell.status-年,
+.work-cell.status-出,
+.work-cell.status-研 {
+    background: white !important;
+    color: #2C3E50 !important;
+    border-color: #e5e7eb !important;
+}
+
+/* 希望勤務（アンダーライン） */
+.work-cell.desired {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+}
+
+/* 休日セル */
+.work-cell.holiday {
+    background: linear-gradient(135deg, #f0f8ff, #e6f3ff);
+}
+
+.work-cell.holiday.status-B,
+.work-cell.holiday.status-非,
+.work-cell.holiday.status-出,
+.work-cell.holiday.status-研 {
+    background: linear-gradient(135deg, #ffebee, #ffcdd2);
+}
+
+/* サマリーセル */
+.summary-cell {
+    background: #f8f9fa;
+    font-weight: 500;
+}
+
+/* フッターサマリー行 */
+.footer-summary-row th,
+.footer-summary-row td {
+    background: linear-gradient(135deg, #e9ecef, #dee2e6);
+    font-weight: 600;
+    position: sticky;
+    bottom: 0;
+    z-index: 8;
+}
+
+.footer-summary-row .type-label {
+    position: sticky;
+    left: 0;
+    z-index: 15;
+    background: linear-gradient(135deg, #e9ecef, #dee2e6);
+}
+
+/* 警告表示 */
+.warning-count {
+    color: #dc3545;
+    font-weight: bold;
+    background: rgba(220, 53, 69, 0.1);
+    border-radius: 4px;
+    padding: 2px 4px;
+}
+
+/* 勤務時間帯説明（コンパクト版） */
+.work-time-definitions {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 12px;
+    margin: 12px 0;
+    font-size: 11px;
+}
+
+.work-time-definitions.small {
+    font-size: 10px;
+    padding: 8px;
+    margin: 8px 0;
+}
+
+.work-time-definitions h3 {
+    font-size: 16px;
+    margin-bottom: 8px;
+}
+
+.work-time-definitions.small h3 {
+    font-size: 13px;
+    margin-bottom: 6px;
+}
+
+.work-time-definitions table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.work-time-definitions th,
+.work-time-definitions td {
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.work-time-definitions.small th,
+.work-time-definitions.small td {
+    padding: 3px 5px;
+}
+
+.work-time-definitions th {
+    background: #e9ecef;
+    font-weight: 600;
+}
+
+/* 勤務状態選択メニュー */
+.status-menu {
+    position: fixed;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    padding: 12px;
+    z-index: 2000;
+    min-width: 200px;
+}
+
+.status-menu .menu-header {
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.status-menu .status-buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.status-menu .status-btn {
+    padding: 6px 8px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.status-menu .status-btn:hover {
+    background: #f8f9fa;
+    border-color: #6c757d;
+}
+
+.status-menu .status-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+/* 勤務区分変更モーダル */
+.work-type-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.work-type-modal-content {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+/* CE並び替えグリッド */
+.ce-reorder-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    padding: 16px 0;
+}
+
+.ce-reorder-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(5px);
+    border: 2px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 15px;
+    text-align: center;
+    cursor: move;
+    transition: all 0.2s ease;
+}
+
+.ce-reorder-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+}
+
+.ce-reorder-card.dragging {
+    opacity: 0.6;
+    transform: rotate(3deg) scale(0.95);
+}
+
+/* 印刷用スタイル（A4横1枚対応） */
+@media print {
+    body {
+        margin: 0;
+        padding: 0;
+        background: white !important;
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    @page {
+        size: A4 landscape;
+        margin: 10mm;
+    }
+    
+    .no-print {
+        display: none !important;
+    }
+    
+    .work-schedule-container {
+        margin: 0;
+        padding: 5mm;
+        border: none;
+        box-shadow: none;
+        background: transparent;
+    }
+    
+    .work-schedule-title {
+        font-size: 16pt;
+        margin-bottom: 5mm;
+    }
+    
+    .work-time-definitions {
+        font-size: 8pt;
+        padding: 3mm;
+        margin-bottom: 3mm;
+    }
+    
+    .work-time-definitions h3 {
+        font-size: 10pt;
+        margin-bottom: 2mm;
+    }
+    
+    .work-time-definitions table th,
+    .work-time-definitions table td {
+        padding: 1pt 2pt;
+    }
+    
+    .work-schedule-table-wrapper {
+        overflow: visible !important;
+    }
+    
+    .work-schedule-table {
+        width: 100%;
+        font-size: 8pt;
+        table-layout: fixed;
+    }
+    
+    .work-schedule-table th,
+    .work-schedule-table td {
+        border: 0.5pt solid #000;
+        padding: 1pt;
+        height: 12pt;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .work-schedule-table .name-header,
+    .work-schedule-table .name-cell {
+        width: 40pt;
+        min-width: 40pt;
+        max-width: 40pt;
+        padding-left: 2pt;
+    }
+    
+    .work-schedule-table .date-header,
+    .work-schedule-table .summary-header,
+    .work-schedule-table .work-cell,
+    .work-schedule-table .summary-cell {
+        width: 15pt;
+        min-width: 15pt;
+        max-width: 15pt;
+    }
+    
+    .work-cell.desired {
+        text-decoration-thickness: 0.5pt;
+        text-underline-offset: 1pt;
+    }
+    
+    .footer-summary-row th,
+    .footer-summary-row td {
+        background: #e9ecef !important;
+    }
+    
+    /* ページブレイクを避ける */
+    table, tr, td, th, tbody, thead, tfoot {
+        page-break-inside: avoid !important;
+    }
+}
+
+/* エディター専用スタイル */
+.editor-sidebar {
+    width: 280px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border-right: 1px solid var(--glass-border);
+    padding: 16px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    transition: width 0.3s ease;
+    position: relative;
+}
+
+.editor-sidebar.collapsed {
+    width: 60px;
+}
+
+.editor-sidebar-content {
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.editor-sidebar.collapsed .editor-sidebar-content {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.sidebar-toggle-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(255,255,255,0.8);
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    z-index: 10;
+}
+
+.temp-save-item {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 4px 0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.temp-save-item:hover {
+    background: rgba(76, 175, 80, 0.1);
+    border-color: var(--brand-primary);
+    transform: translateY(-1px);
+}
+
+.temp-save-delete {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #ef4444;
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.temp-save-item:hover .temp-save-delete {
+    opacity: 1;
+}
+
+/* 月次業務省スペース化 */
+.department-section .monthly-plans {
+    order: 99;
+    margin-top: 8px;
+    padding: 6px;
+    background: rgba(255, 255, 255, 0.4);
+    border: 1px dashed #ffa726;
+    border-radius: 6px;
+    font-size: 10px;
+}
+
+.department-section .monthly-plans .monthly-event-item {
+    padding: 4px 6px;
+    margin: 2px 0;
+    border-width: 1px;
+    font-size: 10px;
+}
+
+.department-section .monthly-plans .monthly-task-badge {
+    top: -4px;
+    right: 4px;
+    font-size: 8px;
+    padding: 1px 4px;
+}
+
+.department-section .monthly-plans .btn-small {
+    padding: 2px 6px;
+    font-size: 9px;
+}
+
+.department-section .monthly-plans .assignment-dropzone {
+    min-height: 20px;
+    padding: 4px;
+    margin-top: 4px;
+}
+
+.department-section .monthly-plans .chip {
+    padding: 1px 4px;
+    font-size: 9px;
+}
+
+/* 月次業務（ダッシュボード強化スタイル） */
+.monthly-task-badge {
+    position: absolute;
+    top: -4px;
+    right: 4px;
+    background: #f97316;
+    color: white;
+    font-size: 8px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-weight: bold;
+}
+
+.assignment-dropzone {
+    min-height: 20px;
+    padding: 4px;
+    margin-top: 4px;
+}
+
+.assignment-dropzone.drag-over {
+    background: #fef3c7 !important;
+    border-color: #f59e0b !important;
+}
+
+.btn-small {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: none;
+    cursor: pointer;
+}
+
+.monthly-event-item {
+    font-size: 11px;
+    line-height: 1.2;
+}
+
+/* 隠されたモーダル */
+.hidden {
+    display: none !important;
+}
+/* 勤務表エディタ専用拡張 */
+.weekend-header {
+    background: linear-gradient(135deg, #fff3cd, #ffeaa7) !important;
+    color: #856404 !important;
+}
+
+.summary-header {
+    background: linear-gradient(135deg, #d1ecf1, #bee5eb) !important;
+    color: #0c5460 !important;
+}
+
+/* 曜日色分け */
+.text-red-600 { color: #dc2626; }
+.text-blue-600 { color: #2563eb; }
+
+/* アニメーション */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+/* ドラッグ&ドロップ用スタイル */
+.ce-item[draggable="true"] {
+    cursor: move;
+    transition: all 0.2s ease;
+}
+
+.ce-item.dragging {
+    opacity: 0.6;
+    transform: scale(0.95) rotate(2deg);
+}
+
+.event-drop-target.drag-over {
+    border: 2px dashed #10b981 !important;
+    background: rgba(16, 185, 129, 0.1) !important;
+    transform: scale(1.02);
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+}
+
+.assigned-ces {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 12px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    position: relative;
+}
+
+.chip.worktype-ope { 
+    background: linear-gradient(135deg, #87CEEB, #B0E0E6); 
+    color: #1E3A8A; 
+}
+
+.chip.worktype-me { 
+    background: linear-gradient(135deg, #90EE90, #98FB98); 
+    color: #006400; 
+}
+
+.chip.worktype-hd { 
+    background: linear-gradient(135deg, #FFB6C1, #FFC0CB); 
+    color: #8B008B; 
+}
+
+.chip.worktype-flex { 
+    background: linear-gradient(135deg, #FFFF99, #FFFFE0); 
+    color: #B8860B; 
+}
+
+.chip .remove {
+    cursor: pointer;
+    color: rgba(0,0,0,0.4);
+    margin-left: 4px;
+    font-weight: bold;
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.chip .remove:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.2);
+}
+
+/* ドラッグ&ドロップ強化スタイル */
+.ce-item[draggable="true"] {
+    cursor: move;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+}
+
+.ce-item[draggable="true"]:hover {
+    border-color: #10b981;
+    transform: translateY(-1px);
+}
+
+.ce-item.dragging {
+    opacity: 0.6;
+    transform: scale(0.95) rotate(2deg);
+    border-color: #3b82f6;
+}
+
+.event-drop-target {
+    position: relative;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.event-drop-target.drag-over {
+    border: 2px dashed #10b981 !important;
+    background: rgba(16, 185, 129, 0.1) !important;
+    transform: scale(1.02);
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+    animation: dragPulse 1s infinite;
+}
+
+@keyframes dragPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    50% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+}
+
+.drop-hint {
+    opacity: 0.7;
+    font-style: italic;
+    color: #6b7280;
+}
+
+.event-drop-target:hover .drop-hint {
+    opacity: 1;
+    color: #10b981;
+}
+
+.assigned-ces {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 12px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    position: relative;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+.chip.worktype-ope { 
+    background: linear-gradient(135deg, #87CEEB, #B0E0E6); 
+    color: #1E3A8A; 
+}
+
+.chip.worktype-me { 
+    background: linear-gradient(135deg, #90EE90, #98FB98); 
+    color: #006400; 
+}
+
+.chip.worktype-hd { 
+    background: linear-gradient(135deg, #FFB6C1, #FFC0CB); 
+    color: #8B008B; 
+}
+
+.chip.worktype-flex { 
+    background: linear-gradient(135deg, #FFFF99, #FFFFE0); 
+    color: #B8860B; 
+}
+
+.chip .remove {
+    cursor: pointer;
+    color: rgba(0,0,0,0.4);
+    margin-left: 4px;
+    font-weight: bold;
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.chip .remove:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.2);
+    transform: scale(1.2);
+}
+/* ==========================================================================
+   勤務区分表表示・管理機能強化スタイル（V2.1対応）
+   ========================================================================== */
+
+/* 管理者用ボタンスタイル強化 */
+.btn-small {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin: 0 2px;
+}
+
+.btn-small:hover {
+    transform: scale(1.05);
+    opacity: 0.9;
+}
+
+/* 勤務区分表コンテナの改善 */
+.schedule-display-container {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.period-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 12px;
+}
+
+.period-display {
+    text-align: center;
+    flex-grow: 1;
+    margin: 0 20px;
+}
+
+/* 勤務区分表テーブルの改善 */
+.work-schedule-table-wrapper {
+    overflow-x: auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    margin: 20px 0;
+}
+
+.work-schedule-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10px;
+    min-width: 1200px;
+    table-layout: fixed;
+}
+
+.work-schedule-table th,
+.work-schedule-table td {
+    border: 1px solid #e0e0e0;
+    padding: 2px 4px;
+    text-align: center;
+    vertical-align: middle;
+    height: 28px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.work-schedule-table th {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef) !important;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+/* 固定列の改善 */
+.work-schedule-table th.name-header,
+.work-schedule-table td.name-cell {
+    width: 100px;
+    min-width: 100px;
+    text-align: left;
+    padding-left: 5px;
+    position: sticky;
+    left: 0;
+    z-index: 15;
+}
+
+.work-schedule-table th.name-header {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef) !important;
+    z-index: 20;
+}
+
+.work-schedule-table td.name-cell {
+    background: white !important;
+}
+
+/* 勤務区分オーバーライド反映の確実な表示 */
+.work-schedule-table .work-cell.type-ope { 
+    background: #87CEEB !important; 
+    color: #1E3A8A !important; 
+}
+
+.work-schedule-table .work-cell.type-ope.status-A1 { 
+    background: #1E3A8A !important; 
+    color: white !important; 
+}
+
+.work-schedule-table .work-cell.type-me { 
+    background: #90EE90 !important; 
+    color: #006400 !important; 
+}
+
+.work-schedule-table .work-cell.type-hd { 
+    background: #FFB6C1 !important; 
+    color: #8B008B !important; 
+}
+
+.work-schedule-table .work-cell.type-flex { 
+    background: #FFFF99 !important; 
+    color: #B8860B !important; 
+}
+
+/* 非勤務状態の白色表示 */
+.work-schedule-table .work-cell.status-非,
+.work-schedule-table .work-cell.status-×,
+.work-schedule-table .work-cell.status-年,
+.work-schedule-table .work-cell.status-出,
+.work-schedule-table .work-cell.status-研 {
+    background: white !important;
+    color: #333 !important;
+}
+
+/* 休日セルの白色表示 */
+.work-schedule-table .work-cell.holiday {
+    background: white !important;
+    color: #333 !important;
+}
+
+/* 希望勤務の下線表示 */
+.work-schedule-table .work-cell.desired {
+    text-decoration: underline !important;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+}
+
+/* 警告表示の強調 */
+.work-schedule-table .warning-count {
+    color: #dc3545 !important;
+    font-weight: 700 !important;
+    background: #ffe6e6 !important;
+}
+
+/* 集計セルの統一 */
+.work-schedule-table th.summary-header,
+.work-schedule-table td.summary-cell {
+    width: 40px;
+    min-width: 40px;
+    background: #f8f9fa !important;
+    font-weight: 500;
+    font-size: 8px;
+}
+
+/* フッター集計行の改善 */
+.work-schedule-table tfoot .footer-summary-row {
+    background: #f1f3f4 !important;
+    border-top: 2px solid #dee2e6 !important;
+}
+
+.work-schedule-table tfoot .footer-summary-row th.type-label {
+    background: #e9ecef !important;
+    font-weight: 700;
+    text-align: left !important;
+    padding-left: 5px !important;
+    position: sticky;
+    left: 0;
+    z-index: 15;
+}
+
+/* 管理者コントロール */
+.admin-controls {
+    display: inline-flex;
+    gap: 8px;
+    margin-left: 15px;
+    align-items: center;
+}
+
+.admin-controls .btn-small {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    font-size: 10px;
+    transition: all 0.2s ease;
+}
+
+.admin-controls .btn-small:hover {
+    transform: scale(1.1);
+}
+
+/* 表示状態インジケータ */
+.visibility-indicator {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: bold;
+    margin-left: 8px;
+}
+
+.visibility-indicator.hidden {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.visibility-indicator.visible {
+    background: #d1fae5;
+    color: #059669;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 1400px) {
+    .work-schedule-table {
+        font-size: 9px;
+    }
+    
+    .work-schedule-table th,
+    .work-schedule-table td {
+        padding: 1px 2px;
+        height: 24px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .work-schedule-table {
+        font-size: 8px;
+    }
+    
+    .work-schedule-table th.name-header,
+    .work-schedule-table td.name-cell {
+        width: 80px;
+        min-width: 80px;
+    }
+}
+
+/* 印刷時の最適化 */
+@media print {
+    .work-schedule-table-wrapper {
+        overflow: visible !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+    }
+    
+    .work-schedule-table {
+        font-size: 7px !important;
+        min-width: auto !important;
+        width: 100% !important;
+    }
+    
+    .work-schedule-table th,
+    .work-schedule-table td {
+        border: 0.5px solid #000 !important;
+        padding: 0.5px 1px !important;
+        height: auto !important;
+    }
+    
+    .admin-controls,
+    .btn-small,
+    .period-navigation button {
+        display: none !important;
+    }
+}
+
+/* ==========================================================================
+   勤務区分表UI改善スタイル
+   ========================================================================== */
+
+/* 期間表示ヘッダー */
+.period-display-header {
+    text-align: center;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 12px;
+}
+
+/* 下部コントロールフッター */
+.schedule-controls-footer {
+    margin-top: 20px;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 12px;
+    border: 1px solid #e0e0e0;
+}
+
+.controls-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.navigation-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.admin-controls-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(220, 53, 69, 0.1);
+    border: 1px dashed #dc3545;
+    border-radius: 8px;
+}
+
+.admin-label {
+    font-size: 12px;
+    font-weight: bold;
+    color: #dc3545;
+}
+
+/* 管理者ボタンスタイル */
+.btn-small {
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-small:hover {
+    transform: scale(1.05);
+    opacity: 0.9;
+}
+
+/* 右上の勤務時間表示のz-index調整 */
+.work-time-compact {
+    z-index: 50 !important;
+    pointer-events: none;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    .controls-container {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .navigation-controls {
+        order: 2;
+    }
+    
+    .admin-controls-container {
+        order: 1;
+    }
+}
+/* user-setup ページ専用スタイル */
+.user-setup-page .center-layout {
+    min-height: 100vh !important;
+    min-height: 100svh !important; /* モバイルUIバー考慮 */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 20px !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+}
+
+.user-setup-page .center-card {
+    width: 100% !important;
+    max-width: 600px !important;
+    margin: 0 auto !important;
+}
+
+/* デスクトップ専用調整 */
+@media (min-width: 769px) {
+    .user-setup-page .center-layout {
+        padding: 40px !important;
+    }
+}
+
+/* スマートフォン対応 */
+@media (max-width: 768px) {
+    .user-setup-page .center-layout {
+        padding: 16px !important;
+        align-items: flex-start !important;
+        padding-top: 40px !important;
+    }
+    
+    .user-setup-page .glass-card {
+        padding: 20px !important;
+    }
+    
+    .user-setup-page h1 {
+        font-size: 1.8rem !important;
+    }
+    
+    .user-setup-page .input-unified {
+        font-size: 16px !important; /* iOSズーム防止 */
+        padding: 12px !important;
+    }
+    
+    .user-setup-page .btn-unified {
+        padding: 14px 20px !important;
+        font-size: 14px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .user-setup-page .center-layout {
+        padding: 12px !important;
+        padding-top: 20px !important;
+    }
+    
+    .user-setup-page .glass-card {
+        padding: 16px !important;
+    }
+    
+    .user-setup-page h1 {
+        font-size: 1.5rem !important;
+    }
+}

@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>集計・分析 - CEスケジュール管理システム V2</title>
+    
+    <!-- 外部ライブラリ -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/theme-unified.css?v=20241217">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="../js/config/firebase-config.js"></script>
+    <script src="../js/core/auth-guard.js"></script>
+
+    <!-- 監査ログシステム -->
+<script src="../js/utils/audit-logger.js"></script>
+
+    <style>
+        /* 分析ハブ専用スタイル */
+        .analytics-layout {
+            min-height: 100vh;
+            padding: 20px;
+            background: var(--primary-gradient);
+        }
+
+        .analytics-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .analytics-card {
+            background: var(--glass-bg);
+            border: 2px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+            position: relative;
+            backdrop-filter: blur(5px);
+        }
+
+        .analytics-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--brand-primary);
+            box-shadow: 0 12px 28px rgba(76, 175, 80, 0.2);
+            background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(76, 175, 80, 0.05));
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .analytics-card.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .analytics-card .icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, var(--brand-primary), #66bb6a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            transition: transform 0.3s ease;
+        }
+
+        .analytics-card:hover .icon {
+            transform: scale(1.1);
+        }
+
+        .analytics-card .title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #2e7d32;
+        }
+
+        .analytics-card .description {
+            font-size: 0.875rem;
+            color: var(--text-color-light);
+            line-height: 1.5;
+        }
+
+        .analytics-card .status-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .analytics-card .status-badge.available {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .analytics-card .status-badge.restricted {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* 統計サマリー */
+        .quick-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 40px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .stat-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--brand-primary);
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-color-light);
+        }
+
+        /* スマートフォン対応 */
+        @media (max-width: 768px) {
+            .analytics-layout {
+                padding: 16px;
+            }
+
+            .analytics-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .analytics-card {
+                padding: 20px;
+                min-height: 160px;
+            }
+
+            .analytics-card .icon {
+                font-size: 2.5rem;
+                margin-bottom: 16px;
+            }
+
+            .analytics-card .title {
+                font-size: 1.1rem;
+            }
+
+            .analytics-card .description {
+                font-size: 0.8rem;
+            }
+
+            .quick-stats {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+                margin-bottom: 24px;
+            }
+
+            .stat-card {
+                padding: 16px;
+            }
+
+            .stat-value {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body class="theme-unified">
+    <!-- ローディング -->
+    <div id="loading" class="center-layout">
+        <div class="glass-card center-card text-center">
+            <div class="spinner mb-4"></div>
+            <p class="text-gray-600">分析機能を読み込んでいます...</p>
+        </div>
+    </div>
+
+    <!-- メインコンテンツ -->
+    <div id="mainContent" class="analytics-layout" style="display:none;">
+        <!-- ヘッダー -->
+        <div class="analytics-header">
+            <div class="mb-6">
+                <h1 class="text-4xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-chart-line text-green-600 mr-3"></i>
+                    集計・分析
+                </h1>
+                <p class="text-gray-600 text-lg">業務配置とCE勤務状況の各種分析機能</p>
+                <div class="mt-4 text-right">
+                    <div class="text-sm text-gray-500">ログイン中</div>
+                    <div id="currentUserDisplay" class="font-semibold text-gray-800"></div>
+                </div>
+            </div>
+            
+            <!-- ナビゲーション -->
+            <div class="flex justify-center gap-4 mb-8">
+                <a href="./home.html" class="btn-unified btn-outline-unified">
+                    <i class="fas fa-home mr-2"></i>HOME
+                </a>
+                <button onclick="window.handleLogout()" class="btn-unified btn-outline-unified text-red-600 border-red-600">
+                    <i class="fas fa-sign-out-alt mr-2"></i>ログアウト
+                </button>
+            </div>
+        </div>
+
+        <!-- 分析機能グリッド -->
+        <div class="analytics-grid">
+            <!-- 業務別タイムライン -->
+            <div class="analytics-card" onclick="openAnalyticsPage('department-timeline')">
+                <div class="status-badge available">利用可能</div>
+                <i class="fas fa-chart-bar icon"></i>
+                <div class="title">業務別タイムライン</div>
+                <div class="description">部門・業務ごとの時系列分析と配置状況の可視化</div>
+            </div>
+
+            <!-- 個人別タイムライン -->
+            <div class="analytics-card" onclick="openAnalyticsPage('personal-timeline')">
+                <div class="status-badge available">利用可能</div>
+                <i class="fas fa-chart-line icon"></i>
+                <div class="title">個人別タイムライン</div>
+                <div class="description">CE個人の勤務パターンと業務配置履歴の分析</div>
+            </div>
+
+            <!-- 配置サマリー -->
+            <div class="analytics-card" onclick="openAnalyticsPage('assignment-summary')">
+                <div class="status-badge available">利用可能</div>
+                <i class="fas fa-clipboard-list icon"></i>
+                <div class="title">配置サマリ</div>
+                <div class="description">業務配置状況の要約表示と効率性分析</div>
+            </div>
+
+                        <!-- 人員配置調整 -->
+            <div class="analytics-card" onclick="openAnalyticsPage('staffing-adjustment')">
+                <div class="status-badge available">利用可能</div>
+                <i class="fas fa-users-cog icon"></i>
+                <div class="title">人員配置調整</div>
+                <div class="description">日別・時間別の人員配置最適化と不足人員の可視化</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 軽量メッセージ機能
+        window.showMessage = window.showMessage || function(msg, type='info') {
+            let cont = document.getElementById('messageContainer');
+            if (!cont) {
+                cont = document.createElement('div');
+                cont.id = 'messageContainer';
+                cont.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:9999;width:min(92vw,480px);';
+                document.body.appendChild(cont);
+            }
+            const div = document.createElement('div');
+            div.className = `status-unified ${type}`;
+            div.style.marginBottom = '8px';
+            div.textContent = msg;
+            cont.appendChild(div);
+            setTimeout(() => div.remove(), 5000);
+        };
+
+// ログアウト処理
+window.handleLogout = async () => {
+    try {
+        // 監査ログ記録（共通ロガー使用）
+        if (window.auditLogger) {
+            await window.auditLogger.logAction('logout');
+        }
+
+        if (window.auth && window.auth.currentUser) {
+            await window.auth.signOut();
+        }
+    } catch (error) {
+        console.error('ログアウトエラー:', error);
+    } finally {
+        sessionStorage.clear();
+        localStorage.clear();
+        window.location.href = '../index.html';
+    }
+};
+
+
+        // 分析ハブクラス
+        class AnalyticsHub {
+            constructor() {
+                this.isInitialized = false;
+                this.analyticsData = {
+                    totalEvents: 0,
+                    totalCE: 0,
+                    totalAssignments: 0,
+                    avgUtilization: 0
+                };
+            }
+
+            async init() {
+                if (this.isInitialized) return;
+                this.isInitialized = true;
+
+                try {
+                    // 認証ガード実行
+                    const authSuccess = await AuthGuard.init();
+                    if (!authSuccess) return;
+
+                    // ユーザーデータ取得（失敗してもリダイレクトしない）
+                    let userData = null;
+                    try {
+                        userData = await AuthGuard.getUserData();
+                    } catch (error) {
+                        console.warn('ユーザーデータ取得失敗:', error);
+                    }
+
+                    // ユーザーデータが不完全でも継続（分析ページは全権限アクセス可能）
+                    if (userData && userData.setupCompleted) {
+                        window.userRole = userData.role || 'viewer';
+                        window.currentUserData = userData;
+                    } else {
+                        // フォールバック：セッションから基本情報を構築
+                        const session = AuthGuard.getSession();
+                        window.userRole = session.role || 'viewer';
+                        window.currentUserData = {
+                            uid: session.uid || 'unknown',
+                            username: session.username || 'ゲストユーザー',
+                            displayName: session.username || 'ゲストユーザー',
+                            role: window.userRole,
+                            setupCompleted: true // 分析ページでは認証済みとみなす
+                        };
+                        console.log('フォールバックユーザーデータを使用:', window.currentUserData);
+                    }
+
+                    this.showInterface();
+                    this.updateAnalyticsAccess();
+                    
+                    console.log('✅ 分析ハブ初期化完了');
+                } catch (error) {
+                    console.error('分析ハブ初期化エラー:', error);
+                    location.href = '../index.html';
+                }
+            }
+
+            showInterface() {
+                const loadingEl = document.getElementById('loading');
+                const mainEl = document.getElementById('mainContent');
+                if (loadingEl) loadingEl.style.display = 'none';
+                if (mainEl) mainEl.style.display = 'block';
+
+                this.updateUserDisplay();
+            }
+
+            updateUserDisplay() {
+                const userData = window.currentUserData;
+                if (!userData) return;
+                
+                const displayName = userData.displayName || userData.username || 'ユーザー';
+                document.querySelectorAll('#currentUserDisplay').forEach(el => {
+                    el.textContent = displayName;
+                });
+            }
+
+            updateAnalyticsAccess() {
+                // 全権限でアクセス可能に変更
+                const cards = document.querySelectorAll('.analytics-card');
+                cards.forEach(card => {
+                    card.classList.remove('disabled');
+                    const badge = card.querySelector('.status-badge');
+                    if (badge) {
+                        badge.textContent = '利用可能';
+                        badge.className = 'status-badge available';
+                    }
+                });
+                
+                // 権限制限メッセージを非表示（存在する場合）
+                const restrictionMessage = document.getElementById('accessRestrictionMessage');
+                if (restrictionMessage) {
+                    restrictionMessage.style.display = 'none';
+                }
+            }
+        }
+
+        /*** 分析ページを新しいタブで開く（認証情報確実受け渡し版）*/
+        function openAnalyticsPage(pageName) {
+            console.log(`分析ページを開いています: ${pageName}`);
+            console.log(`分析ページを開いています: ${pageName}`);
+
+// ★推奨追加：分析ページアクセスログ記録
+if (window.auditLogger) {
+    window.auditLogger.logAction('analytics-page-access', {
+        targetPage: pageName,
+        openMethod: 'new-tab'
+    }).catch(error => console.warn('分析ページアクセスログ記録失敗:', error));
+}
+
+            // 認証情報の取得
+            const userData = window.currentUserData || {};
+            const displayName = userData.displayName || userData.username || sessionStorage.getItem('currentUser') || 'user';
+            const username = userData.username || sessionStorage.getItem('currentUsername') || displayName;
+            const uid = sessionStorage.getItem('targetUID') || userData.uid || '';
+            const role = window.userRole || userData.role || sessionStorage.getItem('userRole') || 'viewer';
+
+            // フォールバック値を使用（認証情報が不完全でも継続）
+            const finalUid = uid || 'guest';
+            const finalUsername = username || displayName || 'ゲストユーザー';
+            const finalDisplayName = displayName || finalUsername;
+
+            // URLパラメータに認証情報を付与
+            const params = new URLSearchParams({
+                uid: finalUid,
+                username: finalUsername,
+                user: finalDisplayName,
+                role: role,
+                timestamp: Date.now()
+            });
+
+            const url = `../analytics/${pageName}.html?${params.toString()}`;
+
+            // localStorage にもミラー保存（タブ間共有用）
+            try {
+                localStorage.setItem('analyticsAuth', JSON.stringify({
+                    uid: finalUid,
+                    username: finalUsername,
+                    displayName: finalDisplayName,
+                    role: role,
+                    timestamp: Date.now()
+                }));
+                console.log('認証情報をlocalStorageに保存:', { username, role });
+            } catch (e) {
+                console.warn('localStorage保存エラー:', e);
+            }
+
+            try {
+                // 新しいタブで開く
+                const newWindow = window.open(url, '_blank', 'width=1400,height=900,scrollbars=yes,resizable=yes');
+                
+                // ポップアップブロック検知を遅延実行
+                setTimeout(() => {
+                    try {
+                        if (!newWindow || newWindow.closed) {
+                            console.warn('ポップアップがブロックされました');
+                            if (confirm('ポップアップがブロックされています。同じタブで分析ページを開きますか？')) {
+                                window.location.href = url;
+                            }
+                        } else {
+                            console.log('分析ページが正常に開かれました');
+                        }
+                    } catch (checkError) {
+                        // クロスオリジンエラーは正常動作とみなす
+                        console.log('分析ページが正常に開かれました（詳細確認不可）');
+                    }
+                }, 1000);
+
+            } catch (error) {
+                console.error('分析ページを開くときにエラーが発生しました:', error);
+                window.showMessage('分析ページを開くことができませんでした', 'error');
+            }
+        }
+
+        // 初期化
+        window.analyticsHub = null;
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        window.analyticsHub = new AnalyticsHub();
+        await window.analyticsHub.init();
+
+        // ★追加：ページアクセスログ記録
+        if (window.auditLogger) {
+            await window.auditLogger.logPageAccess('analytics');
+        }
+
+        console.log('✅ 分析ハブ初期化完了');
+    } catch (error) {
+        console.error('❌ 分析ハブ初期化エラー:', error);
+        window.showMessage('分析ハブの初期化に失敗しました', 'error');
+    }
+});
+
+    </script>
+</body>
+</html>

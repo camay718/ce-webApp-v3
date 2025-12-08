@@ -1,0 +1,25 @@
+{
+  "name": "CE勤務管理システム",
+  "short_name": "CE勤務管理",
+  "description": "臨床工学技士勤務スケジュール管理システム",
+  "start_url": "./pages/home.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#34495E",
+  "theme_color": "#34495E",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./assets/icons/app-icons/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icons/app-icons/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
