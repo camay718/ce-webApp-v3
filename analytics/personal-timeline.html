@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>個人別タイムライン - CEスケジュール管理システム V2</title>
+    <title>個人別タイムライン - CE web App v3</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/theme-unified.css">
@@ -490,24 +490,24 @@
             return true;
         }
 
-        // V2版Firebase設定（dashboard.htmlと統一）
+        // V3版Firebase設定（dashboard.htmlと統一）
         const firebaseConfig = {
-            apiKey: "AIzaSyCRUvvs0OSz_9L9bXtqteVFIIze1OaZObE",
-            authDomain: "ce-scheduling-system-v2.firebaseapp.com",
-            databaseURL: "https://ce-scheduling-system-v2-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "ce-scheduling-system-v2",
-            storageBucket: "ce-scheduling-system-v2.firebasestorage.app",
-            messagingSenderId: "288279598010",
-            appId: "1:288279598010:web:d545ee1d4d854513084383",
-            measurementId: "G-LSEEMJE2R0"
+            apiKey: "AIzaSyDHujcHnKS1IKxcp1rBmfL6zNiraRVv_Q0",
+            authDomain: "work-arrangement.firebaseapp.com",
+            databaseURL: "https://work-arrangement-default-rtdb.firebaseio.com",
+            projectId: "work-arrangement",
+            storageBucket: "work-arrangement.firebasestorage.app",
+            messagingSenderId: "373524055304",
+            appId: "1:373524055304:web:aaa68f970ef640384c58bd",
+            measurementId: "G-XQ9ZS2FNC1"
         };
 
-        const DATA_ROOT = 'ceScheduleV2';
+        const DATA_ROOT = 'ceSchedulev3';
 
         // グローバル変数
         let database = null;
         let authReadyPromise = null;
-        let v2EventsByDate = {};
+        let v3EventsByDate = {};
         let globalCEList = [];
         let globalWorkStatusData = {}; // CE ID -> dateISO -> status
         let currentDateRange = [];
@@ -940,8 +940,8 @@
                     loadLatestWorkSchedule()
                 ]);
                 
-                v2EventsByDate = eventsByDateSnapshot.val() || {};
-                console.log('📊 イベントデータ:', Object.keys(v2EventsByDate).length, '日分');
+                v3EventsByDate = eventsByDateSnapshot.val() || {};
+                console.log('📊 イベントデータ:', Object.keys(v3EventsByDate).length, '日分');
                 
                 if (latestSchedule && latestSchedule.ceList) {
                     globalCEList = buildCEListFromWorkSchedule(latestSchedule);
@@ -1094,7 +1094,7 @@
                 chartInstances.individualChart.destroy();
             }
 
-            const minuteMap = collectMinuteMapV1Style(filteredCEs, selectedDepartments, v2EventsByDate);
+            const minuteMap = collectMinuteMapV1Style(filteredCEs, selectedDepartments, v3EventsByDate);
             const totalHoursByCE = computeTotalHoursV1Style(minuteMap, filteredCEs);
 
             const labels = totalHoursByCE.map(item => item.name);
@@ -1242,7 +1242,7 @@
 
             currentDateRange.forEach(date => {
                 const dateKey = formatDateAsISO(date);
-                const dayEvents = v2EventsByDate[dateKey] || {};
+                const dayEvents = v3EventsByDate[dateKey] || {};
 
                 const eventsForThisCE = Object.values(dayEvents).filter(event => {
                     if (selectedDepartments.length && !selectedDepartments.includes(event.department)) return false;
@@ -1531,7 +1531,7 @@
             
             const filteredCEs = globalCEList.filter(ce => selectedCEIds.includes(ce.id));
             
-            const minuteMap = collectMinuteMapV1Style(filteredCEs, selectedDepartments, v2EventsByDate);
+            const minuteMap = collectMinuteMapV1Style(filteredCEs, selectedDepartments, v3EventsByDate);
             const totalHoursByCE = computeTotalHoursV1Style(minuteMap, filteredCEs);
 
             let totalTasks = 0;
@@ -1611,7 +1611,7 @@
             printWindow.print();
         }
 
-        console.log('✅ 個人別タイムライン V2 読み込み完了');
+        console.log('✅ 個人別タイムライン v3 読み込み完了');
     </script>
 </body>
 </html>
