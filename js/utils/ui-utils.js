@@ -1,6 +1,5 @@
 /**
- * UI操作ユーティリティ V2統合版
- * V1メッセージシステム + V2通知システム統合
+ * UI操作ユーティリティ 
  */
 
 // ========= メッセージ表示システム =========
@@ -200,4 +199,4 @@ window.closeModal = closeModal;
 window.printElement = printElement;
 window.printCanvas = printCanvas;
 
-console.log('🎨 UI ユーティリティ読み込み完了（V2統合版）');
+console.log('🎨 UI ユーティリティ読み込み完了');
