@@ -4,7 +4,7 @@
  */
 
 // Firebaseのデータルート
-window.DATA_ROOT = 'ceScheduleV2';
+window.DATA_ROOT = 'ceScheduleV3';
 
 // 部門リスト（9部門・3x3レイアウト対応）
 window.DEPARTMENTS = [
