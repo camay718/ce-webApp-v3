@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>業務別タイムライン - CEスケジュール管理システム V2</title>
+    <title>業務別タイムライン - CE web App v3</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/theme-unified.css">
@@ -378,14 +378,14 @@
 
         // Firebase設定（dashboard.htmlと完全統一）
         const firebaseConfig = {
-            apiKey: "AIzaSyCRUvvs0OSz_9L9bXtqteVFIIze1OaZObE",
-            authDomain: "ce-scheduling-system-v2.firebaseapp.com",
-            databaseURL: "https://ce-scheduling-system-v2-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "ce-scheduling-system-v2",
-            storageBucket: "ce-scheduling-system-v2.firebasestorage.app",
-            messagingSenderId: "288279598010",
-            appId: "1:288279598010:web:d545ee1d4d854513084383",
-            measurementId: "G-LSEEMJE2R0"
+            apiKey: "AIzaSyDHujcHnKS1IKxcp1rBmfL6zNiraRVv_Q0",
+            authDomain: "work-arrangement.firebaseapp.com",
+            databaseURL: "https://work-arrangement-default-rtdb.firebaseio.com",
+            projectId: "work-arrangement",
+            storageBucket: "work-arrangement.firebasestorage.app",
+            messagingSenderId: "373524055304",
+            appId: "1:373524055304:web:aaa68f970ef640384c58bd",
+            measurementId: "G-XQ9ZS2FNC1"
         };
 
                 // グローバル変数
@@ -430,7 +430,7 @@
             }
         }
 
-        const DATA_ROOT = 'ceScheduleV2';
+        const DATA_ROOT = 'ceSchedulev3';
 
         // グローバル変数
         let globalTasksData = {};
@@ -1144,7 +1144,7 @@ function updateSummary() {
 }
 
 
-        console.log('✅ 業務別タイムライン V2 読み込み完了');
+        console.log('✅ 業務別タイムライン v3 読み込み完了');
     </script>
 </body>
 </html>
