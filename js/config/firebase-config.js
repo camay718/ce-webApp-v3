@@ -1,5 +1,5 @@
 /**
- * Firebase設定 - V2統合版（個人設定画面完全対応・認証競合解消）
+ * Firebase設定 - V3版
  * 
  * 役割:
  * - Firebase基本設定の提供とApp初期化
@@ -14,18 +14,18 @@ if (typeof window.firebaseV2Initialized === 'undefined') {
     
     // Firebase設定（既存設定を維持）
     window.firebaseConfig = {
-        apiKey: "AIzaSyCRUvvs0OSz_9L9bXtqteVFIIze1OaZObE",
-        authDomain: "ce-scheduling-system-v2.firebaseapp.com",
-        databaseURL: "https://ce-scheduling-system-v2-default-rtdb.asia-southeast1.firebasedatabase.app",
-        projectId: "ce-scheduling-system-v2",
-        storageBucket: "ce-scheduling-system-v2.firebasestorage.app",
-        messagingSenderId: "288279598010",
-        appId: "1:288279598010:web:d545ee1d4d854513084383",
-        measurementId: "G-LSEEMJE2R0"
+        apiKey: "AIzaSyDHujcHnKS1IKxcp1rBmfL6zNiraRVv_Q0",
+        authDomain: "work-arrangement.firebaseapp.com",
+        databaseURL: "https://work-arrangement-default-rtdb.firebaseio.com",
+        projectId: "work-arrangement",
+        storageBucket: "work-arrangement.firebasestorage.app",
+        messagingSenderId: "373524055304",
+        appId: "1:373524055304:web:aaa68f970ef640384c58bd",
+        measurementId: "G-XQ9ZS2FNC1"
     };
 
     // データルート
-    window.DATA_ROOT = 'ceScheduleV2';
+    window.DATA_ROOT = 'ceScheduleV3';
 
     // グローバル変数
     window.auth = null;
