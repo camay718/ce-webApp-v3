@@ -1,5 +1,5 @@
 /**
- * 監査ログシステム - CEスケジュール管理システムv2
+ * 監査ログシステム - CE web App v3
  * 全操作の記録と管理
  */
 class AuditLogger {
