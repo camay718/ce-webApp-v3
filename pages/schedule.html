@@ -907,12 +907,9 @@ constructor() {
     this.templates = {};
     this.templatesRef = null;
     this.templatesCallback = null;
-    this.sortableInstances = {
-        events: {},     // 通常業務のSortableインスタンス
-        monthly: {}     // 月次業務のSortableインスタンス
-    };
-    this.eventOrder = {};    // イベント順序 {department: [eventId1, eventId2, ...]}
-    this.monthlyOrder = {};  // 月次業務順序 {department: [taskId1, taskId2, ...]}
+    this.sortableInstances = { events: {}, monthly: {} };
+    this.eventOrder = {};
+    this.monthlyOrder = {};
 }
 
             async init() {
@@ -2033,303 +2030,312 @@ getStartOfWeek(date) {
                 return `${year}-${month}-${day}`;
             }
 
-            // =============================================
-            // ★ ここから追加開始 ★
-            // =============================================
-            
-            /**
-             * ============================================
-             * 業務カード並び替え機能
-             * ============================================
-             */
+/**
+ * ============================================
+ * 業務カード並び替え機能
+ * ============================================
+ */
 
-            /**
-             * 通常業務カードの並び替え機能初期化
-             */
-            async initializeSortableForEvents(dateKey) {
-                const grid = document.getElementById('departmentGrid');
-                if (!grid) return;
+/**
+ * 通常業務カードの並び替え機能初期化
+ */
+async initializeSortableForEvents(dateKey) {
+    const grid = document.getElementById('departmentGrid');
+    if (!grid) return;
 
-                // 既存の順序を読み込み
-                await this.loadEventOrder(dateKey);
+    // 既存の順序を読み込み
+    await this.loadEventOrder(dateKey);
 
-                // 各部門のtask-listに対してSortableを初期化
-                const taskLists = grid.querySelectorAll('.task-list');
-                
-                taskLists.forEach(taskList => {
-                    const department = taskList.dataset.department;
-                    if (!department) return;
+    // 各部門のtask-listに対してSortableを初期化
+    const taskLists = grid.querySelectorAll('.task-list');
+    
+    taskLists.forEach(taskList => {
+        const department = taskList.dataset.department;
+        if (!department) return;
 
-                    // 既存のSortableインスタンスを破棄
-                    if (this.sortableInstances.events[department]) {
-                        this.sortableInstances.events[department].destroy();
-                    }
+        // 既存のSortableインスタンスを破棄
+        if (this.sortableInstances.events[department]) {
+            this.sortableInstances.events[department].destroy();
+        }
 
-                    // 保存された順序でカードを並び替え
-                    this.applySavedEventOrder(taskList, department, dateKey);
+        // 保存された順序でカードを並び替え
+        this.applySavedEventOrder(taskList, department, dateKey);
 
-                    // Sortableインスタンスを作成
-                    this.sortableInstances.events[department] = new Sortable(taskList, {
-                        animation: 150,
-                        handle: '.sort-handle',
-                        ghostClass: 'sortable-ghost',
-                        dragClass: 'sortable-drag',
-                        filter: '.assigned-ces, .edit-event-btn, .remove-ce',
-                        preventOnFilter: true,
-                        onStart: (evt) => {
-                            evt.item.style.cursor = 'move';
-                        },
-                        onEnd: async (evt) => {
-                            evt.item.style.cursor = '';
-                            await this.saveEventOrder(department, dateKey);
-                            console.log(`✅ ${department}の業務順序を保存しました`);
-                        }
-                    });
-
-                    this.addSortHandlesToEventCards(taskList);
-                });
-
-                console.log('✅ 通常業務カードの並び替え機能を初期化しました');
+        // Sortableインスタンスを作成
+        this.sortableInstances.events[department] = new Sortable(taskList, {
+            animation: 150,
+            handle: '.sort-handle',  // ドラッグハンドルを指定
+            ghostClass: 'sortable-ghost',
+            dragClass: 'sortable-drag',
+            filter: '.assigned-ces, .edit-event-btn, .remove-ce',  // ドラッグ不可要素
+            preventOnFilter: true,
+            onStart: (evt) => {
+                evt.item.style.cursor = 'move';
+            },
+            onEnd: async (evt) => {
+                evt.item.style.cursor = '';
+                // 順序を保存
+                await this.saveEventOrder(department, dateKey);
+                console.log(`✅ ${department}の業務順序を保存しました`);
             }
+        });
 
-            /**
-             * 月次業務カードの並び替え機能初期化
-             */
-            async initializeSortableForMonthly(dateKey) {
-                const grid = document.getElementById('departmentGrid');
-                if (!grid) return;
+        // 各業務カードにドラッグハンドルを追加
+        this.addSortHandlesToEventCards(taskList);
+    });
 
-                await this.loadMonthlyOrder(dateKey);
+    console.log('✅ 通常業務カードの並び替え機能を初期化しました');
+}
 
-                const monthlyPlans = grid.querySelectorAll('.monthly-plans');
-                
-                monthlyPlans.forEach(planArea => {
-                    const department = planArea.dataset.department;
-                    if (!department) return;
+/**
+ * 月次業務カードの並び替え機能初期化
+ */
+async initializeSortableForMonthly(dateKey) {
+    const grid = document.getElementById('departmentGrid');
+    if (!grid) return;
 
-                    if (this.sortableInstances.monthly[department]) {
-                        this.sortableInstances.monthly[department].destroy();
-                    }
+    // 既存の順序を読み込み
+    await this.loadMonthlyOrder(dateKey);
 
-                    this.applySavedMonthlyOrder(planArea, department, dateKey);
+    // 各部門のmonthly-plansに対してSortableを初期化
+    const monthlyPlans = grid.querySelectorAll('.monthly-plans');
+    
+    monthlyPlans.forEach(planArea => {
+        const department = planArea.dataset.department;
+        if (!department) return;
 
-                    this.sortableInstances.monthly[department] = new Sortable(planArea, {
-                        animation: 150,
-                        handle: '.sort-handle',
-                        ghostClass: 'sortable-ghost',
-                        dragClass: 'sortable-drag',
-                        filter: '.assigned-ces, .edit-monthly-btn, .remove-ce, .daily-record-section',
-                        preventOnFilter: true,
-                        onStart: (evt) => {
-                            evt.item.style.cursor = 'move';
-                        },
-                        onEnd: async (evt) => {
-                            evt.item.style.cursor = '';
-                            await this.saveMonthlyOrder(department, dateKey);
-                            console.log(`✅ ${department}の月次業務順序を保存しました`);
-                        }
-                    });
+        // 既存のSortableインスタンスを破棄
+        if (this.sortableInstances.monthly[department]) {
+            this.sortableInstances.monthly[department].destroy();
+        }
 
-                    this.addSortHandlesToMonthlyCards(planArea);
-                });
+        // 保存された順序でカードを並び替え
+        this.applySavedMonthlyOrder(planArea, department, dateKey);
 
-                console.log('✅ 月次業務カードの並び替え機能を初期化しました');
+        // Sortableインスタンスを作成
+        this.sortableInstances.monthly[department] = new Sortable(planArea, {
+            animation: 150,
+            handle: '.sort-handle',
+            ghostClass: 'sortable-ghost',
+            dragClass: 'sortable-drag',
+            filter: '.assigned-ces, .edit-monthly-btn, .remove-ce, .daily-record-section',
+            preventOnFilter: true,
+            onStart: (evt) => {
+                evt.item.style.cursor = 'move';
+            },
+            onEnd: async (evt) => {
+                evt.item.style.cursor = '';
+                // 順序を保存
+                await this.saveMonthlyOrder(department, dateKey);
+                console.log(`✅ ${department}の月次業務順序を保存しました`);
             }
+        });
 
-            /**
-             * 業務カードにドラッグハンドルを追加
-             */
-            addSortHandlesToEventCards(taskList) {
-                const eventCards = taskList.querySelectorAll('.event-card');
-                eventCards.forEach(card => {
-                    const titleDiv = card.querySelector('.font-semibold');
-                    if (titleDiv && !titleDiv.querySelector('.sort-handle')) {
-                        const handle = document.createElement('i');
-                        handle.className = 'fas fa-grip-vertical sort-handle';
-                        handle.title = 'ドラッグして並び替え';
-                        titleDiv.insertBefore(handle, titleDiv.firstChild);
-                    }
-                });
-            }
+        // 各月次業務カードにドラッグハンドルを追加
+        this.addSortHandlesToMonthlyCards(planArea);
+    });
 
-            /**
-             * 月次業務カードにドラッグハンドルを追加
-             */
-            addSortHandlesToMonthlyCards(planArea) {
-                const monthlyCards = planArea.querySelectorAll('.monthly-task-card');
-                monthlyCards.forEach(card => {
-                    const titleDiv = card.querySelector('.monthly-task-title');
-                    if (titleDiv && !titleDiv.querySelector('.sort-handle')) {
-                        const handle = document.createElement('i');
-                        handle.className = 'fas fa-grip-vertical sort-handle';
-                        handle.title = 'ドラッグして並び替え';
-                        titleDiv.insertBefore(handle, titleDiv.firstChild);
-                    }
-                });
-            }
+    console.log('✅ 月次業務カードの並び替え機能を初期化しました');
+}
 
-            /**
-             * 通常業務の順序を読み込み
-             */
-            async loadEventOrder(dateKey) {
-                try {
-                    const snapshot = await window.database.ref(`${window.DATA_ROOT}/eventOrder/${dateKey}`).once('value');
-                    this.eventOrder = snapshot.val() || {};
-                } catch (error) {
-                    console.warn('業務順序の読み込みエラー:', error);
-                    this.eventOrder = {};
-                }
-            }
+/**
+ * 業務カードにドラッグハンドルを追加
+ */
+addSortHandlesToEventCards(taskList) {
+    const eventCards = taskList.querySelectorAll('.event-card');
+    eventCards.forEach(card => {
+        const titleDiv = card.querySelector('.font-semibold');
+        if (titleDiv && !titleDiv.querySelector('.sort-handle')) {
+            const handle = document.createElement('i');
+            handle.className = 'fas fa-grip-vertical sort-handle';
+            handle.title = 'ドラッグして並び替え';
+            titleDiv.insertBefore(handle, titleDiv.firstChild);
+        }
+    });
+}
 
-            /**
-             * 月次業務の順序を読み込み
-             */
-            async loadMonthlyOrder(dateKey) {
-                try {
-                    const snapshot = await window.database.ref(`${window.DATA_ROOT}/monthlyOrder/${dateKey}`).once('value');
-                    this.monthlyOrder = snapshot.val() || {};
-                } catch (error) {
-                    console.warn('月次業務順序の読み込みエラー:', error);
-                    this.monthlyOrder = {};
-                }
-            }
+/**
+ * 月次業務カードにドラッグハンドルを追加
+ */
+addSortHandlesToMonthlyCards(planArea) {
+    const monthlyCards = planArea.querySelectorAll('.monthly-task-card');
+    monthlyCards.forEach(card => {
+        const titleDiv = card.querySelector('.monthly-task-title');
+        if (titleDiv && !titleDiv.querySelector('.sort-handle')) {
+            const handle = document.createElement('i');
+            handle.className = 'fas fa-grip-vertical sort-handle';
+            handle.title = 'ドラッグして並び替え';
+            titleDiv.insertBefore(handle, titleDiv.firstChild);
+        }
+    });
+}
 
-            /**
-             * 保存された順序に従って業務カードを並び替え
-             */
-            applySavedEventOrder(taskList, department, dateKey) {
-                const savedOrder = this.eventOrder[department];
-                if (!savedOrder || savedOrder.length === 0) return;
+/**
+ * 通常業務の順序を読み込み
+ */
+async loadEventOrder(dateKey) {
+    try {
+        const snapshot = await window.database.ref(`${window.DATA_ROOT}/eventOrder/${dateKey}`).once('value');
+        this.eventOrder = snapshot.val() || {};
+    } catch (error) {
+        console.warn('業務順序の読み込みエラー:', error);
+        this.eventOrder = {};
+    }
+}
 
-                const cards = Array.from(taskList.querySelectorAll('.event-card'));
-                const cardMap = new Map();
-                
-                cards.forEach(card => {
-                    const eventId = card.dataset.eventId;
-                    if (eventId) cardMap.set(eventId, card);
-                });
+/**
+ * 月次業務の順序を読み込み
+ */
+async loadMonthlyOrder(dateKey) {
+    try {
+        const snapshot = await window.database.ref(`${window.DATA_ROOT}/monthlyOrder/${dateKey}`).once('value');
+        this.monthlyOrder = snapshot.val() || {};
+    } catch (error) {
+        console.warn('月次業務順序の読み込みエラー:', error);
+        this.monthlyOrder = {};
+    }
+}
 
-                savedOrder.forEach(eventId => {
-                    const card = cardMap.get(eventId);
-                    if (card) {
-                        taskList.appendChild(card);
-                    }
-                });
+/**
+ * 保存された順序に従って業務カードを並び替え
+ */
+applySavedEventOrder(taskList, department, dateKey) {
+    const savedOrder = this.eventOrder[department];
+    if (!savedOrder || savedOrder.length === 0) return;
 
-                cards.forEach(card => {
-                    const eventId = card.dataset.eventId;
-                    if (!savedOrder.includes(eventId)) {
-                        taskList.appendChild(card);
-                    }
-                });
-            }
+    const cards = Array.from(taskList.querySelectorAll('.event-card'));
+    const cardMap = new Map();
+    
+    cards.forEach(card => {
+        const eventId = card.dataset.eventId;
+        if (eventId) cardMap.set(eventId, card);
+    });
 
-            /**
-             * 保存された順序に従って月次業務カードを並び替え
-             */
-            applySavedMonthlyOrder(planArea, department, dateKey) {
-                const savedOrder = this.monthlyOrder[department];
-                if (!savedOrder || savedOrder.length === 0) return;
+    // 保存された順序でカードを再配置
+    savedOrder.forEach(eventId => {
+        const card = cardMap.get(eventId);
+        if (card) {
+            taskList.appendChild(card);
+        }
+    });
 
-                const cards = Array.from(planArea.querySelectorAll('.monthly-task-card'));
-                const cardMap = new Map();
-                
-                cards.forEach(card => {
-                    const taskId = card.dataset.taskId;
-                    if (taskId) cardMap.set(taskId, card);
-                });
+    // 順序に含まれていないカードを最後に追加
+    cards.forEach(card => {
+        const eventId = card.dataset.eventId;
+        if (!savedOrder.includes(eventId)) {
+            taskList.appendChild(card);
+        }
+    });
+}
 
-                savedOrder.forEach(taskId => {
-                    const card = cardMap.get(taskId);
-                    if (card) {
-                        planArea.appendChild(card);
-                    }
-                });
+/**
+ * 保存された順序に従って月次業務カードを並び替え
+ */
+applySavedMonthlyOrder(planArea, department, dateKey) {
+    const savedOrder = this.monthlyOrder[department];
+    if (!savedOrder || savedOrder.length === 0) return;
 
-                cards.forEach(card => {
-                    const taskId = card.dataset.taskId;
-                    if (!savedOrder.includes(taskId)) {
-                        planArea.appendChild(card);
-                    }
-                });
-            }
+    const cards = Array.from(planArea.querySelectorAll('.monthly-task-card'));
+    const cardMap = new Map();
+    
+    cards.forEach(card => {
+        const taskId = card.dataset.taskId;
+        if (taskId) cardMap.set(taskId, card);
+    });
 
-            /**
-             * 通常業務の順序を保存
-             */
-            async saveEventOrder(department, dateKey) {
-                try {
-                    const taskList = document.querySelector(`.task-list[data-department="${department}"]`);
-                    if (!taskList) return;
+    // 保存された順序でカードを再配置
+    savedOrder.forEach(taskId => {
+        const card = cardMap.get(taskId);
+        if (card) {
+            planArea.appendChild(card);
+        }
+    });
 
-                    const eventCards = taskList.querySelectorAll('.event-card');
-                    const order = Array.from(eventCards).map(card => card.dataset.eventId).filter(Boolean);
+    // 順序に含まれていないカードを最後に追加
+    cards.forEach(card => {
+        const taskId = card.dataset.taskId;
+        if (!savedOrder.includes(taskId)) {
+            planArea.appendChild(card);
+        }
+    });
+}
 
-                    await window.database.ref(`${window.DATA_ROOT}/eventOrder/${dateKey}/${department}`).set(order);
-                    this.eventOrder[department] = order;
+/**
+ * 通常業務の順序を保存
+ */
+async saveEventOrder(department, dateKey) {
+    try {
+        const taskList = document.querySelector(`.task-list[data-department="${department}"]`);
+        if (!taskList) return;
 
-                    if (window.auditLogger) {
-                        window.auditLogger.log('業務並び替え', {
-                            date: dateKey,
-                            department: department,
-                            orderCount: order.length
-                        });
-                    }
-                } catch (error) {
-                    console.error('業務順序の保存エラー:', error);
-                    window.showMessage('並び順の保存に失敗しました', 'error');
-                }
-            }
+        const eventCards = taskList.querySelectorAll('.event-card');
+        const order = Array.from(eventCards).map(card => card.dataset.eventId).filter(Boolean);
 
-            /**
-             * 月次業務の順序を保存
-             */
-            async saveMonthlyOrder(department, dateKey) {
-                try {
-                    const planArea = document.querySelector(`.monthly-plans[data-department="${department}"]`);
-                    if (!planArea) return;
+        await window.database.ref(`${window.DATA_ROOT}/eventOrder/${dateKey}/${department}`).set(order);
+        this.eventOrder[department] = order;
 
-                    const monthlyCards = planArea.querySelectorAll('.monthly-task-card');
-                    const order = Array.from(monthlyCards).map(card => card.dataset.taskId).filter(Boolean);
+        // 監査ログ
+        if (window.auditLogger) {
+            window.auditLogger.log('業務並び替え', {
+                date: dateKey,
+                department: department,
+                orderCount: order.length
+            });
+        }
+    } catch (error) {
+        console.error('業務順序の保存エラー:', error);
+        window.showMessage('並び順の保存に失敗しました', 'error');
+    }
+}
 
-                    await window.database.ref(`${window.DATA_ROOT}/monthlyOrder/${dateKey}/${department}`).set(order);
-                    this.monthlyOrder[department] = order;
+/**
+ * 月次業務の順序を保存
+ */
+async saveMonthlyOrder(department, dateKey) {
+    try {
+        const planArea = document.querySelector(`.monthly-plans[data-department="${department}"]`);
+        if (!planArea) return;
 
-                    if (window.auditLogger) {
-                        window.auditLogger.log('月次業務並び替え', {
-                            date: dateKey,
-                            department: department,
-                            orderCount: order.length
-                        });
-                    }
-                } catch (error) {
-                    console.error('月次業務順序の保存エラー:', error);
-                    window.showMessage('並び順の保存に失敗しました', 'error');
-                }
-            }
+        const monthlyCards = planArea.querySelectorAll('.monthly-task-card');
+        const order = Array.from(monthlyCards).map(card => card.dataset.taskId).filter(Boolean);
 
-            /**
-             * 並び替え機能をクリーンアップ
-             */
-            destroySortableInstances() {
-                Object.values(this.sortableInstances.events).forEach(instance => {
-                    if (instance && instance.destroy) {
-                        instance.destroy();
-                    }
-                });
-                this.sortableInstances.events = {};
+        await window.database.ref(`${window.DATA_ROOT}/monthlyOrder/${dateKey}/${department}`).set(order);
+        this.monthlyOrder[department] = order;
 
-                Object.values(this.sortableInstances.monthly).forEach(instance => {
-                    if (instance && instance.destroy) {
-                        instance.destroy();
-                    }
-                });
-                this.sortableInstances.monthly = {};
-            }
+        // 監査ログ
+        if (window.auditLogger) {
+            window.auditLogger.log('月次業務並び替え', {
+                date: dateKey,
+                department: department,
+                orderCount: order.length
+            });
+        }
+    } catch (error) {
+        console.error('月次業務順序の保存エラー:', error);
+        window.showMessage('並び順の保存に失敗しました', 'error');
+    }
+}
 
-            // =============================================
-            // ★ ここまで追加 ★
-            // =============================================
+/**
+ * 並び替え機能をクリーンアップ
+ */
+destroySortableInstances() {
+    // 通常業務のSortableインスタンスを破棄
+    Object.values(this.sortableInstances.events).forEach(instance => {
+        if (instance && instance.destroy) {
+            instance.destroy();
+        }
+    });
+    this.sortableInstances.events = {};
+
+    // 月次業務のSortableインスタンスを破棄
+    Object.values(this.sortableInstances.monthly).forEach(instance => {
+        if (instance && instance.destroy) {
+            instance.destroy();
+        }
+    });
+    this.sortableInstances.monthly = {};
+}
 
             updateCEListCount() {
                 const el = document.getElementById('ceListCount');
@@ -2480,9 +2486,8 @@ getStartOfWeek(date) {
 
                     // 集計の更新
                     this.updateDailySummary().catch(console.error);
-                    await this.initializeSortableForEvents(dateKey);
                     console.log(`✅ ${dateKey} のイベント表示完了: ${events.length}件`);
-
+                    await this.initializeSortableForEvents(dateKey);
                 } catch (error) {
                     console.error('❌ 日別イベント読み込みエラー:', error);
                     window.showMessage('イベントの読み込みに失敗しました', 'error');
