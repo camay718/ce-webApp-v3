@@ -3,46 +3,96 @@
  * 勤務区分表・印刷最適化対応版
  */
 
-:root {
-    --primary-gradient: linear-gradient(135deg, #E8F5E8 0%, #D4F1D4 100%);
-    --accent-color: #B8E6B8;
-    --text-color: #2C3E50;
-    --brand-primary: #4CAF50;
-    --brand-secondary: #45a049;
-    --glass-bg: rgba(255,255,255,0.7);
-    --glass-border: rgba(255,255,255,0.3);
-    --shadow-main: 0 8px 32px rgba(0,0,0,0.1);
-    --shadow-hover: 0 8px 25px rgba(76, 175, 80, 0.3);
-
-    /* 部門カラー定義 */
-    --dept-equipment: #90EE90;
-    --dept-purification: #FFB6C1;
-    --dept-arrhythmia: #9370DB;
-    --dept-cardiac: #32CD32;
-    --dept-circulation: #4169E1;
-    --dept-surgery: #87CEEB;
-    --dept-meeting: #9E9E9E;
-    --dept-business: #9E9E9E;
-    --dept-other: #9E9E9E;
-}
+ :root {
+-    --primary-gradient: linear-gradient(135deg, #E8F5E8 0%, #D4F1D4 100%);
+-    --accent-color: #B8E6B8;
+-    --text-color: #2C3E50;
+-    --brand-primary: #4CAF50;
+-    --brand-secondary: #45a049;
+-    --glass-bg: rgba(255,255,255,0.7);
+-    --glass-border: rgba(255,255,255,0.3);
+-    --shadow-main: 0 8px 32px rgba(0,0,0,0.1);
+-    --shadow-hover: 0 8px 25px rgba(76, 175, 80, 0.3);
++    /* ====== Chic / Charcoal Theme (Global) ====== */
++    /* Background */
++    --primary-gradient: radial-gradient(1200px 600px at 20% 0%,
++        rgba(255,255,255,0.06) 0%,
++        rgba(255,255,255,0.02) 35%,
++        rgba(0,0,0,0.00) 60%),
++      linear-gradient(135deg, #0B1220 0%, #0E172A 45%, #0A0F1A 100%);
++
++    /* Accent (控えめ) */
++    --accent-color: rgba(45, 212, 191, 0.22); /* subtle teal tint */
++
++    /* Text */
++    --text-color: #E5E7EB;      /* main text on dark */
++    --text-muted: #9CA3AF;      /* secondary */
++    --text-strong: #F9FAFB;     /* headings */
++
++    /* Brand (buttons, focus, active) */
++    --brand-primary: #2DD4BF;   /* teal */
++    --brand-secondary: #14B8A6; /* deeper teal */
++
++    /* Glass (smoke glass) */
++    --glass-bg: rgba(17, 24, 39, 0.62);       /* slate-900 w/ alpha */
++    --glass-bg-strong: rgba(17, 24, 39, 0.78);
++    --glass-border: rgba(255, 255, 255, 0.10);
++    --glass-border-strong: rgba(255, 255, 255, 0.16);
++
++    /* Shadows (soft, premium) */
++    --shadow-main: 0 18px 50px rgba(0,0,0,0.45);
++    --shadow-hover: 0 22px 70px rgba(0,0,0,0.55);
++
++    /* Focus ring */
++    --focus-ring: 0 0 0 3px rgba(45, 212, 191, 0.25);
+ 
+     /* 部門カラー定義 */
+     --dept-equipment: #90EE90;
+     --dept-purification: #FFB6C1;
+     --dept-arrhythmia: #9370DB;
+     --dept-cardiac: #32CD32;
+     --dept-circulation: #4169E1;
+     --dept-surgery: #87CEEB;
+     --dept-meeting: #9E9E9E;
+     --dept-business: #9E9E9E;
+     --dept-other: #9E9E9E;
+ }
 
 /* 統一背景 */
-body.theme-unified {
-    background: var(--primary-gradient);
-    font-family: 'Noto Sans JP', 'Segoe UI', 'Hiragino Sans', sans-serif;
-    color: var(--text-color);
-    min-height: 100vh;
-    font-size: 14px;
-}
+ body.theme-unified {
+     background: var(--primary-gradient);
+     font-family: 'Noto Sans JP', 'Segoe UI', 'Hiragino Sans', sans-serif;
+     color: var(--text-color);
+     min-height: 100vh;
+     font-size: 14px;
++    -webkit-font-smoothing: antialiased;
++    -moz-osx-font-smoothing: grayscale;
+ }
 
 /* ガラスモーフィズム統一カード */
-.glass-card {
-    background: var(--glass-bg);
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--glass-border);
-    border-radius: 16px;
-    box-shadow: var(--shadow-main);
-}
+ .glass-card {
+     background: var(--glass-bg);
+     backdrop-filter: blur(10px);
+     border: 1px solid var(--glass-border);
+     border-radius: 16px;
+     box-shadow: var(--shadow-main);
++    color: var(--text-color);
++    /* subtle highlight line */
++    position: relative;
+ }
++
++.glass-card::before{
++    content:"";
++    position:absolute;
++    inset:0;
++    border-radius:16px;
++    pointer-events:none;
++    background: linear-gradient(180deg,
++        rgba(255,255,255,0.10) 0%,
++        rgba(255,255,255,0.04) 18%,
++        rgba(255,255,255,0.00) 55%);
++    opacity: 0.7;
++}
 
 /* 統一ボタンシステム */
 .btn-unified {
@@ -62,42 +112,51 @@ body.theme-unified {
     font-size: 13px;
 }
 
-.btn-primary-unified {
-    background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
-    color: white;
-}
-
-.btn-primary-unified:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-hover);
-}
-
-.btn-outline-unified {
-    background: transparent;
-    border: 2px solid var(--brand-primary);
-    color: var(--brand-primary);
-}
-
-.btn-outline-unified:hover {
-    background: var(--brand-primary);
-    color: white;
-}
+ .btn-primary-unified {
+     background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
+     color: white;
+ }
+ 
+ .btn-primary-unified:hover {
+     transform: translateY(-1px);
+     box-shadow: var(--shadow-hover);
++    filter: saturate(1.05);
+ }
+ 
+ .btn-outline-unified {
+     background: transparent;
+     border: 2px solid var(--brand-primary);
+     color: var(--brand-primary);
+ }
+ 
+ .btn-outline-unified:hover {
+     background: var(--brand-primary);
+     color: white;
+ }
 
 /* 統一入力フィールド */
-.input-unified {
-    width: 100%;
-    padding: 12px 16px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 16px;
-    transition: border-color 0.3s ease;
-}
-
-.input-unified:focus {
-    outline: none;
-    border-color: var(--brand-primary);
-    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
-}
+ .input-unified {
+     width: 100%;
+     padding: 12px 16px;
+-    border: 1px solid #e2e8f0;
++    border: 1px solid rgba(255,255,255,0.12);
+     border-radius: 8px;
+     font-size: 16px;
+     transition: border-color 0.3s ease;
++    background: rgba(255,255,255,0.06);
++    color: var(--text-color);
+ }
+ 
+ .input-unified:focus {
+     outline: none;
+     border-color: var(--brand-primary);
+-    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
++    box-shadow: var(--focus-ring);
+ }
++
++.input-unified::placeholder{
++    color: rgba(229,231,235,0.55);
++}
 
 /* 統一ステータスメッセージ */
 .status-unified {
@@ -182,15 +241,18 @@ body.theme-unified {
     border-bottom: 1px solid #e2e8f0;
 }
 
-.table-unified th {
-    background: #f7fafc;
-    font-weight: 600;
-    color: #2d3748;
-}
-
-.table-unified tr:hover {
-    background: #f7fafc;
-}
+ .table-unified th {
+-    background: #f7fafc;
++    background: rgba(255,255,255,0.06);
+     font-weight: 600;
+-    color: #2d3748;
++    color: var(--text-strong);
+ }
+ 
+ .table-unified tr:hover {
+-    background: #f7fafc;
++    background: rgba(255,255,255,0.05);
+ }
 
 /* サイドバー */
 .sidebar {
@@ -221,8 +283,15 @@ body.theme-unified {
 
 /* ナビゲーション */
 .nav-tab { transition: all 0.3s ease; }
-.nav-tab:hover { background-color: rgba(76, 175, 80, 0.1); }
-.nav-tab.active { background-color: rgba(76, 175, 80, 0.2); font-weight: bold; }
+.nav-tab:hover { 
+-    background-color: rgba(76, 175, 80, 0.1); 
++    background-color: rgba(255,255,255,0.05);
+ }
+ .nav-tab.active { 
+-    background-color: rgba(76, 175, 80, 0.2); 
++    background-color: rgba(45,212,191,0.12);
+     font-weight: bold; 
+ }
 
 /* 同期インジケータ */
 .sync-indicator {
@@ -1608,7 +1677,7 @@ body.theme-unified {
         padding-top: 40px !important;
     }
     
-    .user-setup-page .glass-card {
+    .user-setup-page 
         padding: 20px !important;
     }
     
