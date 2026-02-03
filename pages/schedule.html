@@ -711,7 +711,52 @@
     border-radius: 8px;
     padding: 8px;
 }
-        
+        /* カレンダーヘッダー視認性の上書き（schedule.html専用） */
+.fixed-taskbar {
+    background: linear-gradient(135deg, 
+        rgba(17, 24, 39, 0.95), 
+        rgba(30, 41, 59, 0.95)) !important;
+    backdrop-filter: blur(15px) !important;
+    border-bottom: 2px solid var(--hairline-strong) !important;
+}
+
+.taskbar-center {
+    color: var(--text-strong) !important;
+}
+
+.taskbar-center h2,
+.taskbar-center .current-date {
+    color: var(--text-strong) !important;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    font-weight: 700 !important;
+}
+
+/* 矢印ボタンの強化 */
+.taskbar-center button,
+#prevDayBtn,
+#nextDayBtn {
+    background: rgba(45,212,191,0.2) !important;
+    border: 2px solid var(--brand-primary) !important;
+    color: var(--brand-primary) !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    border-radius: 50% !important;
+}
+
+.taskbar-center button:hover {
+    background: var(--brand-primary) !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(45,212,191,0.5) !important;
+}
+
+/* 今日ボタン */
+#todayBtn {
+    background: var(--brand-primary) !important;
+    color: white !important;
+    border: none !important;
+    padding: 10px 24px !important;
+    font-weight: 700 !important;
+}
     </style>
     
     <!-- PWA・アプリアイコン設定 -->
