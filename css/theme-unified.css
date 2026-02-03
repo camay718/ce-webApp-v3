@@ -2229,3 +2229,215 @@ body.theme-light .calendar-day.sunday {
     background: rgba(239, 68, 68, 0.08) !important;
     color: #DC2626 !important;
 }
+
+/* ==========================================================================
+   カレンダー上部ナビゲーションの視認性改善
+   ========================================================================== */
+
+/* カレンダーヘッダー全体 */
+body.theme-dark .calendar-header,
+body.theme-dark .schedule-header,
+body.theme-dark .calendar-nav,
+body.theme-dark .date-navigation {
+    background: var(--surface-1) !important;
+    border: 1px solid var(--hairline-strong) !important;
+    padding: 16px 20px !important;
+    border-radius: 12px !important;
+    margin-bottom: 20px !important;
+}
+
+/* 日付表示テキスト */
+body.theme-dark .calendar-header .current-date,
+body.theme-dark .calendar-header .date-display,
+body.theme-dark .calendar-header h2,
+body.theme-dark .calendar-header h3 {
+    color: var(--text-strong) !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+/* 統計情報（「卓越校: 0件」などの表示） */
+body.theme-dark .calendar-stats,
+body.theme-dark .summary-info,
+body.theme-dark .info-text {
+    color: var(--text-color) !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    background: rgba(45,212,191,0.08) !important;
+    padding: 8px 16px !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(45,212,191,0.2) !important;
+}
+
+/* 矢印ナビゲーションボタン */
+body.theme-dark .calendar-nav button,
+body.theme-dark .date-navigation button,
+body.theme-dark .nav-arrow,
+body.theme-dark button[class*="prev"],
+body.theme-dark button[class*="next"] {
+    background: rgba(45,212,191,0.15) !important;
+    border: 2px solid var(--brand-primary) !important;
+    color: var(--brand-primary) !important;
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 50% !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+body.theme-dark .calendar-nav button:hover,
+body.theme-dark .date-navigation button:hover,
+body.theme-dark .nav-arrow:hover {
+    background: var(--brand-primary) !important;
+    color: white !important;
+    transform: scale(1.1) !important;
+    box-shadow: 0 4px 12px rgba(45,212,191,0.4) !important;
+}
+
+/* 左右の矢印アイコン自体 */
+body.theme-dark .calendar-nav button i,
+body.theme-dark .date-navigation button i,
+body.theme-dark .nav-arrow i {
+    color: inherit !important;
+    font-size: 16px !important;
+}
+
+/* 「今日」ボタン */
+body.theme-dark button[id*="today"],
+body.theme-dark button[class*="today"],
+body.theme-dark .btn-today {
+    background: var(--brand-primary) !important;
+    color: white !important;
+    border: 2px solid var(--brand-primary) !important;
+    padding: 8px 20px !important;
+    border-radius: 20px !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+}
+
+body.theme-dark button[id*="today"]:hover,
+body.theme-dark .btn-today:hover {
+    background: var(--brand-secondary) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 16px rgba(45,212,191,0.5) !important;
+}
+
+/* カレンダーナビゲーション全体のレイアウト調整 */
+body.theme-dark .calendar-controls,
+body.theme-dark .date-controls {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 16px !important;
+    flex-wrap: wrap !important;
+}
+
+/* 月表示のテキスト */
+body.theme-dark .month-display,
+body.theme-dark .period-text {
+    color: var(--text-strong) !important;
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    flex: 1 !important;
+    text-align: center !important;
+    min-width: 200px !important;
+}
+
+/* 右上のボタングループ（「自分優先」「適所表示」など） */
+body.theme-dark .calendar-header .button-group,
+body.theme-dark .calendar-header .action-buttons,
+body.theme-dark .header-actions {
+    display: flex !important;
+    gap: 8px !important;
+    align-items: center !important;
+}
+
+body.theme-dark .calendar-header .button-group button,
+body.theme-dark .header-actions button {
+    background: rgba(45,212,191,0.12) !important;
+    border: 1px solid var(--brand-primary) !important;
+    color: var(--brand-primary) !important;
+    padding: 8px 16px !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+body.theme-dark .calendar-header .button-group button:hover,
+body.theme-dark .header-actions button:hover {
+    background: var(--brand-primary) !important;
+    color: white !important;
+    transform: translateY(-1px) !important;
+}
+
+/* ライトテーマでのカレンダーナビゲーション */
+body.theme-light .calendar-nav button,
+body.theme-light .date-navigation button,
+body.theme-light .nav-arrow {
+    background: rgba(76,175,80,0.1) !important;
+    border: 2px solid #4CAF50 !important;
+    color: #4CAF50 !important;
+}
+
+body.theme-light .calendar-nav button:hover,
+body.theme-light .nav-arrow:hover {
+    background: #4CAF50 !important;
+    color: white !important;
+}
+
+body.theme-light button[id*="today"],
+body.theme-light .btn-today {
+    background: #4CAF50 !important;
+    color: white !important;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    body.theme-dark .calendar-controls,
+    body.theme-dark .date-controls {
+        flex-direction: column !important;
+        text-align: center !important;
+    }
+    
+    body.theme-dark .month-display,
+    body.theme-dark .period-text {
+        order: 1 !important;
+        margin-bottom: 12px !important;
+    }
+    
+    body.theme-dark .calendar-nav,
+    body.theme-dark .date-navigation {
+        order: 2 !important;
+        margin-bottom: 12px !important;
+    }
+    
+    body.theme-dark .button-group,
+    body.theme-dark .header-actions {
+        order: 3 !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+    }
+}
+
+/* 統計数値の強調表示 */
+body.theme-dark .stat-number,
+body.theme-dark .count-display {
+    color: var(--brand-primary) !important;
+    font-weight: 700 !important;
+    font-size: 16px !important;
+}
+
+/* アイコンの視認性向上 */
+body.theme-dark .calendar-header .fa,
+body.theme-dark .calendar-header .fas {
+    color: var(--brand-primary) !important;
+    margin-right: 6px !important;
+}
+
