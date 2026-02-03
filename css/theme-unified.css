@@ -2441,3 +2441,259 @@ body.theme-dark .calendar-header .fas {
     margin-right: 6px !important;
 }
 
+/* ==========================================================================
+   週間表示画面の視認性改善
+   ========================================================================== */
+
+/* 週間表示ヘッダー全体 */
+body.theme-dark .weekly-header {
+    background: linear-gradient(135deg, 
+        rgba(17, 24, 39, 0.95), 
+        rgba(30, 41, 59, 0.95)) !important;
+    backdrop-filter: blur(15px) !important;
+    border: 1px solid var(--hairline-strong) !important;
+    padding: 24px !important;
+}
+
+/* 週間ナビゲーション */
+body.theme-dark .weekly-navigation {
+    background: var(--surface-1) !important;
+    border: 1px solid var(--hairline-strong) !important;
+    padding: 16px 24px !important;
+    border-radius: 12px !important;
+}
+
+/* タイトル「週刊スケジュール表示」 */
+body.theme-dark .weekly-navigation h2,
+body.theme-dark .weekly-navigation .period-title {
+    color: var(--text-strong) !important;
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+/* 前週・次週の矢印ボタン */
+body.theme-dark .weekly-navigation button,
+body.theme-dark .weekly-navigation .nav-arrow {
+    background: rgba(45,212,191,0.15) !important;
+    border: 2px solid var(--brand-primary) !important;
+    color: var(--brand-primary) !important;
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 50% !important;
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+body.theme-dark .weekly-navigation button:hover {
+    background: var(--brand-primary) !important;
+    color: white !important;
+    transform: scale(1.15) !important;
+    box-shadow: 0 6px 16px rgba(45,212,191,0.5) !important;
+}
+
+/* 今週ボタン */
+body.theme-dark button[id*="thisWeek"],
+body.theme-dark .btn-this-week {
+    background: var(--brand-primary) !important;
+    color: white !important;
+    border: none !important;
+    padding: 10px 24px !important;
+    border-radius: 24px !important;
+    font-weight: 700 !important;
+    font-size: 15px !important;
+}
+
+body.theme-dark button[id*="thisWeek"]:hover {
+    background: var(--brand-secondary) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 20px rgba(45,212,191,0.6) !important;
+}
+
+/* フィルターセクション（チェックボックスエリア） */
+body.theme-dark .weekly-filter {
+    background: var(--surface-0) !important;
+    border: 1px solid var(--hairline-strong) !important;
+    padding: 20px !important;
+    border-radius: 12px !important;
+}
+
+/* チェックボックスラベルの視認性向上 */
+body.theme-dark .filter-checkbox-label {
+    color: var(--text-color) !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    background: rgba(255,255,255,0.05) !important;
+    padding: 10px 16px !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--hairline) !important;
+    transition: all 0.3s ease !important;
+}
+
+body.theme-dark .filter-checkbox-label:hover {
+    background: rgba(45,212,191,0.12) !important;
+    border-color: var(--brand-primary) !important;
+}
+
+/* チェックボックス自体のスタイル改善 */
+body.theme-dark .filter-checkbox-label input[type="checkbox"] {
+    width: 18px !important;
+    height: 18px !important;
+    accent-color: var(--brand-primary) !important;
+    cursor: pointer !important;
+}
+
+/* チェック済みのラベル */
+body.theme-dark .filter-checkbox-label:has(input:checked) {
+    background: rgba(45,212,191,0.2) !important;
+    border-color: var(--brand-primary) !important;
+    color: var(--text-strong) !important;
+}
+
+/* 部門アイコン色の調整（チェックボックスの前のアイコン） */
+body.theme-dark .filter-checkbox-label .fa,
+body.theme-dark .filter-checkbox-label .fas {
+    color: var(--brand-primary) !important;
+    margin-right: 8px !important;
+    font-size: 14px !important;
+}
+
+/* 日付カード全体 */
+body.theme-dark .day-card {
+    background: var(--glass-bg) !important;
+    border: 1px solid var(--glass-border-strong) !important;
+    color: var(--text-color) !important;
+}
+
+/* 日付カードヘッダー（曜日表示） */
+body.theme-dark .day-card-header {
+    border-bottom: 2px solid var(--hairline-strong) !important;
+}
+
+body.theme-dark .day-title {
+    color: var(--text-strong) !important;
+    font-weight: 700 !important;
+    font-size: 18px !important;
+}
+
+/* 今日の日付カード */
+body.theme-dark .day-card.today {
+    border: 2px solid var(--brand-primary) !important;
+    box-shadow: 0 0 0 4px rgba(45,212,191,0.15) !important;
+}
+
+body.theme-dark .day-card.today .day-title {
+    color: var(--brand-primary) !important;
+}
+
+/* 日別サマリー */
+body.theme-dark .day-summary {
+    background: rgba(45,212,191,0.08) !important;
+    color: var(--text-color) !important;
+    border: 1px solid rgba(45,212,191,0.2) !important;
+}
+
+/* 業務なしのテキスト */
+body.theme-dark .no-events,
+body.theme-dark .empty-state {
+    color: var(--text-muted) !important;
+    font-style: italic !important;
+}
+
+/* 部門セクション（カード内） */
+body.theme-dark .department-section {
+    background: rgba(255,255,255,0.06) !important;
+    border-left-width: 4px !important;
+}
+
+body.theme-dark .dept-name {
+    color: var(--text-strong) !important;
+    font-weight: 700 !important;
+}
+
+/* タスクアイテム */
+body.theme-dark .task-item {
+    background: rgba(255,255,255,0.08) !important;
+    border-left-width: 3px !important;
+    color: var(--text-color) !important;
+}
+
+body.theme-dark .task-title {
+    color: var(--text-strong) !important;
+    font-weight: 600 !important;
+}
+
+body.theme-dark .task-info {
+    color: var(--text-muted) !important;
+}
+
+/* CEチップ */
+body.theme-dark .ce-chips .chip {
+    font-weight: 600 !important;
+}
+
+/* ライトテーマでの週間表示 */
+body.theme-light .weekly-navigation {
+    background: white !important;
+    border: 1px solid #e5e7eb !important;
+}
+
+body.theme-light .weekly-navigation h2 {
+    color: #1F2937 !important;
+}
+
+body.theme-light .weekly-navigation button {
+    background: rgba(76,175,80,0.1) !important;
+    border: 2px solid #4CAF50 !important;
+    color: #4CAF50 !important;
+}
+
+body.theme-light .weekly-navigation button:hover {
+    background: #4CAF50 !important;
+    color: white !important;
+}
+
+body.theme-light .filter-checkbox-label {
+    background: rgba(0,0,0,0.03) !important;
+    color: #2C3E50 !important;
+    border: 1px solid #e5e7eb !important;
+}
+
+body.theme-light .filter-checkbox-label:hover {
+    background: rgba(76,175,80,0.1) !important;
+    border-color: #4CAF50 !important;
+}
+
+body.theme-light .day-card {
+    background: white !important;
+    border: 1px solid #e5e7eb !important;
+}
+
+body.theme-light .day-title {
+    color: #1F2937 !important;
+}
+
+body.theme-light .day-card.today {
+    border: 2px solid #4CAF50 !important;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    body.theme-dark .weekly-navigation {
+        flex-direction: column !important;
+        gap: 16px !important;
+    }
+    
+    body.theme-dark .filter-checkboxes {
+        flex-direction: column !important;
+    }
+    
+    body.theme-dark .filter-checkbox-label {
+        width: 100% !important;
+    }
+}
