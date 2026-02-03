@@ -1993,3 +1993,239 @@ body.theme-unified .modal-body{
     color: var(--text-color) !important;
 }
 
+/* ==========================================================================
+   ライトテーマ定義
+   ========================================================================== */
+
+body.theme-light {
+    /* ライトテーマ用変数の上書き */
+    --primary-gradient: linear-gradient(135deg, #E8F5E8 0%, #D4F1D4 100%);
+    --accent-color: #B8E6B8;
+    --text-color: #2C3E50;
+    --text-muted: #6B7280;
+    --text-strong: #1F2937;
+    
+    --brand-primary: #4CAF50;
+    --brand-secondary: #45a049;
+    
+    --glass-bg: rgba(255,255,255,0.85);
+    --glass-bg-strong: rgba(255,255,255,0.95);
+    --glass-border: rgba(0,0,0,0.08);
+    --glass-border-strong: rgba(0,0,0,0.12);
+    
+    --shadow-main: 0 8px 32px rgba(0,0,0,0.12);
+    --shadow-hover: 0 8px 25px rgba(76, 175, 80, 0.3);
+    --focus-ring: 0 0 0 3px rgba(76, 175, 80, 0.2);
+    
+    --surface-0: rgba(255,255,255,0.9);
+    --surface-1: rgba(255,255,255,0.95);
+    --hairline: rgba(0,0,0,0.08);
+    --hairline-strong: rgba(0,0,0,0.12);
+    
+    --table-bg: rgba(255,255,255,0.95);
+    --table-head-bg: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    --table-sticky-bg: rgba(255,255,255,0.98);
+    --cell-bg: rgba(255,255,255,0.95);
+    --cell-hover-bg: rgba(76,175,80,0.08);
+}
+
+/* ライトテーマでの入力フィールド */
+body.theme-light .input-unified {
+    background: rgba(255,255,255,0.9);
+    border-color: rgba(0,0,0,0.12);
+    color: var(--text-color);
+}
+
+body.theme-light .input-unified::placeholder {
+    color: rgba(107,114,128,0.65);
+}
+
+/* ライトテーマでのボタン */
+body.theme-light .btn-outline-unified {
+    border-color: var(--brand-primary);
+    color: var(--brand-primary);
+}
+
+/* ライトテーマでのCEアイテム（文字色を黒系に戻す） */
+body.theme-light .ce-item,
+body.theme-light .ce-chip,
+body.theme-light .chip {
+    color: rgba(0, 0, 0, 0.85) !important;
+}
+
+/* ライトテーマでのテーブル */
+body.theme-light .work-schedule-table {
+    background: white !important;
+}
+
+body.theme-light .work-schedule-table th {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef) !important;
+    color: #495057 !important;
+}
+
+body.theme-light .work-schedule-table td {
+    color: #2C3E50 !important;
+}
+
+body.theme-light .work-schedule-table td.name-cell {
+    background: white !important;
+    color: #1F2937 !important;
+}
+
+/* ==========================================================================
+   テーマ切り替えボタン
+   ========================================================================== */
+
+.theme-toggle-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--glass-bg-strong);
+    backdrop-filter: blur(10px);
+    border: 2px solid var(--glass-border-strong);
+    box-shadow: var(--shadow-main);
+    color: var(--brand-primary);
+    font-size: 20px;
+    cursor: pointer;
+    z-index: 9999;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.theme-toggle-btn:hover {
+    transform: scale(1.1) rotate(15deg);
+    box-shadow: var(--shadow-hover);
+    background: var(--brand-primary);
+    color: white;
+}
+
+.theme-toggle-btn:active {
+    transform: scale(0.95) rotate(0deg);
+}
+
+/* モバイル対応 */
+@media (max-width: 768px) {
+    .theme-toggle-btn {
+        top: 15px;
+        right: 15px;
+        width: 45px;
+        height: 45px;
+        font-size: 18px;
+    }
+}
+
+/* ==========================================================================
+   カレンダー表示の配色改善（ダークテーマ）
+   ========================================================================== */
+
+/* カレンダーコンテナ */
+body.theme-dark #calendar,
+body.theme-dark .calendar-container {
+    background: var(--glass-bg) !important;
+    border: 1px solid var(--glass-border) !important;
+    color: var(--text-color) !important;
+}
+
+/* カレンダーヘッダー */
+body.theme-dark .calendar-header {
+    background: var(--surface-1) !important;
+    color: var(--text-strong) !important;
+    border-bottom: 1px solid var(--hairline-strong) !important;
+}
+
+/* 曜日ヘッダー */
+body.theme-dark .calendar-weekday,
+body.theme-dark .day-header {
+    background: rgba(45,212,191,0.12) !important;
+    color: var(--text-strong) !important;
+    border: 1px solid var(--hairline) !important;
+}
+
+/* 日付セル */
+body.theme-dark .calendar-day,
+body.theme-dark .day-cell {
+    background: rgba(255,255,255,0.04) !important;
+    color: var(--text-color) !important;
+    border: 1px solid var(--hairline) !important;
+}
+
+body.theme-dark .calendar-day:hover,
+body.theme-dark .day-cell:hover {
+    background: rgba(45,212,191,0.15) !important;
+    border-color: var(--brand-primary) !important;
+}
+
+/* 今日の日付 */
+body.theme-dark .calendar-day.today,
+body.theme-dark .day-cell.today {
+    background: rgba(45,212,191,0.25) !important;
+    border: 2px solid var(--brand-primary) !important;
+    color: var(--text-strong) !important;
+    font-weight: 700 !important;
+}
+
+/* 他月の日付 */
+body.theme-dark .calendar-day.other-month,
+body.theme-dark .day-cell.other-month {
+    opacity: 0.4 !important;
+}
+
+/* 休日（土日） */
+body.theme-dark .calendar-day.saturday {
+    background: rgba(56, 189, 248, 0.10) !important;
+    color: #7DD3FC !important;
+}
+
+body.theme-dark .calendar-day.sunday {
+    background: rgba(248, 113, 113, 0.10) !important;
+    color: #FCA5A5 !important;
+}
+
+/* イベントドット */
+body.theme-dark .event-dot {
+    background: var(--brand-primary) !important;
+}
+
+/* カレンダー内の業務カード */
+body.theme-dark .calendar-event,
+body.theme-dark .event-item {
+    background: rgba(255,255,255,0.08) !important;
+    border: 1px solid var(--hairline) !important;
+    color: var(--text-color) !important;
+}
+
+body.theme-dark .calendar-event:hover,
+body.theme-dark .event-item:hover {
+    background: rgba(45,212,191,0.12) !important;
+    border-color: var(--brand-primary) !important;
+}
+
+/* ライトテーマのカレンダー */
+body.theme-light .calendar-day,
+body.theme-light .day-cell {
+    background: white !important;
+    color: #2C3E50 !important;
+    border: 1px solid #e5e7eb !important;
+}
+
+body.theme-light .calendar-day.today,
+body.theme-light .day-cell.today {
+    background: rgba(76, 175, 80, 0.15) !important;
+    border: 2px solid #4CAF50 !important;
+    color: #1F2937 !important;
+}
+
+body.theme-light .calendar-day.saturday {
+    background: rgba(59, 130, 246, 0.08) !important;
+    color: #2563EB !important;
+}
+
+body.theme-light .calendar-day.sunday {
+    background: rgba(239, 68, 68, 0.08) !important;
+    color: #DC2626 !important;
+}
