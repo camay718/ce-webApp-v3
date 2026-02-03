@@ -96,11 +96,14 @@
         setTimeout(() => div.remove(), 5000);
     };
     </script>
+
+    <!-- テーマ切り替え -->
+    <script src="js/ui/theme-switcher.js"></script>
     
-<!-- ログイン処理（システム設計最適化版） -->
-<script>
-// パスワード検証ユーティリティ（PBKDF2-SHA256）
-async function verifyPassword(password, record) {
+    <!-- ログイン処理（システム設計最適化版） -->
+    <script>
+        // パスワード検証ユーティリティ（PBKDF2-SHA256）
+        async function verifyPassword(password, record) {
     if (!record?.hash || !record?.salt || !record?.iterations) return false;
     
     const enc = new TextEncoder();
