@@ -51,16 +51,16 @@
     --cell-bg: rgba(255,255,255,0.04);
     --cell-hover-bg: rgba(255,255,255,0.07);
 
-    /* 部門カラー定義 */
-    --dept-equipment: #90EE90;
-    --dept-purification: #FFB6C1;
-    --dept-arrhythmia: #9370DB;
-    --dept-cardiac: #32CD32;
-    --dept-circulation: #4169E1;
-    --dept-surgery: #87CEEB;
-    --dept-meeting: #9E9E9E;
-    --dept-business: #9E9E9E;
-    --dept-other: #9E9E9E;
+    /* 部門カラー定義（ダーク背景向けトーンダウン版） */
+    --dept-equipment: #7CCD7C;      /* 少し暗めの緑 */
+    --dept-purification: #FF99AA;   /* 少し暗めのピンク */
+    --dept-arrhythmia: #8A6BBE;     /* 少し暗めの紫 */
+    --dept-cardiac: #2DB82D;        /* 少し暗めの緑 */
+    --dept-circulation: #4682B4;    /* スチールブルー */
+    --dept-surgery: #6FB1D1;        /* 少し暗めの水色 */
+    --dept-meeting: #B0B0B0;        /* 少し明るめのグレー */
+    --dept-business: #B0B0B0;
+    --dept-other: #B0B0B0;
 }
 
 /* 統一背景 */
@@ -1812,5 +1812,184 @@ body.theme-unified .schedule-controls-footer{
 /* 部門セクション */
 body.theme-unified .department-section{
     background: rgba(255,255,255,0.06) !important;
+}
+
+/* ==========================================================================
+   視認性改善：文字コントラスト調整
+   ========================================================================== */
+
+/* タイトル・見出しの強調 */
+body.theme-unified h1,
+body.theme-unified h2,
+body.theme-unified h3,
+body.theme-unified .page-title,
+body.theme-unified .section-title{
+    color: var(--text-strong) !important;
+}
+
+/* サブテキスト・説明文 */
+body.theme-unified .subtitle,
+body.theme-unified .description,
+body.theme-unified .hint-text{
+    color: var(--text-muted) !important;
+}
+
+/* CEリスト・ラベルの視認性向上 */
+body.theme-unified .ce-item,
+body.theme-unified .ce-chip,
+body.theme-unified .chip{
+    color: rgba(0, 0, 0, 0.85) !important; /* 勤務区分色の上に濃い文字 */
+    font-weight: 600 !important;
+}
+
+/* 部門名・カテゴリラベル */
+body.theme-unified .dept-name,
+body.theme-unified .department-name,
+body.theme-unified .category-label{
+    color: var(--text-strong) !important;
+    font-weight: 700 !important;
+}
+
+/* ボタン内テキストの明瞭化 */
+body.theme-unified .btn-unified,
+body.theme-unified .btn-primary-unified,
+body.theme-unified button{
+    color: white !important;
+    font-weight: 600 !important;
+}
+
+body.theme-unified .btn-outline-unified{
+    color: var(--brand-primary) !important;
+}
+
+body.theme-unified .btn-outline-unified:hover{
+    color: white !important;
+}
+
+/* サイドバーのナビゲーションテキスト */
+body.theme-unified .sidebar .nav-item,
+body.theme-unified .sidebar-text,
+body.theme-unified .nav-tab{
+    color: var(--text-color) !important;
+}
+
+body.theme-unified .sidebar .nav-item.active,
+body.theme-unified .nav-tab.active{
+    color: var(--text-strong) !important;
+}
+
+/* カード内のテキスト全般 */
+body.theme-unified .glass-card h3,
+body.theme-unified .glass-card h4,
+body.theme-unified .glass-card .card-title{
+    color: var(--text-strong) !important;
+}
+
+body.theme-unified .glass-card p,
+body.theme-unified .glass-card .card-text{
+    color: var(--text-color) !important;
+}
+
+/* 勤務区分色が濃い場合は白文字へ */
+body.theme-unified .ce-item.worktype-ope,
+body.theme-unified .ce-chip.worktype-ope,
+body.theme-unified .chip.worktype-ope{
+    color: #1E3A8A !important; /* 濃い青 */
+}
+
+body.theme-unified .ce-item.worktype-me,
+body.theme-unified .ce-chip.worktype-me,
+body.theme-unified .chip.worktype-me{
+    color: #006400 !important; /* 濃い緑 */
+}
+
+body.theme-unified .ce-item.worktype-hd,
+body.theme-unified .ce-chip.worktype-hd,
+body.theme-unified .chip.worktype-hd{
+    color: #8B008B !important; /* 濃い紫 */
+}
+
+body.theme-unified .ce-item.worktype-flex,
+body.theme-unified .ce-chip.worktype-flex,
+body.theme-unified .chip.worktype-flex{
+    color: #B8860B !important; /* 濃い黄土色 */
+}
+
+/* HOME画面のカードタイトル */
+body.theme-unified .menu-card h3,
+body.theme-unified .menu-card .menu-title{
+    color: var(--brand-primary) !important;
+    font-weight: 700 !important;
+}
+
+body.theme-unified .menu-card p,
+body.theme-unified .menu-card .menu-description{
+    color: var(--text-muted) !important;
+}
+
+/* バッジ・ステータス表示 */
+body.theme-unified .badge-unified,
+body.theme-unified .status-badge{
+    font-weight: 700 !important;
+}
+
+/* 入力フィールドのテキスト */
+body.theme-unified input,
+body.theme-unified select,
+body.theme-unified textarea{
+    color: var(--text-color) !important;
+}
+
+body.theme-unified input::placeholder,
+body.theme-unified textarea::placeholder{
+    color: rgba(229,231,235,0.55) !important;
+}
+
+/* ラベル */
+body.theme-unified label{
+    color: var(--text-color) !important;
+    font-weight: 500 !important;
+}
+
+/* テーブル内の文字 */
+body.theme-unified table td{
+    color: var(--text-color) !important;
+}
+
+body.theme-unified table th{
+    color: var(--text-strong) !important;
+}
+
+/* 日付ヘッダー */
+body.theme-unified .date-header,
+body.theme-unified .calendar-date{
+    color: var(--text-strong) !important;
+    font-weight: 600 !important;
+}
+
+/* アイコン色の調整 */
+body.theme-unified .fa,
+body.theme-unified .fas,
+body.theme-unified .far{
+    color: inherit !important;
+}
+
+/* リンク */
+body.theme-unified a{
+    color: var(--brand-primary) !important;
+}
+
+body.theme-unified a:hover{
+    color: var(--brand-secondary) !important;
+}
+
+/* モーダルのテキスト */
+body.theme-unified .modal-title,
+body.theme-unified .modal-header h3{
+    color: var(--text-strong) !important;
+}
+
+body.theme-unified .modal-body{
+    color: var(--text-color) !important;
 }
 
