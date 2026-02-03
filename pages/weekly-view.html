@@ -459,6 +459,65 @@
                 padding: 12px;
             }
         }
+                /* ========== 週間表示ヘッダー視認性改善 ========== */
+        .weekly-container {
+            background: transparent !important;
+        }
+
+        .weekly-header {
+            background: linear-gradient(135deg, 
+                rgba(17, 24, 39, 0.95), 
+                rgba(30, 41, 59, 0.95)) !important;
+            backdrop-filter: blur(15px) !important;
+        }
+
+        .weekly-navigation {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 20px !important;
+        }
+
+        .weekly-navigation h2 {
+            flex: 1 !important;
+            text-align: center !important;
+            margin: 0 !important;
+        }
+
+        /* PDF出力ボタン */
+        #pdfBtn,
+        .btn-export {
+            background: rgba(245,158,11,0.15) !important;
+            border: 2px solid #F59E0B !important;
+            color: #FCD34D !important;
+            padding: 10px 20px !important;
+            border-radius: 24px !important;
+            font-weight: 600 !important;
+        }
+
+        #pdfBtn:hover,
+        .btn-export:hover {
+            background: #F59E0B !important;
+            color: white !important;
+        }
+
+        /* HOMEボタン */
+        #homeBtn,
+        .btn-home {
+            background: rgba(59,130,246,0.15) !important;
+            border: 2px solid #3B82F6 !important;
+            color: #93C5FD !important;
+            padding: 10px 20px !important;
+            border-radius: 24px !important;
+            font-weight: 600 !important;
+        }
+
+        #homeBtn:hover,
+        .btn-home:hover {
+            background: #3B82F6 !important;
+            color: white !important;
+        }
+
     </style>
 
     <!-- PWA設定 -->
