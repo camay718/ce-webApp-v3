@@ -194,6 +194,8 @@ async saveEvent() {
 
         await eventRef.set(eventData);
 
+        await this.pushEventHistory(eventData);
+
         document.getElementById('addEventModal').remove();
         window.showMessage('業務を追加しました', 'success');
 
@@ -650,6 +652,250 @@ async saveMonthlyTask() {
         }
     }
 
+            // ========== 履歴管理機能 ==========
+
+        /**
+         * 業務履歴を保存
+         */
+        async pushEventHistory(eventData) {
+            try {
+                const userId = window.currentUserData?.uid;
+                if (!userId) return;
+
+                const department = eventData.department;
+                if (!department) return;
+
+                const historyRef = window.database.ref(
+                    `users/${userId}/taskHistory/single/${department}`
+                );
+
+                // 現在の履歴を取得
+                const snapshot = await historyRef.orderByChild('timestamp').once('value');
+                const histories = [];
+                
+                snapshot.forEach(child => {
+                    histories.push({
+                        key: child.key,
+                        ...child.val()
+                    });
+                });
+
+                // タイムスタンプ降順でソート
+                histories.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+                // 10件を超えたら古いものを削除
+                if (histories.length >= 10) {
+                    const toDelete = histories.slice(9); // 10件目以降
+                    for (const item of toDelete) {
+                        await historyRef.child(item.key).remove();
+                    }
+                }
+
+                // 新しい履歴を追加
+                const newHistoryRef = historyRef.push();
+                await newHistoryRef.set({
+                    department: eventData.department,
+                    name: eventData.name,
+                    startTime: eventData.startTime || null,
+                    endTime: eventData.endTime || null,
+                    description: eventData.description || null,
+                    date: eventData.date || null,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+
+                console.log('✅ 履歴保存完了:', department, eventData.name);
+
+            } catch (error) {
+                console.error('❌ 履歴保存エラー:', error);
+            }
+        }
+
+        /**
+         * 部門別履歴を取得
+         */
+        async getEventHistory(department, limit = 10) {
+            try {
+                const userId = window.currentUserData?.uid;
+                if (!userId || !department) return [];
+
+                const historyRef = window.database.ref(
+                    `users/${userId}/taskHistory/single/${department}`
+                );
+
+                const snapshot = await historyRef
+                    .orderByChild('timestamp')
+                    .limitToLast(limit)
+                    .once('value');
+
+                const histories = [];
+                snapshot.forEach(child => {
+                    histories.push({
+                        key: child.key,
+                        ...child.val()
+                    });
+                });
+
+                // タイムスタンプ降順でソート（最新が上）
+                histories.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+                return histories;
+
+            } catch (error) {
+                console.error('❌ 履歴取得エラー:', error);
+                return [];
+            }
+        }
+
+        /**
+         * 履歴一覧モーダルを開く
+         */
+        async openHistoryModal(department) {
+            if (!department) {
+                window.showMessage('部門を指定してください', 'warning');
+                return;
+            }
+
+            const histories = await this.getEventHistory(department, 10);
+
+            const modal = document.createElement('div');
+            modal.id = 'historyModal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="glass-card p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold flex items-center gap-2">
+                            <i class="fas fa-history"></i>
+                            ${department} - 最近追加した業務
+                        </h3>
+                        <button onclick="this.closest('.fixed').remove()" 
+                                class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <div id="historyList" class="space-y-3">
+                        ${histories.length === 0 ? 
+                            '<p class="text-center text-gray-500 py-8">まだ履歴がありません</p>' :
+                            this.renderHistoryItems(histories, 3)
+                        }
+                    </div>
+                    
+                    ${histories.length > 3 ? `
+                        <button id="showMoreHistoryBtn" 
+                                class="btn-unified btn-outline-unified w-full mt-4"
+                                data-shown="3" data-total="${histories.length}">
+                            もっと見る (${histories.length - 3}件)
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // 「もっと見る」ボタンのイベント
+            const showMoreBtn = document.getElementById('showMoreHistoryBtn');
+            if (showMoreBtn) {
+                showMoreBtn.onclick = () => {
+                    const historyList = document.getElementById('historyList');
+                    historyList.innerHTML = this.renderHistoryItems(histories, histories.length);
+                    showMoreBtn.remove();
+                };
+            }
+
+            // 履歴アイテムのクリックイベント
+            this.bindHistoryItemClicks(department);
+        }
+
+        /**
+         * 履歴アイテムのHTML生成
+         */
+        renderHistoryItems(histories, limit) {
+            return histories.slice(0, limit).map(item => {
+                const dateStr = item.date ? 
+                    new Date(item.date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' }) : 
+                    '';
+                const timeStr = item.startTime && item.endTime ? 
+                    `${item.startTime}〜${item.endTime}` : 
+                    (item.startTime || '');
+
+                return `
+                    <div class="history-item p-4 bg-white bg-opacity-5 rounded-lg border border-gray-700 
+                                hover:bg-opacity-10 hover:border-primary cursor-pointer transition-all"
+                         data-history='${JSON.stringify(item).replace(/'/g, "&apos;")}'>
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="font-bold text-base">${item.name}</h4>
+                            ${dateStr ? `<span class="text-sm text-gray-400">${dateStr}</span>` : ''}
+                        </div>
+                        ${timeStr ? `
+                            <div class="text-sm text-gray-300 mb-2">
+                                <i class="fas fa-clock mr-2"></i>${timeStr}
+                            </div>
+                        ` : ''}
+                        ${item.description ? `
+                            <div class="text-sm text-gray-400 italic">
+                                ${item.description}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /**
+         * 履歴アイテムクリックイベントをバインド
+         */
+        bindHistoryItemClicks(department) {
+            const items = document.querySelectorAll('.history-item');
+            items.forEach(item => {
+                item.onclick = () => {
+                    const historyData = JSON.parse(item.getAttribute('data-history'));
+                    document.getElementById('historyModal').remove();
+                    this.openAddEventModalWithHistory(department, historyData);
+                };
+            });
+        }
+
+        /**
+         * 履歴データを使って業務追加モーダルを開く
+         */
+        openAddEventModalWithHistory(department, historyData) {
+            this.createAddEventModal(department);
+            
+            // 少し待ってからフォームに入力（DOM生成待ち）
+            setTimeout(() => {
+                if (historyData.department) {
+                    const deptSelect = document.getElementById('eventDepartment');
+                    if (deptSelect) deptSelect.value = historyData.department;
+                }
+                if (historyData.name) {
+                    const nameInput = document.getElementById('eventName');
+                    if (nameInput) nameInput.value = historyData.name;
+                }
+                if (historyData.startTime) {
+                    const startInput = document.getElementById('eventStartTime');
+                    if (startInput) startInput.value = historyData.startTime;
+                }
+                if (historyData.endTime) {
+                    const endInput = document.getElementById('eventEndTime');
+                    if (endInput) endInput.value = historyData.endTime;
+                }
+                if (historyData.description) {
+                    const descInput = document.getElementById('eventDescription');
+                    if (descInput) descInput.value = historyData.description;
+                }
+
+                // 今日の日付を自動設定
+                const dateInput = document.getElementById('eventDate');
+                if (dateInput) {
+                    const today = new Date().toISOString().split('T')[0];
+                    dateInput.value = today;
+                }
+
+                window.showMessage('履歴から業務情報を読み込みました', 'success');
+            }, 100);
+        }
+
+    
     window.EventManager = EventManager;
     console.log('📅 イベントマネージャークラス読み込み完了（完全修正版）');
 })();
