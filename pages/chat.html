@@ -4,31 +4,53 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>トーク - CE web App v3</title>
-    <link rel="stylesheet" href="theme-unified.css">
+    
+    <!-- 外部ライブラリ -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/theme-unified.css">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="../js/config/firebase-config.js"></script>
+    
+    <!-- 認証ガード -->
+    <script src="../js/utils/auth-guard.js"></script>
+    
+    <!-- 監査ログ -->
+    <script src="../js/utils/audit-logger.js"></script>
+    
     <style>
-        .chat-container {
-            display: flex;
-            height: calc(100vh - 40px);
-            margin: 20px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        body {
+            background: var(--primary-gradient);
+            font-family: 'Noto Sans JP', 'Segoe UI', sans-serif;
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
             overflow: hidden;
         }
 
-        /* 左サイドバー：チャットルーム一覧 */
+        .chat-container {
+            display: flex;
+            height: 100vh;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* サイドバー */
         .chat-sidebar {
-            width: 320px;
-            border-right: 1px solid #e0e0e0;
+            width: 340px;
+            background: var(--glass-bg);
+            border-right: 1px solid var(--glass-border);
             display: flex;
             flex-direction: column;
-            background: #fafafa;
         }
 
         .sidebar-header {
             padding: 20px;
-            background: #4CAF50;
-            color: white;
+            background: var(--glass-bg-strong);
+            border-bottom: 1px solid var(--glass-border);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -36,36 +58,52 @@
 
         .sidebar-header h2 {
             margin: 0;
-            font-size: 18px;
+            font-size: 20px;
+            color: var(--text-strong);
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .new-chat-btn {
-            background: white;
-            color: #4CAF50;
+            background: var(--brand-primary);
+            color: #0B1220;
             border: none;
-            padding: 8px 15px;
-            border-radius: 5px;
+            padding: 8px 16px;
+            border-radius: 8px;
             cursor: pointer;
-            font-weight: bold;
+            font-weight: 600;
+            font-size: 14px;
             transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .new-chat-btn:hover {
-            background: #f0f0f0;
+            background: var(--brand-secondary);
+            transform: translateY(-2px);
         }
 
         .search-box {
-            padding: 15px;
-            border-bottom: 1px solid #e0e0e0;
+            padding: 16px;
+            border-bottom: 1px solid var(--glass-border);
         }
 
         .search-box input {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 20px;
+            padding: 10px 12px;
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
             font-size: 14px;
             box-sizing: border-box;
+            background: var(--surface-0);
+            color: var(--text-color);
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--brand-primary);
         }
 
         .room-list {
@@ -74,53 +112,50 @@
         }
 
         .room-item {
-            padding: 15px;
-            border-bottom: 1px solid #e0e0e0;
+            padding: 16px;
+            border-bottom: 1px solid var(--glass-border);
             cursor: pointer;
             transition: all 0.3s;
             position: relative;
         }
 
         .room-item:hover {
-            background: #f0f0f0;
+            background: var(--surface-0);
         }
 
         .room-item.active {
-            background: #e3f2fd;
-            border-left: 4px solid #2196F3;
+            background: rgba(45, 212, 191, 0.15);
+            border-left: 4px solid var(--brand-primary);
         }
 
         .room-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 5px;
+            margin-bottom: 6px;
         }
 
         .room-name {
-            font-weight: bold;
-            color: #333;
+            font-weight: 600;
+            color: var(--text-strong);
             font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .room-time {
             font-size: 12px;
-            color: #999;
+            color: var(--text-muted);
         }
 
         .room-preview {
             font-size: 13px;
-            color: #666;
+            color: var(--text-muted);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            margin-bottom: 5px;
-        }
-
-        .room-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            margin-bottom: 6px;
         }
 
         .unread-badge {
@@ -130,11 +165,34 @@
             padding: 2px 8px;
             font-size: 11px;
             font-weight: bold;
+            margin-left: 8px;
         }
 
         .read-status {
             font-size: 12px;
-            color: #4CAF50;
+            color: var(--brand-primary);
+        }
+
+        .back-home-btn {
+            padding: 16px;
+            border-top: 1px solid var(--glass-border);
+            text-align: center;
+        }
+
+        .back-home-btn a {
+            display: block;
+            padding: 10px;
+            background: var(--surface-0);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            color: var(--text-color);
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .back-home-btn a:hover {
+            background: var(--surface-1);
+            border-color: var(--brand-primary);
         }
 
         /* チャットエリア */
@@ -142,32 +200,33 @@
             flex: 1;
             display: flex;
             flex-direction: column;
+            background: var(--glass-bg);
         }
 
         .chat-header {
-            padding: 20px;
-            border-bottom: 1px solid #e0e0e0;
+            padding: 20px 24px;
+            background: var(--glass-bg-strong);
+            border-bottom: 1px solid var(--glass-border);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: white;
         }
 
         .chat-header-info {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 16px;
         }
 
         .chat-avatar {
-            width: 45px;
-            height: 45px;
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
+            color: #0B1220;
             font-weight: bold;
             font-size: 18px;
         }
@@ -175,48 +234,52 @@
         .chat-title {
             margin: 0;
             font-size: 18px;
-            color: #333;
+            color: var(--text-strong);
         }
 
         .chat-members {
             font-size: 13px;
-            color: #666;
-            margin-top: 3px;
-        }
-
-        .chat-actions {
-            display: flex;
-            gap: 10px;
-        }
-
-        .icon-btn {
-            background: none;
-            border: 1px solid #ddd;
-            padding: 8px 12px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .icon-btn:hover {
-            background: #f5f5f5;
+            color: var(--text-muted);
+            margin-top: 4px;
         }
 
         .messages-area {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
-            background: #f9f9f9;
+            padding: 24px;
+            background: var(--surface-0);
         }
 
-        .message-group {
-            margin-bottom: 20px;
+        .date-divider {
+            text-align: center;
+            margin: 24px 0;
+            position: relative;
+        }
+
+        .date-divider::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            height: 1px;
+            background: var(--glass-border);
+        }
+
+        .date-divider span {
+            background: var(--surface-0);
+            padding: 6px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            color: var(--text-muted);
+            position: relative;
+            z-index: 1;
         }
 
         .message {
             display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
+            gap: 12px;
+            margin-bottom: 16px;
         }
 
         .message.own {
@@ -227,7 +290,7 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #667eea, #764ba2);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -239,18 +302,18 @@
 
         .message-content {
             max-width: 60%;
+            display: flex;
+            flex-direction: column;
         }
 
         .message.own .message-content {
-            display: flex;
-            flex-direction: column;
             align-items: flex-end;
         }
 
         .message-sender {
             font-size: 13px;
-            color: #666;
-            margin-bottom: 5px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
             font-weight: 500;
         }
 
@@ -259,130 +322,104 @@
         }
 
         .message-bubble {
-            background: white;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
             padding: 12px 16px;
-            border-radius: 18px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            border-radius: 16px;
             word-wrap: break-word;
+            color: var(--text-color);
+            line-height: 1.5;
         }
 
         .message.own .message-bubble {
-            background: #4CAF50;
-            color: white;
+            background: var(--brand-primary);
+            color: #0B1220;
+            border-color: var(--brand-primary);
         }
 
         .message-time {
             font-size: 11px;
-            color: #999;
-            margin-top: 5px;
+            color: var(--text-muted);
+            margin-top: 4px;
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 4px;
         }
 
         .read-receipt {
-            color: #4CAF50;
+            color: var(--brand-primary);
             font-weight: bold;
         }
 
-        .date-divider {
-            text-align: center;
-            margin: 20px 0;
-            position: relative;
-        }
-
-        .date-divider::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            right: 0;
-            top: 50%;
-            height: 1px;
-            background: #ddd;
-        }
-
-        .date-divider span {
-            background: #f9f9f9;
-            padding: 5px 15px;
-            border-radius: 12px;
-            font-size: 13px;
-            color: #666;
-            position: relative;
-            z-index: 1;
-        }
-
-        /* メッセージ入力エリア */
         .message-input-area {
-            padding: 20px;
-            border-top: 1px solid #e0e0e0;
-            background: white;
+            padding: 20px 24px;
+            background: var(--glass-bg-strong);
+            border-top: 1px solid var(--glass-border);
         }
 
         .input-wrapper {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             align-items: flex-end;
-        }
-
-        .attachment-btn {
-            background: none;
-            border: 1px solid #ddd;
-            padding: 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 20px;
-            transition: all 0.3s;
-        }
-
-        .attachment-btn:hover {
-            background: #f5f5f5;
         }
 
         .message-input {
             flex: 1;
-            padding: 12px 15px;
-            border: 1px solid #ddd;
+            padding: 12px 16px;
+            border: 1px solid var(--glass-border);
             border-radius: 20px;
             font-size: 14px;
             resize: none;
             min-height: 44px;
             max-height: 120px;
             font-family: inherit;
+            background: var(--surface-0);
+            color: var(--text-color);
+        }
+
+        .message-input:focus {
+            outline: none;
+            border-color: var(--brand-primary);
         }
 
         .send-btn {
-            background: #4CAF50;
-            color: white;
+            background: var(--brand-primary);
+            color: #0B1220;
             border: none;
             padding: 12px 24px;
             border-radius: 20px;
             cursor: pointer;
-            font-weight: bold;
+            font-weight: 600;
             transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .send-btn:hover {
-            background: #45a049;
+            background: var(--brand-secondary);
+            transform: translateY(-2px);
         }
 
         .send-btn:disabled {
-            background: #ccc;
+            background: var(--text-muted);
             cursor: not-allowed;
+            transform: none;
         }
 
-        /* 空の状態 */
         .empty-state {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100%;
-            color: #999;
+            color: var(--text-muted);
         }
 
         .empty-state-icon {
             font-size: 64px;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
+            opacity: 0.5;
         }
 
         /* モーダル */
@@ -394,48 +431,52 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0,0,0,0.5);
+            background-color: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
         }
 
         .modal.active {
             display: flex;
             justify-content: center;
             align-items: center;
+            animation: fadeIn 0.3s;
         }
 
         .modal-content {
-            background-color: white;
-            border-radius: 8px;
-            padding: 30px;
-            max-width: 500px;
+            background: var(--glass-bg-strong);
+            border: 1px solid var(--glass-border-strong);
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 600px;
             width: 90%;
             max-height: 80vh;
             overflow-y: auto;
+            animation: slideUp 0.3s;
         }
 
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
         .modal-header h2 {
             margin: 0;
-            color: #333;
+            color: var(--text-strong);
         }
 
         .close-btn {
             font-size: 28px;
             font-weight: bold;
-            color: #999;
+            color: var(--text-muted);
             cursor: pointer;
             border: none;
             background: none;
         }
 
         .close-btn:hover {
-            color: #333;
+            color: var(--text-strong);
         }
 
         .form-group {
@@ -446,88 +487,135 @@
             display: block;
             margin-bottom: 8px;
             font-weight: 500;
-            color: #333;
+            color: var(--text-color);
         }
 
         .form-group input {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            padding: 12px;
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
             font-size: 14px;
             box-sizing: border-box;
+            background: var(--surface-0);
+            color: var(--text-color);
+        }
+
+        .chat-type-buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .type-btn {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid var(--glass-border);
+            border-radius: 8px;
+            background: var(--surface-0);
+            color: var(--text-color);
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .type-btn.active {
+            border-color: var(--brand-primary);
+            background: rgba(45, 212, 191, 0.1);
+            color: var(--brand-primary);
         }
 
         .user-select-list {
             max-height: 300px;
             overflow-y: auto;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            padding: 10px;
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 12px;
+            background: var(--surface-0);
         }
 
         .user-select-item {
             display: flex;
             align-items: center;
             padding: 10px;
-            border-radius: 5px;
+            border-radius: 6px;
             cursor: pointer;
             transition: all 0.3s;
         }
 
         .user-select-item:hover {
-            background: #f5f5f5;
+            background: var(--surface-1);
         }
 
         .user-select-item input[type="checkbox"] {
-            margin-right: 10px;
-            width: auto;
+            margin-right: 12px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
         }
 
         .btn {
             padding: 10px 20px;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
+            font-weight: 500;
             transition: all 0.3s;
         }
 
         .btn-primary {
-            background-color: #4CAF50;
-            color: white;
+            background: var(--brand-primary);
+            color: #0B1220;
         }
 
         .btn-primary:hover {
-            background-color: #45a049;
+            background: var(--brand-secondary);
         }
 
         .btn-secondary {
-            background-color: #2196F3;
-            color: white;
+            background: transparent;
+            border: 1px solid var(--glass-border);
+            color: var(--text-color);
         }
 
         .btn-secondary:hover {
-            background-color: #0b7dda;
+            border-color: var(--brand-primary);
+            background: rgba(45, 212, 191, 0.1);
         }
 
-        .back-btn {
-            background: #f5f5f5;
-            color: #333;
-            border: 1px solid #ddd;
-            padding: 8px 16px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: inline-block;
+        .loading-spinner {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
         }
 
-        .back-btn:hover {
-            background: #e0e0e0;
+        .spinner {
+            border: 3px solid var(--glass-border);
+            border-top: 3px solid var(--brand-primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
         }
 
-        /* レスポンシブ対応 */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* レスポンシブ */
         @media (max-width: 768px) {
             .chat-sidebar {
                 width: 100%;
@@ -546,31 +634,44 @@
         }
     </style>
 </head>
-<body>
+<body class="theme-unified">
     <div class="chat-container">
         <!-- チャットルーム一覧サイドバー -->
         <div class="chat-sidebar" id="chatSidebar">
             <div class="sidebar-header">
-                <h2>💬 トーク</h2>
-                <button class="new-chat-btn" onclick="openNewChatModal()">＋ 新規</button>
+                <h2>
+                    <i class="fas fa-comments"></i>
+                    トーク
+                </h2>
+                <button class="new-chat-btn" onclick="openNewChatModal()">
+                    <i class="fas fa-plus"></i> 新規
+                </button>
             </div>
             <div class="search-box">
-                <input type="text" placeholder="🔍 チャットを検索..." id="searchInput" oninput="searchRooms()">
+                <input type="text" placeholder="🔍 チャットを検索..." id="searchInput" oninput="chatManager.searchRooms(this.value)">
             </div>
             <div class="room-list" id="roomList">
-                <!-- JavaScriptで動的生成 -->
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <p>読み込み中...</p>
+                </div>
             </div>
-            <div style="padding: 15px; border-top: 1px solid #e0e0e0;">
-                <a href="home.html" class="back-btn" style="display: block; text-align: center; text-decoration: none;">
-                    🏠 ホームへ戻る
+            <div class="back-home-btn">
+                <a href="home.html">
+                    <i class="fas fa-home"></i> ホームへ戻る
                 </a>
             </div>
         </div>
 
         <!-- チャットエリア -->
         <div class="chat-area" id="chatArea">
-            <div id="chatContent">
-                <!-- JavaScriptで動的生成 -->
+            <div class="empty-state">
+                <div class="empty-state-icon">💬</div>
+                <h3>チャットを選択してください</h3>
+                <p style="margin-top: 10px;">左側からチャットルームを選択するか、<br>新しいチャットを作成してください</p>
+                <button class="btn btn-primary" style="margin-top: 20px;" onclick="openNewChatModal()">
+                    <i class="fas fa-plus"></i> 新規チャット
+                </button>
             </div>
         </div>
     </div>
@@ -579,373 +680,45 @@
     <div id="newChatModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>💬 新しいチャット</h2>
+                <h2><i class="fas fa-plus-circle"></i> 新しいチャット</h2>
                 <button class="close-btn" onclick="closeNewChatModal()">&times;</button>
             </div>
+            
             <div class="form-group">
                 <label>チャットタイプ</label>
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-secondary" onclick="selectChatType('direct')" id="directBtn">1対1</button>
-                    <button class="btn btn-secondary" onclick="selectChatType('group')" id="groupBtn">グループ</button>
+                <div class="chat-type-buttons">
+                    <button class="type-btn active" id="directBtn" onclick="selectChatType('direct')">
+                        <i class="fas fa-user"></i> 1対1
+                    </button>
+                    <button class="type-btn" id="groupBtn" onclick="selectChatType('group')">
+                        <i class="fas fa-users"></i> グループ
+                    </button>
                 </div>
             </div>
+
             <div class="form-group" id="groupNameField" style="display: none;">
                 <label for="groupName">グループ名</label>
                 <input type="text" id="groupName" placeholder="例：プロジェクトチーム">
             </div>
+
             <div class="form-group">
-                <label id="memberLabel">メンバーを選択</label>
+                <label id="memberLabel">相手を選択</label>
                 <div class="user-select-list" id="userSelectList">
-                    <!-- JavaScriptで動的生成 -->
+                    <div class="loading-spinner">
+                        <div class="spinner"></div>
+                    </div>
                 </div>
             </div>
-            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+
+            <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
                 <button class="btn btn-secondary" onclick="closeNewChatModal()">キャンセル</button>
-                <button class="btn btn-primary" onclick="createNewChat()">作成</button>
+                <button class="btn btn-primary" onclick="chatManager.createNewChat()">
+                    <i class="fas fa-check"></i> 作成
+                </button>
             </div>
         </div>
     </div>
 
-    <script>
-        // ダミーデータ
-        let chatRooms = [
-            {
-                id: 1,
-                type: 'group',
-                name: 'フィールドサポート部',
-                members: ['山田太郎', '田中次郎', '佐藤花子', '鈴木一郎'],
-                lastMessage: '明日の訪問予定を確認しました',
-                lastTime: '10:30',
-                unreadCount: 3,
-                messages: [
-                    { id: 1, sender: '田中次郎', content: 'おはようございます', time: '09:00', isOwn: false, isRead: true },
-                    { id: 2, sender: '佐藤花子', content: '今日の予定を共有します', time: '09:15', isOwn: false, isRead: true },
-                    { id: 3, sender: 'あなた', content: '了解です', time: '09:20', isOwn: true, isRead: true },
-                    { id: 4, sender: '山田太郎', content: '明日の訪問予定を確認しました', time: '10:30', isOwn: false, isRead: false }
-                ]
-            },
-            {
-                id: 2,
-                type: 'direct',
-                name: '佐藤花子',
-                members: ['佐藤花子'],
-                lastMessage: 'ありがとうございます！',
-                lastTime: '昨日',
-                unreadCount: 0,
-                isRead: true,
-                messages: [
-                    { id: 1, sender: 'あなた', content: '資料送りました', time: '15:20', isOwn: true, isRead: true },
-                    { id: 2, sender: '佐藤花子', content: 'ありがとうございます！', time: '15:25', isOwn: false, isRead: true }
-                ]
-            },
-            {
-                id: 3,
-                type: 'group',
-                name: 'プロジェクトA',
-                members: ['山田太郎', '高橋美咲', '伊藤健太'],
-                lastMessage: '次回ミーティングは来週火曜日です',
-                lastTime: '2/3',
-                unreadCount: 5,
-                messages: [
-                    { id: 1, sender: '山田太郎', content: 'プロジェクトの進捗報告です', time: '14:00', isOwn: false, isRead: false },
-                    { id: 2, sender: '高橋美咲', content: '順調に進んでいますね', time: '14:15', isOwn: false, isRead: false },
-                    { id: 3, sender: '伊藤健太', content: '次回ミーティングは来週火曜日です', time: '14:30', isOwn: false, isRead: false }
-                ]
-            },
-            {
-                id: 4,
-                type: 'direct',
-                name: '田中次郎',
-                members: ['田中次郎'],
-                lastMessage: 'わかりました',
-                lastTime: '2/2',
-                unreadCount: 0,
-                isRead: true,
-                messages: [
-                    { id: 1, sender: 'あなた', content: '明日の件、よろしくお願いします', time: '16:00', isOwn: true, isRead: true },
-                    { id: 2, sender: '田中次郎', content: 'わかりました', time: '16:05', isOwn: false, isRead: true }
-                ]
-            },
-            {
-                id: 5,
-                type: 'group',
-                name: 'カスタマーサポート部',
-                members: ['高橋美咲', '渡辺誠', '中村裕子'],
-                lastMessage: 'お疲れ様でした',
-                lastTime: '2/1',
-                unreadCount: 1,
-                messages: [
-                    { id: 1, sender: '高橋美咲', content: '今日の対応件数は50件でした', time: '18:00', isOwn: false, isRead: false },
-                    { id: 2, sender: '渡辺誠', content: 'お疲れ様でした', time: '18:10', isOwn: false, isRead: false }
-                ]
-            }
-        ];
-
-        let allUsers = [
-            { id: 1, name: '山田太郎', department: 'フィールドサポート部' },
-            { id: 2, name: '佐藤花子', department: 'カスタマーサポート部' },
-            { id: 3, name: '田中次郎', department: 'フィールドサポート部' },
-            { id: 4, name: '鈴木一郎', department: '営業部' },
-            { id: 5, name: '高橋美咲', department: 'カスタマーサポート部' },
-            { id: 6, name: '伊藤健太', department: '技術部' },
-            { id: 7, name: '渡辺誠', department: 'フィールドサポート部' },
-            { id: 8, name: '中村裕子', department: '営業部' }
-        ];
-
-        let currentUser = null;
-        let selectedRoomId = null;
-        let chatType = 'direct';
-
-        // 初期化
-        document.addEventListener('DOMContentLoaded', function() {
-            // LocalStorageからユーザー情報取得
-            const userDataStr = localStorage.getItem('currentUser');
-            if (userDataStr) {
-                currentUser = JSON.parse(userDataStr);
-            } else {
-                currentUser = { name: 'ゲストユーザー', role: 'user' };
-            }
-
-            renderRoomList();
-            showEmptyState();
-        });
-
-        // チャットルーム一覧表示
-        function renderRoomList() {
-            const roomList = document.getElementById('roomList');
-            roomList.innerHTML = chatRooms.map(room => `
-                <div class="room-item ${selectedRoomId === room.id ? 'active' : ''}" onclick="selectRoom(${room.id})">
-                    <div class="room-header">
-                        <span class="room-name">${room.type === 'group' ? '👥' : '👤'} ${room.name}</span>
-                        <span class="room-time">${room.lastTime}</span>
-                    </div>
-                    <div class="room-preview">${room.lastMessage}</div>
-                    <div class="room-footer">
-                        ${room.unreadCount > 0 ? `<span class="unread-badge">${room.unreadCount}</span>` : ''}
-                        ${room.isRead && room.unreadCount === 0 ? '<span class="read-status">✓✓ 既読</span>' : ''}
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // チャットルーム選択
-        function selectRoom(roomId) {
-            selectedRoomId = roomId;
-            const room = chatRooms.find(r => r.id === roomId);
-            
-            // 未読をクリア
-            room.unreadCount = 0;
-            room.messages.forEach(m => m.isRead = true);
-            
-            renderRoomList();
-            renderChatArea(room);
-        }
-
-        // チャットエリア表示
-        function renderChatArea(room) {
-            const chatArea = document.getElementById('chatContent');
-            
-            chatArea.innerHTML = `
-                <div class="chat-header">
-                    <div class="chat-header-info">
-                        <div class="chat-avatar">${room.name.charAt(0)}</div>
-                        <div>
-                            <h3 class="chat-title">${room.name}</h3>
-                            <div class="chat-members">
-                                ${room.type === 'group' ? `${room.members.length}人のメンバー` : 'オンライン'}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="chat-actions">
-                        <button class="icon-btn" onclick="alert('通話機能は準備中です')">📞</button>
-                        <button class="icon-btn" onclick="alert('設定機能は準備中です')">⚙️</button>
-                    </div>
-                </div>
-                <div class="messages-area" id="messagesArea">
-                    <div class="date-divider"><span>2026年2月4日</span></div>
-                    ${room.messages.map(msg => `
-                        <div class="message ${msg.isOwn ? 'own' : ''}">
-                            ${!msg.isOwn ? `<div class="message-avatar">${msg.sender.charAt(0)}</div>` : ''}
-                            <div class="message-content">
-                                ${!msg.isOwn ? `<div class="message-sender">${msg.sender}</div>` : ''}
-                                <div class="message-bubble">${msg.content}</div>
-                                <div class="message-time">
-                                    ${msg.time}
-                                    ${msg.isOwn ? (msg.isRead ? '<span class="read-receipt">✓✓</span>' : '<span>✓</span>') : ''}
-                                </div>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-                <div class="message-input-area">
-                    <div class="input-wrapper">
-                        <button class="attachment-btn" onclick="alert('ファイル添付機能は準備中です')">📎</button>
-                        <textarea class="message-input" id="messageInput" placeholder="メッセージを入力..." 
-                            onkeydown="handleKeyPress(event)"></textarea>
-                        <button class="send-btn" onclick="sendMessage()">送信</button>
-                    </div>
-                </div>
-            `;
-
-            // スクロールを最下部へ
-            setTimeout(() => {
-                const messagesArea = document.getElementById('messagesArea');
-                messagesArea.scrollTop = messagesArea.scrollHeight;
-            }, 100);
-        }
-
-        // 空の状態表示
-        function showEmptyState() {
-            const chatArea = document.getElementById('chatContent');
-            chatArea.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-state-icon">💬</div>
-                    <h3>チャットを選択してください</h3>
-                    <p style="color: #999; margin-top: 10px;">左側からチャットルームを選択するか、<br>新しいチャットを作成してください</p>
-                    <button class="btn btn-primary" style="margin-top: 20px;" onclick="openNewChatModal()">＋ 新規チャット</button>
-                </div>
-            `;
-        }
-
-        // メッセージ送信
-        function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const content = input.value.trim();
-            
-            if (!content || !selectedRoomId) return;
-
-            const room = chatRooms.find(r => r.id === selectedRoomId);
-            const newMessage = {
-                id: room.messages.length + 1,
-                sender: 'あなた',
-                content: content,
-                time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-                isOwn: true,
-                isRead: false
-            };
-
-            room.messages.push(newMessage);
-            room.lastMessage = content;
-            room.lastTime = newMessage.time;
-
-            input.value = '';
-            renderRoomList();
-            renderChatArea(room);
-        }
-
-        // Enterキーでメッセージ送信
-        function handleKeyPress(event) {
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                sendMessage();
-            }
-        }
-
-        // チャット検索
-        function searchRooms() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = chatRooms.filter(room => 
-                room.name.toLowerCase().includes(searchTerm) ||
-                room.lastMessage.toLowerCase().includes(searchTerm)
-            );
-
-            const roomList = document.getElementById('roomList');
-            roomList.innerHTML = filtered.map(room => `
-                <div class="room-item ${selectedRoomId === room.id ? 'active' : ''}" onclick="selectRoom(${room.id})">
-                    <div class="room-header">
-                        <span class="room-name">${room.type === 'group' ? '👥' : '👤'} ${room.name}</span>
-                        <span class="room-time">${room.lastTime}</span>
-                    </div>
-                    <div class="room-preview">${room.lastMessage}</div>
-                    <div class="room-footer">
-                        ${room.unreadCount > 0 ? `<span class="unread-badge">${room.unreadCount}</span>` : ''}
-                        ${room.isRead && room.unreadCount === 0 ? '<span class="read-status">✓✓ 既読</span>' : ''}
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // 新規チャットモーダル
-        function openNewChatModal() {
-            document.getElementById('newChatModal').classList.add('active');
-            renderUserSelectList();
-        }
-
-        function closeNewChatModal() {
-            document.getElementById('newChatModal').classList.remove('active');
-            document.getElementById('groupName').value = '';
-            chatType = 'direct';
-        }
-
-        function selectChatType(type) {
-            chatType = type;
-            document.getElementById('groupNameField').style.display = type === 'group' ? 'block' : 'none';
-            document.getElementById('memberLabel').textContent = type === 'direct' ? '相手を選択' : 'メンバーを選択';
-            
-            // ボタンスタイル更新
-            document.getElementById('directBtn').style.opacity = type === 'direct' ? '1' : '0.5';
-            document.getElementById('groupBtn').style.opacity = type === 'group' ? '1' : '0.5';
-        }
-
-        function renderUserSelectList() {
-            const list = document.getElementById('userSelectList');
-            list.innerHTML = allUsers.map(user => `
-                <label class="user-select-item">
-                    <input type="checkbox" value="${user.id}" name="selectedUsers">
-                    <div>
-                        <div style="font-weight: 500;">${user.name}</div>
-                        <div style="font-size: 12px; color: #999;">${user.department}</div>
-                    </div>
-                </label>
-            `).join('');
-        }
-
-        function createNewChat() {
-            const selectedUsers = Array.from(document.querySelectorAll('input[name="selectedUsers"]:checked'))
-                .map(cb => allUsers.find(u => u.id == cb.value));
-
-            if (selectedUsers.length === 0) {
-                alert('メンバーを選択してください');
-                return;
-            }
-
-            if (chatType === 'direct' && selectedUsers.length > 1) {
-                alert('1対1チャットでは1人のみ選択してください');
-                return;
-            }
-
-            let newRoom;
-            if (chatType === 'direct') {
-                newRoom = {
-                    id: chatRooms.length + 1,
-                    type: 'direct',
-                    name: selectedUsers[0].name,
-                    members: [selectedUsers[0].name],
-                    lastMessage: '',
-                    lastTime: '今',
-                    unreadCount: 0,
-                    messages: []
-                };
-            } else {
-                const groupName = document.getElementById('groupName').value.trim() || '新しいグループ';
-                newRoom = {
-                    id: chatRooms.length + 1,
-                    type: 'group',
-                    name: groupName,
-                    members: selectedUsers.map(u => u.name),
-                    lastMessage: '',
-                    lastTime: '今',
-                    unreadCount: 0,
-                    messages: []
-                };
-            }
-
-            chatRooms.unshift(newRoom);
-            closeNewChatModal();
-            renderRoomList();
-            selectRoom(newRoom.id);
-            alert('チャットを作成しました！');
-        }
-    </script>
+    <script src="../js/modules/chat-manager.js"></script>
 </body>
 </html>
