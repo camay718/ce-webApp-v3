@@ -899,3 +899,12 @@ async saveMonthlyTask() {
     window.EventManager = EventManager;
     console.log('📅 イベントマネージャークラス読み込み完了（完全修正版）');
 })();
+
+// グローバルに公開
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        window.eventManager = new EventManager();
+    });
+} else {
+    window.eventManager = new EventManager();
+}
