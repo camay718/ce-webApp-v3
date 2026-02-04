@@ -893,7 +893,7 @@ async saveMonthlyTask() {
                 window.showMessage('履歴から業務情報を読み込みました', 'success');
             }, 100);
         }
-
+    }
     
     window.EventManager = EventManager;
     console.log('📅 イベントマネージャークラス読み込み完了（完全修正版）');
