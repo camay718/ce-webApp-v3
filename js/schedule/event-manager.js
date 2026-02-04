@@ -665,8 +665,9 @@ async saveMonthlyTask() {
                 if (!department) return;
 
                 const historyRef = window.database.ref(
-                    `users/${userId}/taskHistory/single/${department}`
+                    `${window.DATA_ROOT}/users/${userId}/taskHistory/single/${department}`
                 );
+
 
                 // 現在の履歴を取得
                 const snapshot = await historyRef.orderByChild('timestamp').once('value');
