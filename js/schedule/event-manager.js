@@ -650,7 +650,6 @@ async saveMonthlyTask() {
                 window.showMessage('月次業務の保存に失敗しました', 'error');
             }
         }
-    }
 
             // ========== 履歴管理機能 ==========
 
