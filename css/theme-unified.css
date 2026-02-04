@@ -2697,3 +2697,43 @@ body.theme-light .day-card.today {
         width: 100% !important;
     }
 }
+
+/* ==========================================================================
+   業務履歴モーダル
+   ========================================================================== */
+
+body.theme-dark .history-item {
+    background: rgba(255,255,255,0.05) !important;
+    border-color: var(--hairline) !important;
+}
+
+body.theme-dark .history-item:hover {
+    background: rgba(45,212,191,0.12) !important;
+    border-color: var(--brand-primary) !important;
+    transform: translateY(-2px);
+}
+
+body.theme-dark .history-item h4 {
+    color: var(--text-strong) !important;
+}
+
+body.theme-dark .history-item .text-gray-300 {
+    color: var(--text-color) !important;
+}
+
+body.theme-dark .history-item .text-gray-400 {
+    color: var(--text-muted) !important;
+}
+
+/* ライトテーマ */
+body.theme-light .history-item {
+    background: rgba(0,0,0,0.02) !important;
+    border-color: #e5e7eb !important;
+}
+
+body.theme-light .history-item:hover {
+    background: rgba(76,175,80,0.08) !important;
+    border-color: #4CAF50 !important;
+}
+
+
