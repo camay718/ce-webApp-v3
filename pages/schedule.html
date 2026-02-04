@@ -1297,33 +1297,37 @@ if (templateManagerBtn && !templateManagerBtn.dataset.bound) {
                 }, 500);
             }
 
-            createDepartmentSection(dept) {
-                const section = document.createElement('div');
-                section.className = 'department-section p-4';
-                section.dataset.department = dept;
-                const deptColor = window.DEPARTMENT_COLORS?.[dept] || '#6b7280';
-                
-                section.innerHTML = `
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center gap-2">
-                            <i class="fas fa-${window.DEPARTMENT_ICONS?.[dept] || 'cog'}" style="color: ${deptColor}"></i>
-                            <h3 class="font-bold text-sm">${dept}</h3>
-                        </div>
-                ${window.userRole !== 'viewer' ? `
-                        <div class="flex items-center gap-1">
-                            <button class="btn-unified btn-primary-unified btn-small" onclick="window.scheduleManager.openQuickAddEvent('${dept}')">
-                                <i class="fas fa-plus mr-1"></i>業務追加
-                            </button>
-                            <button class="btn-unified btn-outline-unified btn-small" onclick="window.scheduleManager.openMonthlyTaskModal('${dept}')" 
-                                    title="この部門の月次業務を追加">
-                                <i class="fas fa-calendar-alt mr-1"></i>月次
-                            </button>
-                            <button class="btn-unified btn-outline-unified btn-small" onclick="window.scheduleManager.openSaveTemplateModal('${dept}')" 
-                                    title="この部門の業務をテンプレート保存">
-                                <i class="fas fa-bookmark mr-1"></i>テンプレ保存
-                            </button>
-                        </div>` : ''}
-                    </div>
+createDepartmentSection(dept) {
+    const section = document.createElement('div');
+    section.className = 'department-section p-4';
+    section.dataset.department = dept;
+    const deptColor = window.DEPARTMENT_COLORS?.[dept] || '#6b7280';
+    
+    section.innerHTML = `
+        <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+                <i class="fas fa-${window.DEPARTMENT_ICONS?.[dept] || 'cog'}" style="color: ${deptColor}"></i>
+                <h3 class="font-bold text-sm">${dept}</h3>
+            </div>
+    ${window.userRole !== 'viewer' ? `
+            <div class="flex items-center gap-1">
+                <button class="btn-unified btn-primary-unified btn-small" onclick="window.scheduleManager.openQuickAddEvent('${dept}')">
+                    <i class="fas fa-plus mr-1"></i>業務追加
+                </button>
+                <button class="btn-unified btn-outline-unified btn-small" onclick="window.eventManager.openHistoryModal('${dept}')" 
+                        title="この部門の最近追加した業務">
+                    <i class="fas fa-history mr-1"></i>最近追加
+                </button>
+                <button class="btn-unified btn-outline-unified btn-small" onclick="window.scheduleManager.openMonthlyTaskModal('${dept}')" 
+                        title="この部門の月次業務を追加">
+                    <i class="fas fa-calendar-alt mr-1"></i>月次
+                </button>
+                <button class="btn-unified btn-outline-unified btn-small" onclick="window.scheduleManager.openSaveTemplateModal('${dept}')" 
+                        title="この部門の業務をテンプレート保存">
+                    <i class="fas fa-bookmark mr-1"></i>テンプレ保存
+                </button>
+            </div>` : ''}
+        </div>
 
                     <!-- 部門別集計バー -->
                     <div class="dept-summary-container">
