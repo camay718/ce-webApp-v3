@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>お知らせ掲示板 - CE web App v3</title>
+    <link rel="stylesheet" href="theme-unified.css">
+    <style>
+        .announcements-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .header-section h1 {
+            margin: 0;
+            color: #333;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #45a049;
+        }
+
+        .btn-secondary {
+            background-color: #2196F3;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #0b7dda;
+        }
+
+        .btn-danger {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #da190b;
+        }
+
+        .categories-section {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .categories-sidebar {
+            width: 250px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            height: fit-content;
+        }
+
+        .categories-sidebar h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .category-item {
+            padding: 10px 15px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .category-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .category-item.active {
+            background-color: #e3f2fd;
+            color: #2196F3;
+            font-weight: bold;
+        }
+
+        .category-badge {
+            background-color: #ff5722;
+            color: white;
+            border-radius: 12px;
+            padding: 2px 8px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .threads-section {
+            flex: 1;
+        }
+
+        .thread-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .thread-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .thread-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .thread-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin: 0 0 5px 0;
+        }
+
+        .thread-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 13px;
+            color: #666;
+            align-items: center;
+        }
+
+        .thread-author {
+            font-weight: 500;
+        }
+
+        .thread-date {
+            color: #999;
+        }
+
+        .thread-category-tag {
+            background-color: #e3f2fd;
+            color: #2196F3;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .thread-content {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .thread-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+
+        .thread-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .attachment-icon {
+            color: #2196F3;
+        }
+
+        .new-badge {
+            background-color: #ff5722;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        /* モーダルスタイル */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal.active {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: #333;
+        }
+
+        .close-btn {
+            font-size: 28px;
+            font-weight: bold;
+            color: #999;
+            cursor: pointer;
+            border: none;
+            background: none;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 150px;
+        }
+
+        .file-upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .file-upload-area:hover {
+            border-color: #2196F3;
+            background-color: #f5f5f5;
+        }
+
+        .category-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .category-edit-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 5px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+        }
+
+        .category-edit-item input {
+            flex: 1;
+            margin-right: 10px;
+        }
+
+        .icon {
+            margin-right: 5px;
+        }
+
+        /* レスポンシブ対応 */
+        @media (max-width: 768px) {
+            .categories-section {
+                flex-direction: column;
+            }
+
+            .categories-sidebar {
+                width: 100%;
+            }
+
+            .header-section {
+                flex-direction: column;
+                gap: 15px;
+                align-items: flex-start;
+            }
+
+            .action-buttons {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="announcements-container">
+        <!-- ヘッダーセクション -->
+        <div class="header-section">
+            <div>
+                <h1>📢 お知らせ掲示板</h1>
+                <p style="color: #666; margin: 5px 0 0 0;">部門や業務カテゴリごとの情報共有</p>
+            </div>
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="openCategoryModal()">
+                    📁 カテゴリ管理
+                </button>
+                <button class="btn btn-primary" onclick="openNewThreadModal()">
+                    ✏️ 新規投稿
+                </button>
+                <button class="btn btn-secondary" onclick="location.href='home.html'">
+                    🏠 ホームへ戻る
+                </button>
+            </div>
+        </div>
+
+        <!-- カテゴリとスレッド表示エリア -->
+        <div class="categories-section">
+            <!-- カテゴリサイドバー -->
+            <div class="categories-sidebar">
+                <h3>📂 カテゴリ</h3>
+                <div id="categoryList">
+                    <!-- JavaScriptで動的生成 -->
+                </div>
+            </div>
+
+            <!-- スレッド一覧 -->
+            <div class="threads-section">
+                <div id="threadsList">
+                    <!-- JavaScriptで動的生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新規投稿モーダル -->
+    <div id="newThreadModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>✏️ 新規投稿</h2>
+                <button class="close-btn" onclick="closeNewThreadModal()">&times;</button>
+            </div>
+            <form id="newThreadForm">
+                <div class="form-group">
+                    <label for="threadCategory">カテゴリ *</label>
+                    <select id="threadCategory" required>
+                        <!-- JavaScriptで動的生成 -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="threadTitle">タイトル *</label>
+                    <input type="text" id="threadTitle" placeholder="投稿のタイトルを入力" required>
+                </div>
+                <div class="form-group">
+                    <label for="threadContent">内容 *</label>
+                    <textarea id="threadContent" placeholder="投稿内容を入力してください..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="threadFile">ファイル添付（任意）</label>
+                    <div class="file-upload-area" onclick="document.getElementById('threadFile').click()">
+                        <p>📎 クリックしてファイルを選択</p>
+                        <p style="font-size: 12px; color: #999;">PDF、画像、Excel など</p>
+                        <input type="file" id="threadFile" style="display: none;" accept=".pdf,.jpg,.jpeg,.png,.xlsx,.docx">
+                    </div>
+                    <p id="fileName" style="margin-top: 10px; color: #666; font-size: 13px;"></p>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="closeNewThreadModal()">キャンセル</button>
+                    <button type="submit" class="btn btn-primary">投稿する</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- カテゴリ管理モーダル -->
+    <div id="categoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📁 カテゴリ管理</h2>
+                <button class="close-btn" onclick="closeCategoryModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>既存カテゴリ</label>
+                <ul class="category-list" id="categoryEditList">
+                    <!-- JavaScriptで動的生成 -->
+                </ul>
+            </div>
+            <div class="form-group">
+                <label for="newCategoryName">新しいカテゴリを追加</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="newCategoryName" placeholder="カテゴリ名を入力">
+                    <button class="btn btn-primary" onclick="addNewCategory()">追加</button>
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeCategoryModal()">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- スレッド詳細モーダル -->
+    <div id="threadDetailModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2 id="detailThreadTitle"></h2>
+                <button class="close-btn" onclick="closeThreadDetailModal()">&times;</button>
+            </div>
+            <div id="threadDetailContent">
+                <!-- JavaScriptで動的生成 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ダミーデータ
+        let categories = [
+            { id: 'important', name: '🔴 重要なお知らせ', count: 2 },
+            { id: 'all', name: '📢 全体業務連絡', count: 3 },
+            { id: 'field', name: 'フィールドサポート部', count: 5 },
+            { id: 'customer', name: 'カスタマーサポート部', count: 4 },
+            { id: 'sales', name: '営業部', count: 2 },
+            { id: 'tech', name: '技術部', count: 3 }
+        ];
+
+        let threads = [
+            {
+                id: 1,
+                category: 'important',
+                title: '【重要】システムメンテナンスのお知らせ',
+                author: '山田太郎（管理者）',
+                date: '2026-02-04 09:30',
+                content: '2月10日（月）22:00〜24:00にシステムメンテナンスを実施します。この間、システムへのアクセスができなくなりますので、ご注意ください。',
+                replies: 8,
+                views: 124,
+                hasAttachment: true,
+                isNew: true
+            },
+            {
+                id: 2,
+                category: 'important',
+                title: '新型コロナウイルス対応ガイドライン更新',
+                author: '佐藤花子（人事部）',
+                date: '2026-02-03 14:20',
+                content: '厚生労働省の指針変更に伴い、当社の対応ガイドラインを更新しました。添付のPDFをご確認ください。',
+                replies: 15,
+                views: 256,
+                hasAttachment: true,
+                isNew: true
+            },
+            {
+                id: 3,
+                category: 'all',
+                title: '2月度全体会議の議事録',
+                author: '鈴木一郎（総務部）',
+                date: '2026-02-02 16:45',
+                content: '2月1日に実施された全体会議の議事録を共有します。各部門の報告事項と今月の重点項目をまとめています。',
+                replies: 6,
+                views: 89,
+                hasAttachment: true,
+                isNew: false
+            },
+            {
+                id: 4,
+                category: 'field',
+                title: '顧客先訪問時の新しい報告フォーマット',
+                author: '田中次郎（FS部）',
+                date: '2026-02-01 11:20',
+                content: '訪問報告の効率化のため、新しいフォーマットを導入します。Excel形式で添付していますので、今後はこちらをご使用ください。',
+                replies: 12,
+                views: 167,
+                hasAttachment: true,
+                isNew: false
+            },
+            {
+                id: 5,
+                category: 'customer',
+                title: 'Q1のカスタマーサポート対応状況',
+                author: '高橋美咲（CS部）',
+                date: '2026-01-31 10:15',
+                content: '第1四半期のサポート対応実績をまとめました。問い合わせ件数、解決率、顧客満足度などの指標を報告します。',
+                replies: 9,
+                views: 143,
+                hasAttachment: true,
+                isNew: false
+            },
+            {
+                id: 6,
+                category: 'all',
+                title: '社内ネットワークのセキュリティ強化について',
+                author: '伊藤健太（情報システム部）',
+                date: '2026-01-30 09:00',
+                content: 'セキュリティ向上のため、VPN接続の二段階認証を導入します。設定方法は添付の手順書をご参照ください。',
+                replies: 20,
+                views: 312,
+                hasAttachment: true,
+                isNew: false
+            },
+            {
+                id: 7,
+                category: 'field',
+                title: '新製品研修会の日程について',
+                author: '渡辺誠（FS部）',
+                date: '2026-01-29 15:30',
+                content: '3月に発売予定の新製品に関する研修会を2月中旬に実施します。日程調整のアンケートにご協力ください。',
+                replies: 7,
+                views: 98,
+                hasAttachment: false,
+                isNew: false
+            },
+            {
+                id: 8,
+                category: 'sales',
+                title: '1月度の営業実績報告',
+                author: '中村裕子（営業部）',
+                date: '2026-01-28 17:00',
+                content: '1月の営業実績をまとめました。目標達成率や主要案件の進捗状況を共有します。',
+                replies: 5,
+                views: 76,
+                hasAttachment: true,
+                isNew: false
+            }
+        ];
+
+        let currentUser = null;
+        let selectedCategory = 'all';
+
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            // LocalStorageからユーザー情報取得
+            const userDataStr = localStorage.getItem('currentUser');
+            if (userDataStr) {
+                currentUser = JSON.parse(userDataStr);
+            } else {
+                currentUser = { name: 'ゲストユーザー', role: 'user' };
+            }
+
+            renderCategories();
+            renderThreads();
+            updateCategorySelect();
+
+            // ファイル選択時の処理
+            document.getElementById('threadFile').addEventListener('change', function(e) {
+                const fileName = e.target.files[0]?.name || '';
+                document.getElementById('fileName').textContent = fileName ? `選択中: ${fileName}` : '';
+            });
+
+            // 新規投稿フォーム送信
+            document.getElementById('newThreadForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                createNewThread();
+            });
+        });
+
+        // カテゴリ表示
+        function renderCategories() {
+            const categoryList = document.getElementById('categoryList');
+            categoryList.innerHTML = `
+                <div class="category-item ${selectedCategory === 'all' ? 'active' : ''}" onclick="selectCategory('all')">
+                    <span>📋 すべて</span>
+                    <span class="category-badge">${threads.length}</span>
+                </div>
+            ` + categories.map(cat => {
+                const count = threads.filter(t => t.category === cat.id).length;
+                return `
+                    <div class="category-item ${selectedCategory === cat.id ? 'active' : ''}" onclick="selectCategory('${cat.id}')">
+                        <span>${cat.name}</span>
+                        ${count > 0 ? `<span class="category-badge">${count}</span>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // カテゴリ選択
+        function selectCategory(categoryId) {
+            selectedCategory = categoryId;
+            renderCategories();
+            renderThreads();
+        }
+
+        // スレッド表示
+        function renderThreads() {
+            const threadsList = document.getElementById('threadsList');
+            const filteredThreads = selectedCategory === 'all' 
+                ? threads 
+                : threads.filter(t => t.category === selectedCategory);
+
+            if (filteredThreads.length === 0) {
+                threadsList.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #999;">
+                        <p style="font-size: 48px;">📭</p>
+                        <p>このカテゴリには投稿がありません</p>
+                    </div>
+                `;
+                return;
+            }
+
+            threadsList.innerHTML = filteredThreads.map(thread => {
+                const category = categories.find(c => c.id === thread.category);
+                return `
+                    <div class="thread-card" onclick="openThreadDetail(${thread.id})">
+                        <div class="thread-header">
+                            <div style="flex: 1;">
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                                    <h3 class="thread-title">${thread.title}</h3>
+                                    ${thread.isNew ? '<span class="new-badge">NEW</span>' : ''}
+                                </div>
+                                <div class="thread-meta">
+                                    <span class="thread-author">👤 ${thread.author}</span>
+                                    <span class="thread-date">🕒 ${thread.date}</span>
+                                </div>
+                            </div>
+                            <span class="thread-category-tag">${category?.name || ''}</span>
+                        </div>
+                        <div class="thread-content">
+                            ${thread.content}
+                        </div>
+                        <div class="thread-footer">
+                            <div class="thread-stats">
+                                <span class="stat-item">💬 ${thread.replies} 件の返信</span>
+                                <span class="stat-item">👁️ ${thread.views} 閲覧</span>
+                                ${thread.hasAttachment ? '<span class="stat-item attachment-icon">📎 添付ファイルあり</span>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 新規投稿モーダル
+        function openNewThreadModal() {
+            document.getElementById('newThreadModal').classList.add('active');
+        }
+
+        function closeNewThreadModal() {
+            document.getElementById('newThreadModal').classList.remove('active');
+            document.getElementById('newThreadForm').reset();
+            document.getElementById('fileName').textContent = '';
+        }
+
+        // カテゴリ管理モーダル
+        function openCategoryModal() {
+            document.getElementById('categoryModal').classList.add('active');
+            renderCategoryEditList();
+        }
+
+        function closeCategoryModal() {
+            document.getElementById('categoryModal').classList.remove('active');
+        }
+
+        function renderCategoryEditList() {
+            const list = document.getElementById('categoryEditList');
+            list.innerHTML = categories.map(cat => `
+                <li class="category-edit-item">
+                    <input type="text" value="${cat.name}" id="cat-${cat.id}">
+                    <button class="btn btn-danger" onclick="deleteCategory('${cat.id}')">削除</button>
+                </li>
+            `).join('');
+        }
+
+        function addNewCategory() {
+            const input = document.getElementById('newCategoryName');
+            const name = input.value.trim();
+            if (!name) {
+                alert('カテゴリ名を入力してください');
+                return;
+            }
+            const newId = 'cat_' + Date.now();
+            categories.push({ id: newId, name: name, count: 0 });
+            input.value = '';
+            renderCategoryEditList();
+            renderCategories();
+            updateCategorySelect();
+            alert('カテゴリを追加しました');
+        }
+
+        function deleteCategory(categoryId) {
+            if (!confirm('このカテゴリを削除してもよろしいですか？')) return;
+            categories = categories.filter(c => c.id !== categoryId);
+            renderCategoryEditList();
+            renderCategories();
+            updateCategorySelect();
+            alert('カテゴリを削除しました');
+        }
+
+        function updateCategorySelect() {
+            const select = document.getElementById('threadCategory');
+            select.innerHTML = categories.map(cat => 
+                `<option value="${cat.id}">${cat.name}</option>`
+            ).join('');
+        }
+
+        // 新規投稿作成
+        function createNewThread() {
+            const category = document.getElementById('threadCategory').value;
+            const title = document.getElementById('threadTitle').value;
+            const content = document.getElementById('threadContent').value;
+            const file = document.getElementById('threadFile').files[0];
+
+            const newThread = {
+                id: threads.length + 1,
+                category: category,
+                title: title,
+                author: currentUser.name,
+                date: new Date().toLocaleString('ja-JP'),
+                content: content,
+                replies: 0,
+                views: 0,
+                hasAttachment: !!file,
+                isNew: true
+            };
+
+            threads.unshift(newThread);
+            closeNewThreadModal();
+            renderThreads();
+            renderCategories();
+            alert('投稿を作成しました！');
+        }
+
+        // スレッド詳細表示
+        function openThreadDetail(threadId) {
+            const thread = threads.find(t => t.id === threadId);
+            if (!thread) return;
+
+            document.getElementById('detailThreadTitle').textContent = thread.title;
+            document.getElementById('threadDetailContent').innerHTML = `
+                <div style="padding: 20px; border: 1px solid #eee; border-radius: 5px; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                        <div>
+                            <strong>👤 ${thread.author}</strong>
+                            <span style="color: #999; margin-left: 10px;">🕒 ${thread.date}</span>
+                        </div>
+                        ${currentUser.role === 'admin' ? '<button class="btn btn-danger btn-sm" onclick="deleteThread(' + thread.id + ')">🗑️ 削除</button>' : ''}
+                    </div>
+                    <p style="line-height: 1.8;">${thread.content}</p>
+                    ${thread.hasAttachment ? '<p style="margin-top: 15px; color: #2196F3;">📎 添付ファイル: sample_document.pdf</p>' : ''}
+                </div>
+                <div style="margin-top: 20px;">
+                    <h3 style="margin-bottom: 15px;">💬 返信 (${thread.replies}件)</h3>
+                    <div style="padding: 15px; background: #f9f9f9; border-radius: 5px; margin-bottom: 10px;">
+                        <div style="margin-bottom: 10px;">
+                            <strong>田中次郎</strong>
+                            <span style="color: #999; margin-left: 10px; font-size: 13px;">2026-02-04 10:15</span>
+                        </div>
+                        <p>了解しました。事前に準備しておきます。</p>
+                    </div>
+                    <div style="padding: 15px; background: #f9f9f9; border-radius: 5px;">
+                        <div style="margin-bottom: 10px;">
+                            <strong>佐藤花子</strong>
+                            <span style="color: #999; margin-left: 10px; font-size: 13px;">2026-02-04 11:30</span>
+                        </div>
+                        <p>詳細な情報ありがとうございます。</p>
+                    </div>
+                </div>
+                <div style="margin-top: 20px;">
+                    <textarea placeholder="返信を入力..." style="width: 100%; min-height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 5px;"></textarea>
+                    <button class="btn btn-primary" style="margin-top: 10px;">返信する</button>
+                </div>
+            `;
+            document.getElementById('threadDetailModal').classList.add('active');
+        }
+
+        function closeThreadDetailModal() {
+            document.getElementById('threadDetailModal').classList.remove('active');
+        }
+
+        function deleteThread(threadId) {
+            if (!confirm('この投稿を削除してもよろしいですか？')) return;
+            threads = threads.filter(t => t.id !== threadId);
+            closeThreadDetailModal();
+            renderThreads();
+            renderCategories();
+            alert('投稿を削除しました');
+        }
+    </script>
+</body>
+</html>
