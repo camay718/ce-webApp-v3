@@ -719,7 +719,7 @@ async saveMonthlyTask() {
                 if (!userId || !department) return [];
 
                 const historyRef = window.database.ref(
-                    `users/${userId}/taskHistory/single/${department}`
+                    `${window.DATA_ROOT}/users/${userId}/taskHistory/single/${department}`
                 );
 
                 const snapshot = await historyRef
