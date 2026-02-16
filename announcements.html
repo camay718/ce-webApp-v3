@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>お知らせ掲示板 - CE web App v3</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Theme -->
+    <link rel="stylesheet" href="../css/theme-unified.css">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+    
+    <!-- Custom Scripts -->
+    <script src="../js/config/firebase-config.js"></script>
+    <script src="../js/utils/audit-logger.js"></script>
+    <script src="../js/ui/theme-switcher.js"></script>
+    
+    <style>
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* ヘッダー */
+        .announcements-header {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-lg);
+        }
+
+        /* メインコンテナ */
+        .announcements-container {
+            display: flex;
+            height: calc(100vh - 80px);
+            gap: 0;
+        }
+
+        /* サイドバー（カテゴリ一覧） */
+        .categories-sidebar {
+            width: 280px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid var(--glass-border);
+            overflow-y: auto;
+            padding: 1.5rem 1rem;
+        }
+
+        .category-item {
+            padding: 0.875rem 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .category-item:hover {
+            background: rgba(45, 212, 191, 0.1);
+            border-color: var(--accent-color);
+        }
+
+        .category-item.active {
+            background: rgba(45, 212, 191, 0.15);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 12px rgba(45, 212, 191, 0.2);
+        }
+
+        .category-icon {
+            font-size: 1.2rem;
+        }
+
+        .category-name {
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .category-count {
+            background: var(--accent-color);
+            color: var(--dark-surface);
+            padding: 0.25rem 0.625rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* メインエリア（スレッド一覧） */
+        .threads-main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem 2rem;
+        }
+
+        .threads-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .threads-header h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* スレッドカード */
+        .thread-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: var(--shadow-md);
+        }
+
+        .thread-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            border-color: var(--accent-color);
+        }
+
+        .thread-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .thread-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .new-badge {
+            background: #FF5722;
+            color: white;
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.625rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .thread-meta {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .thread-stats {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+
+        /* ボタン */
+        .btn {
+            padding: 0.625rem 1.25rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--accent-color);
+            color: var(--dark-surface);
+        }
+
+        .btn-primary:hover {
+            background: #26bfa5;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(45, 212, 191, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--glass-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--glass-border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent-color);
+            box-shadow: 0 4px 12px rgba(45, 212, 191, 0.2);
+        }
+
+        /* モーダル */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 700px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .modal-header h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 0.25rem;
+            line-height: 1;
+        }
+
+        .close-modal:hover {
+            color: var(--text-primary);
+        }
+
+        /* フォーム */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: rgba(17, 24, 39, 0.4);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.9375rem;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.1);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        /* スレッド詳細 */
+        .thread-detail-content {
+            background: rgba(17, 24, 39, 0.3);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            border: 1px solid var(--glass-border);
+        }
+
+        .replies-section {
+            margin-top: 2rem;
+        }
+
+        .reply-card {
+            background: rgba(17, 24, 39, 0.3);
+            padding: 1rem 1.25rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border-left: 3px solid var(--accent-color);
+        }
+
+        .reply-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .reply-author {
+            font-weight: 600;
+            color: var(--accent-color);
+        }
+
+        .reply-content {
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* カテゴリ管理 */
+        .category-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .category-manage-item {
+            background: rgba(17, 24, 39, 0.3);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid var(--glass-border);
+        }
+
+        .category-manage-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .btn-delete {
+            background: #EF4444;
+            color: white;
+            padding: 0.375rem 0.875rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-delete:hover {
+            background: #DC2626;
+        }
+
+        /* スクロールバー */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(17, 24, 39, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(45, 212, 191, 0.3);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(45, 212, 191, 0.5);
+        }
+
+        /* レスポンシブ */
+        @media (max-width: 768px) {
+            .announcements-container {
+                flex-direction: column;
+            }
+
+            .categories-sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid var(--glass-border);
+                padding: 1rem;
+            }
+
+            .threads-main {
+                padding: 1rem;
+            }
+
+            .modal-content {
+                width: 95%;
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ヘッダー -->
+    <div class="announcements-header">
+        <div>
+            <h1 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem;">📢 お知らせ掲示板</h1>
+            <p style="color: var(--text-secondary); font-size: 0.875rem;">部門・業務カテゴリごとの情報共有</p>
+        </div>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <button id="categoryManageBtn" class="btn btn-secondary">
+                <i class="fas fa-folder"></i>
+                カテゴリ管理
+            </button>
+            <button id="newPostBtn" class="btn btn-primary">
+                <i class="fas fa-plus"></i>
+                新規投稿
+            </button>
+            <button onclick="window.location.href='../pages/home.html'" class="btn btn-secondary">
+                <i class="fas fa-home"></i>
+                ホームへ戻る
+            </button>
+        </div>
+    </div>
+
+    <!-- メインコンテナ -->
+    <div class="announcements-container">
+        <!-- サイドバー（カテゴリ一覧） -->
+        <div class="categories-sidebar">
+            <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem; color: var(--text-primary);">
+                カテゴリ
+            </h3>
+            <div id="categoriesList">
+                <!-- カテゴリはJSで動的生成 -->
+            </div>
+        </div>
+
+        <!-- メインエリア（スレッド一覧） -->
+        <div class="threads-main">
+            <div class="threads-header">
+                <h2 id="currentCategoryTitle">すべてのお知らせ</h2>
+                <div style="color: var(--text-secondary); font-size: 0.875rem;">
+                    <span id="threadCount">0</span> 件の投稿
+                </div>
+            </div>
+            <div id="threadsList">
+                <!-- スレッドはJSで動的生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 新規投稿モーダル -->
+    <div id="newPostModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>新規投稿</h3>
+                <button class="close-modal" onclick="document.getElementById('newPostModal').classList.remove('active')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="newPostForm">
+                <div class="form-group">
+                    <label class="form-label">カテゴリ</label>
+                    <select id="postCategory" class="form-select" required>
+                        <!-- カテゴリはJSで動的生成 -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">タイトル</label>
+                    <input type="text" id="postTitle" class="form-input" placeholder="お知らせのタイトルを入力" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">内容</label>
+                    <textarea id="postContent" class="form-textarea" placeholder="詳細な内容を入力してください" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">添付ファイル（未実装）</label>
+                    <input type="file" id="postAttachment" class="form-input" disabled>
+                    <small style="color: var(--text-secondary); font-size: 0.75rem;">※ファイル添付機能は今後実装予定です</small>
+                </div>
+                <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('newPostModal').classList.remove('active')">
+                        キャンセル
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i>
+                        投稿する
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- カテゴリ管理モーダル -->
+    <div id="categoryManageModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>カテゴリ管理</h3>
+                <button class="close-modal" onclick="document.getElementById('categoryManageModal').classList.remove('active')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">新規カテゴリ追加</label>
+                <div style="display: flex; gap: 0.75rem;">
+                    <input type="text" id="newCategoryName" class="form-input" placeholder="カテゴリ名を入力（例：部署名）">
+                    <button id="addCategoryBtn" class="btn btn-primary" style="white-space: nowrap;">
+                        <i class="fas fa-plus"></i>
+                        追加
+                    </button>
+                </div>
+            </div>
+            <div style="margin-top: 1.5rem;">
+                <label class="form-label">既存カテゴリ</label>
+                <div id="categoryManageList" class="category-list">
+                    <!-- カテゴリ一覧はJSで動的生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- スレッド詳細モーダル -->
+    <div id="threadDetailModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3 id="threadDetailTitle"></h3>
+                <button class="close-modal" onclick="document.getElementById('threadDetailModal').classList.remove('active')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="thread-meta" style="margin-bottom: 1rem;">
+                <span><i class="fas fa-user"></i> <span id="threadDetailAuthor"></span></span>
+                <span><i class="fas fa-calendar"></i> <span id="threadDetailDate"></span></span>
+                <span><i class="fas fa-eye"></i> <span id="threadDetailViews"></span> 閲覧</span>
+            </div>
+            <div class="thread-detail-content">
+                <p id="threadDetailContent"></p>
+            </div>
+
+            <!-- 返信セクション -->
+            <div class="replies-section">
+                <h4 style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem; color: var(--text-primary);">
+                    <i class="fas fa-comments"></i> 返信（<span id="replyCount">0</span>件）
+                </h4>
+                <div id="repliesList">
+                    <!-- 返信はJSで動的生成 -->
+                </div>
+
+                <!-- 返信フォーム -->
+                <div style="margin-top: 1.5rem;">
+                    <form id="replyForm">
+                        <div class="form-group">
+                            <label class="form-label">返信を投稿</label>
+                            <textarea id="replyContent" class="form-textarea" placeholder="返信内容を入力してください" required></textarea>
+                        </div>
+                        <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-reply"></i>
+                                返信する
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 削除ボタン（管理者のみ） -->
+            <div id="adminActions" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--glass-border); display: none;">
+                <button id="deleteThreadBtn" class="btn btn-delete">
+                    <i class="fas fa-trash"></i>
+                    このスレッドを削除
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../js/modules/user-manager.js"></script>
+    <script src="../js/modules/announcements-manager.js"></script>
+</body>
+</html>
