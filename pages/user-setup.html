@@ -195,10 +195,14 @@ undefined
         // 統一メッセージシステム
         window.showMessage = window.showMessage || function(msg, type='info') {
             const statusDiv = document.getElementById('statusMessage');
-            statusDiv.className = `status-unified ${type}`;
-            statusDiv.textContent = msg;
-            statusDiv.style.display = 'block';
-            setTimeout(() => statusDiv.style.display = 'none', 5000);
+            if (statusDiv) {
+                statusDiv.className = `status-unified ${type}`;
+                statusDiv.textContent = msg;
+                statusDiv.style.display = 'block';
+                setTimeout(() => statusDiv.style.display = 'none', 5000);
+            } else {
+                alert(msg);
+            }
         };
 
         // グローバル変数
@@ -212,7 +216,7 @@ undefined
         let ceList = [];
         let currentStep = 1;
 
-                // 🆕 Phase 1: ステップ管理関数
+        // 🆕 Phase 1: ステップ管理関数
         function updateStepIndicator() {
             document.querySelectorAll('.step-dot').forEach((dot, index) => {
                 const stepNum = index + 1;
@@ -494,7 +498,79 @@ undefined
             // フォーム送信
             document.getElementById('setupForm').addEventListener('submit', saveSettings);
         }
-        
+
+        // 初期化
+        async function init() {
+            try {
+                // Firebase初期化待機
+                await window.waitForFirebase?.();
+                auth = window.auth;
+                database = window.database;
+
+                if (!auth || !database) {
+                    throw new Error('Firebase初期化に失敗しました');
+                }
+
+                // セッション情報確認
+                const uid = sessionStorage.getItem('targetUID');
+                const username = sessionStorage.getItem('currentUsername');
+                
+                if (!uid || !username) {
+                    showMessage('セッション情報が不足しています。ログインし直してください。', 'error');
+                    setTimeout(() => location.href = '../index.html', 2000);
+                    return;
+                }
+
+                // 匿名認証
+                if (!auth.currentUser) {
+                    await auth.signInAnonymously();
+                }
+
+                // ユーザーデータ取得
+                const dataRoot = window.DATA_ROOT || 'ceSchedulev3';
+                const userSnap = await database.ref(`${dataRoot}/users/${uid}`).once('value');
+                
+                if (!userSnap.exists()) {
+                    showMessage('ユーザーデータが見つかりません。', 'error');
+                    setTimeout(() => location.href = '../index.html', 2000);
+                    return;
+                }
+
+                currentUserData = userSnap.val();
+
+                // UI設定
+                document.getElementById('currentUser').textContent = currentUserData.username || 'Unknown';
+                document.getElementById('usernameDisplay').textContent = currentUserData.username || '';
+                document.getElementById('displayNameInput').value = currentUserData.displayName || currentUserData.username || '';
+                
+                // 権限表示
+                const roleBadges = {
+                    admin: '管理者',
+                    editor: '編集者', 
+                    viewer: '閲覧者'
+                };
+                document.getElementById('roleDisplay').textContent = roleBadges[currentUserData.role] || '不明';
+
+                // 🆕 CEリスト読み込み
+                await loadCEList();
+                
+                // 🆕 イベントリスナー設定
+                setupEventListeners();
+
+                // 画面表示
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                
+                // 🆕 ステップ1から開始
+                showStep(1);
+
+            } catch (error) {
+                console.error('初期化エラー:', error);
+                showMessage('初期化に失敗しました: ' + (error.message || error), 'error');
+                setTimeout(() => location.href = '../index.html', 2000);
+            }
+        }
+
         // 設定保存
         async function saveSettings(event) {
             event.preventDefault();
@@ -522,7 +598,7 @@ undefined
                 return;
             }
 
-            // 🆕 CE選択チェック（この位置が重要）
+            // 🆕 CE選択チェック
             if (selectedUserType === 'ce' && !selectedCEId) {
                 showMessage('CEを選択してください', 'error');
                 return;
@@ -612,3 +688,4 @@ undefined
     </script>
 </body>
 </html>
+
