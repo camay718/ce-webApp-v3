@@ -494,7 +494,9 @@ undefined
             // フォーム送信
             document.getElementById('setupForm').addEventListener('submit', saveSettings);
         }
-
+        
+        // 設定保存
+        async function saveSettings(event) {
             event.preventDefault();
             
             if (isProcessing) return;
@@ -520,7 +522,7 @@ undefined
                 return;
             }
 
-                    // 🆕 CE選択チェック
+            // 🆕 CE選択チェック（この位置が重要）
             if (selectedUserType === 'ce' && !selectedCEId) {
                 showMessage('CEを選択してください', 'error');
                 return;
@@ -539,15 +541,12 @@ undefined
                     throw new Error('セッション情報が無効です');
                 }
 
-                // 匿名認証確認
                 if (!auth.currentUser) {
                     await auth.signInAnonymously();
                 }
 
-                // パスワードハッシュ化
                 const hashedPassword = await hashPasswordPBKDF2(newPassword);
 
-                // データベース更新（重要：全フラグを適切に設定）
                 const dataRoot = window.DATA_ROOT || 'ceSchedulev3';
                 const updates = {
                     displayName: displayName || currentUserData.displayName || currentUserData.username,
@@ -579,12 +578,10 @@ undefined
                     await database.ref(`${dataRoot}/initialUsers/${uid}`).remove();
                 } catch (e) { /* 存在しない場合は無視 */ }
 
-                // セッション更新
                 sessionStorage.setItem('userRole', currentUserData.role || 'viewer');
 
                 showMessage('設定を保存しました。ダッシュボードへ移動します。', 'success');
                 
-                // ダッシュボードへリダイレクト
                 setTimeout(() => {
                     location.href = './home.html';
                 }, 1500);
@@ -595,7 +592,7 @@ undefined
             } finally {
                 isProcessing = false;
                 saveButton.disabled = false;
-                saveButton.innerHTML = '<i class="fas fa-save mr-2"></i>設定を保存してダッシュボードへ';
+                saveButton.innerHTML = '<i class="fas fa-save mr-2"></i>設定を保存してHOMEへ';
             }
         }
 
