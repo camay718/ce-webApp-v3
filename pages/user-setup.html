@@ -9,7 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
     
-    <!-- 統一テーマ（重要：相対パス調整） -->
+    <!-- 統一テーマ -->
     <link rel="stylesheet" href="../css/theme-unified.css">
     
     <!-- Firebase SDK -->
@@ -39,50 +39,8 @@
             max-width: 600px;
             margin: 0 auto;
         }
-        
-        /* スマートフォン対応 */
-        @media (max-width: 768px) {
-            .center-layout {
-                padding: 16px;
-                align-items: flex-start;
-                padding-top: 40px;
-            }
-            
-            .glass-card {
-                padding: 20px !important;
-            }
-            
-            h1 {
-                font-size: 1.8rem !important;
-            }
-            
-            .input-unified {
-                font-size: 16px; /* iOSのズーム防止 */
-                padding: 12px;
-            }
-            
-            .btn-unified {
-                padding: 14px 20px;
-                font-size: 14px;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .center-layout {
-                padding: 12px;
-                padding-top: 20px;
-            }
-            
-            .glass-card {
-                padding: 16px !important;
-            }
-            
-            h1 {
-                font-size: 1.5rem !important;
-            }
-        }
 
-                /* 🆕 Phase 1: ステップ管理用スタイル */
+        /* 🆕 Phase 1: ステップ管理用スタイル */
         .step-indicator {
             display: flex;
             justify-content: center;
@@ -151,11 +109,50 @@
             border-color: #10b981;
             font-weight: 600;
         }
-
-        /* 🆕 スマートフォン対応追加 */
+        
+        /* スマートフォン対応 */
         @media (max-width: 768px) {
+            .center-layout {
+                padding: 16px;
+                align-items: flex-start;
+                padding-top: 40px;
+            }
+            
+            .glass-card {
+                padding: 20px !important;
+            }
+            
+            h1 {
+                font-size: 1.8rem !important;
+            }
+            
+            .input-unified {
+                font-size: 16px;
+                padding: 12px;
+            }
+            
+            .btn-unified {
+                padding: 14px 20px;
+                font-size: 14px;
+            }
+
             .ce-select-grid {
                 grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .center-layout {
+                padding: 12px;
+                padding-top: 20px;
+            }
+            
+            .glass-card {
+                padding: 16px !important;
+            }
+            
+            h1 {
+                font-size: 1.5rem !important;
             }
         }
     </style>
@@ -187,7 +184,183 @@
                 </div>
             </div>
 
-undefined
+            <!-- ステップインジケーター -->
+            <div class="step-indicator">
+                <div class="step-dot active" data-step="1"></div>
+                <div class="step-dot" data-step="2"></div>
+                <div class="step-dot" data-step="3"></div>
+            </div>
+
+            <!-- ステータスメッセージ -->
+            <div id="statusMessage" class="status-unified mb-6" style="display: none;"></div>
+
+            <!-- 🆕 ステップ1: ユーザー種別選択 -->
+            <div id="step1UserType" class="step-content">
+                <div class="text-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-2">
+                        <i class="fas fa-user-tag text-green-600 mr-2"></i>ユーザー種別選択
+                    </h2>
+                    <p class="text-gray-600 text-sm">あなたの職種を選択してください</p>
+                </div>
+
+                <div class="space-y-4">
+                    <button class="user-type-btn w-full p-4 border-2 rounded-lg hover:bg-blue-50" data-type="ce">
+                        <div class="flex items-center justify-center">
+                            <i class="fas fa-user-md text-blue-600 text-2xl mr-3"></i>
+                            <div class="text-left">
+                                <div class="font-semibold text-lg">CE（臨床工学技士）</div>
+                                <div class="text-sm text-gray-600">勤務希望の提出が必要です</div>
+                            </div>
+                        </div>
+                    </button>
+                    
+                    <button class="user-type-btn w-full p-4 border-2 rounded-lg hover:bg-gray-50" data-type="manager">
+                        <div class="flex items-center justify-center">
+                            <i class="fas fa-user-tie text-gray-600 text-2xl mr-3"></i>
+                            <div class="text-left">
+                                <div class="font-semibold text-lg">管理職（センター長・副センター長等）</div>
+                                <div class="text-sm text-gray-600">勤務希望の提出は不要です</div>
+                            </div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 🆕 ステップ2: CE選択（CEユーザーのみ） -->
+            <div id="step2CESelection" class="step-content" style="display: none;">
+                <div class="text-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-2">
+                        <i class="fas fa-user-check text-green-600 mr-2"></i>CE選択
+                    </h2>
+                    <p class="text-gray-600 text-sm">CEリストから自分の名前を選択してください</p>
+                </div>
+
+                <div id="ceSelectGrid" class="ce-select-grid mb-6">
+                    <!-- CEリストが動的に挿入される -->
+                </div>
+
+                <div class="flex justify-between">
+                    <button id="backToStep1Btn" class="btn-unified btn-outline-unified">
+                        <i class="fas fa-arrow-left mr-2"></i>戻る
+                    </button>
+                    <button id="continueToStep3Btn" class="btn-unified btn-primary-unified" disabled>
+                        次へ<i class="fas fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 🆕 ステップ3: プロフィール・パスワード設定 -->
+            <div id="step3ProfileSetup" class="step-content" style="display: none;">
+                <div class="text-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-2">
+                        <i class="fas fa-id-card text-green-600 mr-2"></i>プロフィール設定
+                    </h2>
+                    <p class="text-gray-600 text-sm">個人情報とセキュリティ設定を行ってください</p>
+                </div>
+
+                <form id="setupForm" class="space-y-6">
+                    <!-- ユーザー名表示 -->
+                    <div>
+                        <label class="block text-sm font-bold mb-2 text-gray-700">
+                            <i class="fas fa-user text-green-600 mr-2"></i>ユーザー名
+                        </label>
+                        <div id="usernameDisplay" class="input-unified bg-gray-50 cursor-not-allowed"></div>
+                        <p class="text-xs text-gray-500 mt-1">※ユーザー名は変更できません</p>
+                    </div>
+
+                    <!-- 🆕 ユーザー種別表示 -->
+                    <div>
+                        <label class="block text-sm font-bold mb-2 text-gray-700">
+                            <i class="fas fa-user-tag text-green-600 mr-2"></i>ユーザー種別
+                        </label>
+                        <div id="userTypeDisplay" class="input-unified bg-gray-50 cursor-not-allowed"></div>
+                    </div>
+
+                    <!-- 🆕 CE選択結果表示 -->
+                    <div id="ceSelectionDisplaySection" style="display: none;">
+                        <label class="block text-sm font-bold mb-2 text-gray-700">
+                            <i class="fas fa-user-md text-green-600 mr-2"></i>紐付けCE
+                        </label>
+                        <div id="ceSelectionDisplay" class="input-unified bg-blue-50 cursor-not-allowed font-semibold"></div>
+                        <p class="text-xs text-blue-600 mt-1">
+                            <i class="fas fa-info-circle mr-1"></i>このCEとして勤務希望を提出します
+                        </p>
+                    </div>
+
+                    <!-- 表示名入力 -->
+                    <div>
+                        <label for="displayNameInput" class="block text-sm font-bold mb-2 text-gray-700">
+                            <i class="fas fa-id-card text-green-600 mr-2"></i>表示名
+                        </label>
+                        <input type="text" id="displayNameInput" 
+                               class="input-unified"
+                               placeholder="画面に表示する名前を入力してください" 
+                               autocomplete="name">
+                        <p class="text-xs text-gray-500 mt-1">※システム内での表示名として使用されます</p>
+                    </div>
+
+                    <!-- 権限レベル表示 -->
+                    <div>
+                        <label class="block text-sm font-bold mb-2 text-gray-700">
+                            <i class="fas fa-shield text-green-600 mr-2"></i>権限レベル
+                        </label>
+                        <div id="roleDisplay" class="input-unified bg-gray-50 cursor-not-allowed"></div>
+                    </div>
+
+                    <!-- 新しいパスワード -->
+                    <div>
+                        <label for="newPassword" class="block text-sm font-bold mb-2 text-gray-700">
+                            <i class="fas fa-lock text-green-600 mr-2"></i>新しいパスワード *
+                        </label>
+                        <div class="relative">
+                            <input type="password" id="newPassword" 
+                                   class="input-unified pr-12"
+                                   placeholder="新しいパスワードを入力してください" 
+                                   required autocomplete="new-password">
+                            <button type="button" onclick="togglePassword('newPassword')" 
+                                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <div id="passwordStrength" class="text-xs mt-2"></div>
+                    </div>
+
+                    <!-- パスワード確認 -->
+                    <div>
+                        <label for="confirmPassword" class="block text-sm font-bold mb-2 text-gray-700">
+                            <i class="fas fa-lock text-green-600 mr-2"></i>パスワード確認 *
+                        </label>
+                        <div class="relative">
+                            <input type="password" id="confirmPassword" 
+                                   class="input-unified pr-12"
+                                   placeholder="パスワードを再入力してください" 
+                                   required autocomplete="new-password">
+                            <button type="button" onclick="togglePassword('confirmPassword')" 
+                                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <div id="passwordMatch" class="text-xs mt-2"></div>
+                    </div>
+
+                    <!-- 🆕 保存ボタン（戻るボタン追加） -->
+                    <div class="flex justify-between">
+                        <button type="button" id="backToStep2Btn" class="btn-unified btn-outline-unified">
+                            <i class="fas fa-arrow-left mr-2"></i>戻る
+                        </button>
+                        <button type="submit" id="saveButton" class="btn-unified btn-primary-unified">
+                            <i class="fas fa-save mr-2"></i>設定を保存してHOMEへ
+                        </button>
+                    </div>
+                </form>
+
+                <!-- ログアウトボタン -->
+                <div class="text-center mt-6">
+                    <button onclick="logout()" class="btn-unified btn-outline-unified w-full">
+                        <i class="fas fa-sign-out-alt mr-2"></i>ログイン画面に戻る
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -499,10 +672,13 @@ undefined
             document.getElementById('setupForm').addEventListener('submit', saveSettings);
         }
 
-        // 初期化
+        // 初期化（診断機能付き）
         async function init() {
+            console.log('🚀 初期化開始');
+            
             try {
                 // Firebase初期化待機
+                console.log('⏳ Firebase初期化待機中...');
                 await window.waitForFirebase?.();
                 auth = window.auth;
                 database = window.database;
@@ -510,38 +686,64 @@ undefined
                 if (!auth || !database) {
                     throw new Error('Firebase初期化に失敗しました');
                 }
+                console.log('✅ Firebase初期化完了');
 
                 // セッション情報確認
                 const uid = sessionStorage.getItem('targetUID');
                 const username = sessionStorage.getItem('currentUsername');
                 
                 if (!uid || !username) {
+                    console.error('❌ セッション情報不足:', { uid, username });
                     showMessage('セッション情報が不足しています。ログインし直してください。', 'error');
                     setTimeout(() => location.href = '../index.html', 2000);
                     return;
                 }
+                console.log('✅ セッション情報確認完了:', { uid, username });
 
                 // 匿名認証
                 if (!auth.currentUser) {
+                    console.log('🔐 匿名認証実行中...');
                     await auth.signInAnonymously();
+                    console.log('✅ 匿名認証完了');
                 }
 
                 // ユーザーデータ取得
                 const dataRoot = window.DATA_ROOT || 'ceSchedulev3';
+                console.log('📊 ユーザーデータ取得中:', `${dataRoot}/users/${uid}`);
+                
                 const userSnap = await database.ref(`${dataRoot}/users/${uid}`).once('value');
                 
                 if (!userSnap.exists()) {
+                    console.error('❌ ユーザーデータが存在しません');
                     showMessage('ユーザーデータが見つかりません。', 'error');
                     setTimeout(() => location.href = '../index.html', 2000);
                     return;
                 }
 
                 currentUserData = userSnap.val();
+                console.log('✅ ユーザーデータ取得完了:', currentUserData);
 
-                // UI設定
-                document.getElementById('currentUser').textContent = currentUserData.username || 'Unknown';
-                document.getElementById('usernameDisplay').textContent = currentUserData.username || '';
-                document.getElementById('displayNameInput').value = currentUserData.displayName || currentUserData.username || '';
+                // UI設定（防御的プログラミング）
+                const currentUserEl = document.getElementById('currentUser');
+                if (currentUserEl) {
+                    currentUserEl.textContent = currentUserData.username || 'Unknown';
+                } else {
+                    console.warn('⚠️ currentUser要素が見つかりません');
+                }
+
+                const usernameDisplayEl = document.getElementById('usernameDisplay');
+                if (usernameDisplayEl) {
+                    usernameDisplayEl.textContent = currentUserData.username || '';
+                } else {
+                    console.warn('⚠️ usernameDisplay要素が見つかりません');
+                }
+
+                const displayNameInputEl = document.getElementById('displayNameInput');
+                if (displayNameInputEl) {
+                    displayNameInputEl.value = currentUserData.displayName || currentUserData.username || '';
+                } else {
+                    console.warn('⚠️ displayNameInput要素が見つかりません');
+                }
                 
                 // 権限表示
                 const roleBadges = {
@@ -549,23 +751,44 @@ undefined
                     editor: '編集者', 
                     viewer: '閲覧者'
                 };
-                document.getElementById('roleDisplay').textContent = roleBadges[currentUserData.role] || '不明';
+                
+                const roleDisplayEl = document.getElementById('roleDisplay');
+                if (roleDisplayEl) {
+                    roleDisplayEl.textContent = roleBadges[currentUserData.role] || '不明';
+                } else {
+                    console.warn('⚠️ roleDisplay要素が見つかりません');
+                }
 
                 // 🆕 CEリスト読み込み
+                console.log('📋 CEリスト読み込み開始');
                 await loadCEList();
                 
                 // 🆕 イベントリスナー設定
+                console.log('🎯 イベントリスナー設定中');
                 setupEventListeners();
 
                 // 画面表示
-                document.getElementById('loadingScreen').style.display = 'none';
-                document.getElementById('mainContent').style.display = 'block';
+                const loadingScreen = document.getElementById('loadingScreen');
+                const mainContent = document.getElementById('mainContent');
+                
+                if (loadingScreen) {
+                    loadingScreen.style.display = 'none';
+                    console.log('✅ ローディング画面を非表示');
+                }
+                if (mainContent) {
+                    mainContent.style.display = 'block';
+                    console.log('✅ メインコンテンツを表示');
+                }
                 
                 // 🆕 ステップ1から開始
+                console.log('🎬 ステップ1表示開始');
                 showStep(1);
 
+                console.log('✅ 初期化完全完了');
+
             } catch (error) {
-                console.error('初期化エラー:', error);
+                console.error('❌ 初期化エラー:', error);
+                console.error('エラースタック:', error.stack);
                 showMessage('初期化に失敗しました: ' + (error.message || error), 'error');
                 setTimeout(() => location.href = '../index.html', 2000);
             }
@@ -643,6 +866,7 @@ undefined
                     updatedBy: 'user-setup'
                 };
 
+                console.log('💾 データベース更新中:', updates);
                 await database.ref(`${dataRoot}/users/${uid}`).update(updates);
 
                 // 待機リストから削除
@@ -683,9 +907,12 @@ undefined
             location.href = '../index.html';
         }
 
-        // 初期化実行
-        document.addEventListener('DOMContentLoaded', init);
+        // 初期化実行（安全な起動）
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            setTimeout(init, 100);
+        }
     </script>
 </body>
 </html>
-
