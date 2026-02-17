@@ -19,12 +19,9 @@
     
     <!-- Firebase設定ファイル -->
     <script src="../js/config/firebase-config.js"></script>
-
-    <!-- テーマ切り替え -->
     <script src="../js/ui/theme-switcher.js"></script>
     
     <style>
-        /* 中央配置の確実な実装 */
         .center-layout {
             min-height: 100vh;
             display: flex;
@@ -40,7 +37,7 @@
             margin: 0 auto;
         }
 
-        /* 🆕 Phase 1: ステップ管理用スタイル */
+        /* ステップ管理用スタイル */
         .step-indicator {
             display: flex;
             justify-content: center;
@@ -65,7 +62,7 @@
             background-color: #6ee7b7;
         }
 
-        /* 🆕 ユーザー種別選択ボタン */
+        /* ユーザー種別選択ボタン */
         .user-type-btn {
             transition: all 0.3s ease;
             border: 2px solid #e5e7eb;
@@ -81,7 +78,7 @@
             background-color: #ecfdf5;
         }
 
-        /* 🆕 CE選択グリッド */
+        /* CE選択グリッド */
         .ce-select-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -117,28 +114,11 @@
                 align-items: flex-start;
                 padding-top: 40px;
             }
-            
-            .glass-card {
-                padding: 20px !important;
-            }
-            
-            h1 {
-                font-size: 1.8rem !important;
-            }
-            
-            .input-unified {
-                font-size: 16px;
-                padding: 12px;
-            }
-            
-            .btn-unified {
-                padding: 14px 20px;
-                font-size: 14px;
-            }
-
-            .ce-select-grid {
-                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-            }
+            .glass-card { padding: 20px !important; }
+            h1 { font-size: 1.8rem !important; }
+            .input-unified { font-size: 16px; padding: 12px; }
+            .btn-unified { padding: 14px 20px; font-size: 14px; }
+            .ce-select-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
         }
         
         @media (max-width: 480px) {
@@ -146,17 +126,10 @@
                 padding: 12px;
                 padding-top: 20px;
             }
-            
-            .glass-card {
-                padding: 16px !important;
-            }
-            
-            h1 {
-                font-size: 1.5rem !important;
-            }
+            .glass-card { padding: 16px !important; }
+            h1 { font-size: 1.5rem !important; }
         }
     </style>
-    
 </head>
 <body class="theme-unified">
     <!-- ローディング画面 -->
@@ -170,7 +143,7 @@
 
     <!-- メインコンテンツ -->
     <div id="mainContent" class="center-layout" style="display: none;">
-        <div class="glass-card center-card" style="max-width: 600px;">
+        <div class="glass-card center-card">
             <!-- ヘッダー -->
             <div class="text-center mb-8">
                 <div class="bg-gradient-to-br from-green-100 to-blue-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
@@ -180,7 +153,7 @@
                 <p class="text-gray-600">CE web App</p>
                 <div class="mt-4 text-right">
                     <div class="text-sm text-gray-500">ログイン中</div>
-                    <div id="currentUser" class="font-semibold text-gray-800"></div>
+                    <div id="currentUser" class="font-semibold text-gray-800">読み込み中...</div>
                 </div>
             </div>
 
@@ -194,7 +167,7 @@
             <!-- ステータスメッセージ -->
             <div id="statusMessage" class="status-unified mb-6" style="display: none;"></div>
 
-            <!-- 🆕 ステップ1: ユーザー種別選択 -->
+            <!-- ステップ1: ユーザー種別選択 -->
             <div id="step1UserType" class="step-content">
                 <div class="text-center mb-6">
                     <h2 class="text-xl font-bold text-gray-800 mb-2">
@@ -202,7 +175,6 @@
                     </h2>
                     <p class="text-gray-600 text-sm">あなたの職種を選択してください</p>
                 </div>
-
                 <div class="space-y-4">
                     <button class="user-type-btn w-full p-4 border-2 rounded-lg hover:bg-blue-50" data-type="ce">
                         <div class="flex items-center justify-center">
@@ -213,7 +185,6 @@
                             </div>
                         </div>
                     </button>
-                    
                     <button class="user-type-btn w-full p-4 border-2 rounded-lg hover:bg-gray-50" data-type="manager">
                         <div class="flex items-center justify-center">
                             <i class="fas fa-user-tie text-gray-600 text-2xl mr-3"></i>
@@ -226,7 +197,7 @@
                 </div>
             </div>
 
-            <!-- 🆕 ステップ2: CE選択（CEユーザーのみ） -->
+            <!-- ステップ2: CE選択 -->
             <div id="step2CESelection" class="step-content" style="display: none;">
                 <div class="text-center mb-6">
                     <h2 class="text-xl font-bold text-gray-800 mb-2">
@@ -234,11 +205,7 @@
                     </h2>
                     <p class="text-gray-600 text-sm">CEリストから自分の名前を選択してください</p>
                 </div>
-
-                <div id="ceSelectGrid" class="ce-select-grid mb-6">
-                    <!-- CEリストが動的に挿入される -->
-                </div>
-
+                <div id="ceSelectGrid" class="ce-select-grid mb-6"></div>
                 <div class="flex justify-between">
                     <button id="backToStep1Btn" class="btn-unified btn-outline-unified">
                         <i class="fas fa-arrow-left mr-2"></i>戻る
@@ -249,7 +216,7 @@
                 </div>
             </div>
 
-            <!-- 🆕 ステップ3: プロフィール・パスワード設定 -->
+            <!-- ステップ3: プロフィール設定 -->
             <div id="step3ProfileSetup" class="step-content" style="display: none;">
                 <div class="text-center mb-6">
                     <h2 class="text-xl font-bold text-gray-800 mb-2">
@@ -259,91 +226,72 @@
                 </div>
 
                 <form id="setupForm" class="space-y-6">
-                    <!-- ユーザー名表示 -->
                     <div>
                         <label class="block text-sm font-bold mb-2 text-gray-700">
                             <i class="fas fa-user text-green-600 mr-2"></i>ユーザー名
                         </label>
-                        <div id="usernameDisplay" class="input-unified bg-gray-50 cursor-not-allowed"></div>
+                        <div id="usernameDisplay" class="input-unified bg-gray-50 cursor-not-allowed">読み込み中...</div>
                         <p class="text-xs text-gray-500 mt-1">※ユーザー名は変更できません</p>
                     </div>
 
-                    <!-- 🆕 ユーザー種別表示 -->
                     <div>
                         <label class="block text-sm font-bold mb-2 text-gray-700">
                             <i class="fas fa-user-tag text-green-600 mr-2"></i>ユーザー種別
                         </label>
-                        <div id="userTypeDisplay" class="input-unified bg-gray-50 cursor-not-allowed"></div>
+                        <div id="userTypeDisplay" class="input-unified bg-gray-50 cursor-not-allowed">未選択</div>
                     </div>
 
-                    <!-- 🆕 CE選択結果表示 -->
                     <div id="ceSelectionDisplaySection" style="display: none;">
                         <label class="block text-sm font-bold mb-2 text-gray-700">
                             <i class="fas fa-user-md text-green-600 mr-2"></i>紐付けCE
                         </label>
-                        <div id="ceSelectionDisplay" class="input-unified bg-blue-50 cursor-not-allowed font-semibold"></div>
+                        <div id="ceSelectionDisplay" class="input-unified bg-blue-50 cursor-not-allowed font-semibold">未選択</div>
                         <p class="text-xs text-blue-600 mt-1">
                             <i class="fas fa-info-circle mr-1"></i>このCEとして勤務希望を提出します
                         </p>
                     </div>
 
-                    <!-- 表示名入力 -->
                     <div>
                         <label for="displayNameInput" class="block text-sm font-bold mb-2 text-gray-700">
                             <i class="fas fa-id-card text-green-600 mr-2"></i>表示名
                         </label>
-                        <input type="text" id="displayNameInput" 
-                               class="input-unified"
-                               placeholder="画面に表示する名前を入力してください" 
-                               autocomplete="name">
+                        <input type="text" id="displayNameInput" class="input-unified" placeholder="画面に表示する名前を入力" autocomplete="name">
                         <p class="text-xs text-gray-500 mt-1">※システム内での表示名として使用されます</p>
                     </div>
 
-                    <!-- 権限レベル表示 -->
                     <div>
                         <label class="block text-sm font-bold mb-2 text-gray-700">
                             <i class="fas fa-shield text-green-600 mr-2"></i>権限レベル
                         </label>
-                        <div id="roleDisplay" class="input-unified bg-gray-50 cursor-not-allowed"></div>
+                        <div id="roleDisplay" class="input-unified bg-gray-50 cursor-not-allowed">読み込み中...</div>
                     </div>
 
-                    <!-- 新しいパスワード -->
                     <div>
                         <label for="newPassword" class="block text-sm font-bold mb-2 text-gray-700">
                             <i class="fas fa-lock text-green-600 mr-2"></i>新しいパスワード *
                         </label>
                         <div class="relative">
-                            <input type="password" id="newPassword" 
-                                   class="input-unified pr-12"
-                                   placeholder="新しいパスワードを入力してください" 
-                                   required autocomplete="new-password">
-                            <button type="button" onclick="togglePassword('newPassword')" 
-                                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                            <input type="password" id="newPassword" class="input-unified pr-12" placeholder="新しいパスワードを入力" required autocomplete="new-password">
+                            <button type="button" onclick="togglePassword('newPassword')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
                                 <i class="fas fa-eye"></i>
                             </button>
                         </div>
                         <div id="passwordStrength" class="text-xs mt-2"></div>
                     </div>
 
-                    <!-- パスワード確認 -->
                     <div>
                         <label for="confirmPassword" class="block text-sm font-bold mb-2 text-gray-700">
                             <i class="fas fa-lock text-green-600 mr-2"></i>パスワード確認 *
                         </label>
                         <div class="relative">
-                            <input type="password" id="confirmPassword" 
-                                   class="input-unified pr-12"
-                                   placeholder="パスワードを再入力してください" 
-                                   required autocomplete="new-password">
-                            <button type="button" onclick="togglePassword('confirmPassword')" 
-                                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                            <input type="password" id="confirmPassword" class="input-unified pr-12" placeholder="パスワードを再入力" required autocomplete="new-password">
+                            <button type="button" onclick="togglePassword('confirmPassword')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
                                 <i class="fas fa-eye"></i>
                             </button>
                         </div>
                         <div id="passwordMatch" class="text-xs mt-2"></div>
                     </div>
 
-                    <!-- 🆕 保存ボタン（戻るボタン追加） -->
                     <div class="flex justify-between">
                         <button type="button" id="backToStep2Btn" class="btn-unified btn-outline-unified">
                             <i class="fas fa-arrow-left mr-2"></i>戻る
@@ -354,7 +302,6 @@
                     </div>
                 </form>
 
-                <!-- ログアウトボタン -->
                 <div class="text-center mt-6">
                     <button onclick="logout()" class="btn-unified btn-outline-unified w-full">
                         <i class="fas fa-sign-out-alt mr-2"></i>ログイン画面に戻る
@@ -365,8 +312,8 @@
     </div>
 
     <script>
-        // 統一メッセージシステム
-        window.showMessage = window.showMessage || function(msg, type='info') {
+        // 防御的メッセージ表示システム
+        window.showMessage = function(msg, type='info') {
             const statusDiv = document.getElementById('statusMessage');
             if (statusDiv) {
                 statusDiv.className = `status-unified ${type}`;
@@ -374,6 +321,7 @@
                 statusDiv.style.display = 'block';
                 setTimeout(() => statusDiv.style.display = 'none', 5000);
             } else {
+                console.log(`[${type.toUpperCase()}] ${msg}`);
                 alert(msg);
             }
         };
@@ -382,19 +330,40 @@
         let auth, database;
         let currentUserData = null;
         let isProcessing = false;
-        // 🆕 Phase 1: ステップ管理用変数
         let selectedUserType = null;
         let selectedCEId = null;
         let selectedCEName = null;
         let ceList = [];
         let currentStep = 1;
 
-        // 🆕 Phase 1: ステップ管理関数
+        // 安全なDOM操作関数
+        function safeSetText(elementId, text) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = text;
+                return true;
+            } else {
+                console.warn(`要素が見つかりません: ${elementId}`);
+                return false;
+            }
+        }
+
+        function safeSetValue(elementId, value) {
+            const element = document.getElementById(elementId);
+            if (element && 'value' in element) {
+                element.value = value;
+                return true;
+            } else {
+                console.warn(`入力要素が見つかりません: ${elementId}`);
+                return false;
+            }
+        }
+
+        // ステップ管理
         function updateStepIndicator() {
             document.querySelectorAll('.step-dot').forEach((dot, index) => {
                 const stepNum = index + 1;
                 dot.classList.remove('active', 'completed');
-                
                 if (stepNum < currentStep) {
                     dot.classList.add('completed');
                 } else if (stepNum === currentStep) {
@@ -405,23 +374,18 @@
 
         function showStep(stepNum) {
             document.querySelectorAll('.step-content').forEach(el => el.style.display = 'none');
-            
-            const stepElements = {
-                1: 'step1UserType',
-                2: 'step2CESelection', 
-                3: 'step3ProfileSetup'
-            };
-            
+            const stepElements = { 1: 'step1UserType', 2: 'step2CESelection', 3: 'step3ProfileSetup' };
             const stepElement = document.getElementById(stepElements[stepNum]);
             if (stepElement) {
                 stepElement.style.display = 'block';
+                currentStep = stepNum;
+                updateStepIndicator();
+            } else {
+                console.error(`ステップ要素が見つかりません: ${stepNum}`);
             }
-            
-            currentStep = stepNum;
-            updateStepIndicator();
         }
 
-        // 🆕 CEリスト読み込み
+        // CEリスト読み込み
         async function loadCEList() {
             try {
                 const dataRoot = window.DATA_ROOT || 'ceSchedulev3';
@@ -433,12 +397,9 @@
                 } else {
                     // デフォルトの27名リスト
                     ceList = [
-                        '安孫子明博', '八鍬純', '杉山陽子', '中村圭佑', '石山智之',
-                        '亀井祐哉', '丸藤健', '三春摩弥', '斎藤大樹', '田中隆昭',
-                        '宇井勇気', '宇野沢徹', '佐藤将志', '庄司由紀', '小沼和樹',
-                        '武田優斗', '設樂佑介', '伊藤大晟', '上松野聖', '笹生貴之',
-                        '和田彩花', '伊藤大稀', '佐藤千優', '桑島亜依', '村田七星',
-                        '小林将己', '寒河江悠輝'
+                        '安孫子明博', '八鍬純', '杉山陽子', '中村圭佑', '石山智之', '亀井祐哉', '丸藤健', '三春摩弥', '斎藤大樹', '田中隆昭',
+                        '宇井勇気', '宇野沢徹', '佐藤将志', '庄司由紀', '小沼和樹', '武田優斗', '設樂佑介', '伊藤大晟', '上松野聖', '笹生貴之',
+                        '和田彩花', '伊藤大稀', '佐藤千優', '桑島亜依', '村田七星', '小林将己', '寒河江悠輝'
                     ].map((name, index) => ({
                         id: `ce${index + 1}`,
                         fullName: name,
@@ -446,106 +407,80 @@
                         workType: index < 8 ? 'OPE' : index < 16 ? 'ME' : index < 22 ? 'HD' : 'FLEX'
                     }));
                 }
-                
                 console.log('✅ CEリスト読み込み完了:', ceList.length + '名');
                 renderCESelection();
-                
             } catch (error) {
                 console.error('❌ CEリスト読み込みエラー:', error);
                 showMessage('CEリストの読み込みに失敗しました', 'error');
             }
         }
 
-        // 🆕 CE選択UI描画
         function renderCESelection() {
             const grid = document.getElementById('ceSelectGrid');
             if (!grid) return;
             
             grid.innerHTML = '';
-            
             ceList.forEach(ce => {
                 const option = document.createElement('div');
                 option.className = 'ce-option';
-                option.dataset.ceId = ce.id;
-                option.dataset.ceName = ce.fullName;
-                
                 option.innerHTML = `
                     <div class="font-semibold text-sm">${ce.fullName}</div>
                     <div class="text-xs text-gray-500 mt-1">${ce.workType}</div>
                 `;
-                
                 option.onclick = () => selectCE(ce.id, ce.fullName, option);
-                
                 grid.appendChild(option);
             });
         }
 
-        // 🆕 CE選択処理
         function selectCE(ceId, ceName, element) {
             document.querySelectorAll('.ce-option').forEach(el => el.classList.remove('selected'));
             element.classList.add('selected');
-            
             selectedCEId = ceId;
             selectedCEName = ceName;
-            
             const continueBtn = document.getElementById('continueToStep3Btn');
             if (continueBtn) continueBtn.disabled = false;
         }
 
-        // 🆕 ステップ3の表示更新
         function updateStep3Display() {
-            const userTypeDisplay = document.getElementById('userTypeDisplay');
             const ceSelectionSection = document.getElementById('ceSelectionDisplaySection');
-            const ceSelectionDisplay = document.getElementById('ceSelectionDisplay');
-            
             if (selectedUserType === 'ce') {
-                userTypeDisplay.textContent = 'CE（臨床工学技士）';
-                ceSelectionSection.style.display = 'block';
-                ceSelectionDisplay.textContent = selectedCEName || '未選択';
+                safeSetText('userTypeDisplay', 'CE（臨床工学技士）');
+                if (ceSelectionSection) ceSelectionSection.style.display = 'block';
+                safeSetText('ceSelectionDisplay', selectedCEName || '未選択');
             } else {
-                userTypeDisplay.textContent = '管理職（センター長・副センター長等）';
-                ceSelectionSection.style.display = 'none';
+                safeSetText('userTypeDisplay', '管理職（センター長・副センター長等）');
+                if (ceSelectionSection) ceSelectionSection.style.display = 'none';
             }
         }
 
         // パスワード検証
         function validatePassword(password) {
             const minLength = 8;
-            const hasUpper = /[A-Z]/.test(password);
-            const hasLower = /[a-z]/.test(password);
-            const hasNumber = /\d/.test(password);
-            const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-
             let strength = 0;
             let feedback = [];
 
             if (password.length >= minLength) strength++;
             else feedback.push(`${minLength}文字以上`);
 
-            if (hasUpper) strength++;
+            if (/[A-Z]/.test(password)) strength++;
             else feedback.push('大文字');
 
-            if (hasLower) strength++;
+            if (/[a-z]/.test(password)) strength++;
             else feedback.push('小文字');
 
-            if (hasNumber) strength++;
+            if (/\d/.test(password)) strength++;
             else feedback.push('数字');
 
-            if (hasSpecial) strength++;
+            if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength++;
             else feedback.push('特殊文字');
 
             return { strength, feedback, isValid: strength >= 4 };
         }
 
-        // パスワード強度表示更新
         function updatePasswordStrength() {
-            const password = document.getElementById('newPassword').value;
+            const password = document.getElementById('newPassword')?.value || '';
             const strengthDiv = document.getElementById('passwordStrength');
-
-            if (!password) {
-                strengthDiv.innerHTML = '';
-                return;
-            }
+            if (!strengthDiv || !password) return;
 
             const validation = validatePassword(password);
             const colors = ['text-red-600', 'text-orange-600', 'text-yellow-600', 'text-green-600', 'text-green-700'];
@@ -559,16 +494,12 @@
             `;
         }
 
-        // パスワード一致チェック
         function checkPasswordMatch() {
-            const password = document.getElementById('newPassword').value;
-            const confirm = document.getElementById('confirmPassword').value;
+            const password = document.getElementById('newPassword')?.value || '';
+            const confirm = document.getElementById('confirmPassword')?.value || '';
             const matchDiv = document.getElementById('passwordMatch');
-
-            if (!confirm) {
-                matchDiv.innerHTML = '';
-                return false;
-            }
+            
+            if (!matchDiv || !confirm) return false;
 
             const isMatch = password === confirm;
             matchDiv.innerHTML = `<span class="${isMatch ? 'text-green-600' : 'text-red-600'}">
@@ -577,17 +508,17 @@
             return isMatch;
         }
 
-        // パスワード表示切替
         function togglePassword(fieldId) {
             const field = document.getElementById(fieldId);
-            const icon = field.nextElementSibling.querySelector('i');
-
+            if (!field) return;
+            
+            const icon = field.nextElementSibling?.querySelector('i');
             if (field.type === 'password') {
                 field.type = 'text';
-                icon.className = 'fas fa-eye-slash';
+                if (icon) icon.className = 'fas fa-eye-slash';
             } else {
                 field.type = 'password';
-                icon.className = 'fas fa-eye';
+                if (icon) icon.className = 'fas fa-eye';
             }
         }
 
@@ -596,19 +527,8 @@
             const enc = new TextEncoder();
             const salt = crypto.getRandomValues(new Uint8Array(16));
             
-            const keyMaterial = await crypto.subtle.importKey(
-                'raw', 
-                enc.encode(password), 
-                'PBKDF2', 
-                false, 
-                ['deriveBits']
-            );
-            
-            const bits = await crypto.subtle.deriveBits(
-                { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
-                keyMaterial,
-                256
-            );
+            const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+            const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations, hash: 'SHA-256' }, keyMaterial, 256);
             
             const hashB64 = btoa(String.fromCharCode(...new Uint8Array(bits)));
             const saltB64 = btoa(String.fromCharCode(...salt));
@@ -616,14 +536,13 @@
             return { hash: hashB64, salt: saltB64, iterations };
         }
 
-        // 🆕 Phase 1: イベントリスナー設定
+        // イベントリスナー設定
         function setupEventListeners() {
-            // ステップ1: ユーザー種別選択
+            // ユーザー種別選択
             document.querySelectorAll('.user-type-btn').forEach(btn => {
                 btn.onclick = () => {
                     document.querySelectorAll('.user-type-btn').forEach(b => b.classList.remove('selected'));
                     btn.classList.add('selected');
-                    
                     selectedUserType = btn.dataset.type;
                     
                     setTimeout(() => {
@@ -642,44 +561,64 @@
             // ナビゲーションボタン
             const continueBtn = document.getElementById('continueToStep3Btn');
             if (continueBtn) {
-                continueBtn.addEventListener('click', () => {
+                continueBtn.onclick = () => {
                     showStep(3);
                     updateStep3Display();
-                });
+                };
             }
 
             const backToStep1Btn = document.getElementById('backToStep1Btn');
             if (backToStep1Btn) {
-                backToStep1Btn.addEventListener('click', () => showStep(1));
+                backToStep1Btn.onclick = () => showStep(1);
             }
 
             const backToStep2Btn = document.getElementById('backToStep2Btn');
             if (backToStep2Btn) {
-                backToStep2Btn.addEventListener('click', () => {
+                backToStep2Btn.onclick = () => {
                     if (selectedUserType === 'ce') {
                         showStep(2);
                     } else {
                         showStep(1);
                     }
-                });
+                };
             }
 
             // パスワード関連
-            document.getElementById('newPassword').addEventListener('input', updatePasswordStrength);
-            document.getElementById('confirmPassword').addEventListener('input', checkPasswordMatch);
+            const newPasswordField = document.getElementById('newPassword');
+            if (newPasswordField) {
+                newPasswordField.addEventListener('input', updatePasswordStrength);
+            }
+
+            const confirmPasswordField = document.getElementById('confirmPassword');
+            if (confirmPasswordField) {
+                confirmPasswordField.addEventListener('input', checkPasswordMatch);
+            }
             
             // フォーム送信
-            document.getElementById('setupForm').addEventListener('submit', saveSettings);
+            const setupForm = document.getElementById('setupForm');
+            if (setupForm) {
+                setupForm.addEventListener('submit', saveSettings);
+            }
         }
 
-        // 初期化（診断機能付き）
+        // 初期化（防御的実装）
         async function init() {
             console.log('🚀 初期化開始');
             
             try {
                 // Firebase初期化待機
                 console.log('⏳ Firebase初期化待機中...');
-                await window.waitForFirebase?.();
+                if (window.waitForFirebase) {
+                    await window.waitForFirebase();
+                } else {
+                    // fallback: 最大5秒待機
+                    let attempts = 0;
+                    while (!window.auth && attempts < 50) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        attempts++;
+                    }
+                }
+                
                 auth = window.auth;
                 database = window.database;
 
@@ -698,7 +637,7 @@
                     setTimeout(() => location.href = '../index.html', 2000);
                     return;
                 }
-                console.log('✅ セッション情報確認完了:', { uid, username });
+                console.log('✅ セッション情報確認完了');
 
                 // 匿名認証
                 if (!auth.currentUser) {
@@ -709,7 +648,7 @@
 
                 // ユーザーデータ取得
                 const dataRoot = window.DATA_ROOT || 'ceSchedulev3';
-                console.log('📊 ユーザーデータ取得中:', `${dataRoot}/users/${uid}`);
+                console.log('📊 ユーザーデータ取得中...');
                 
                 const userSnap = await database.ref(`${dataRoot}/users/${uid}`).once('value');
                 
@@ -721,29 +660,12 @@
                 }
 
                 currentUserData = userSnap.val();
-                console.log('✅ ユーザーデータ取得完了:', currentUserData);
+                console.log('✅ ユーザーデータ取得完了');
 
-                // UI設定（防御的プログラミング）
-                const currentUserEl = document.getElementById('currentUser');
-                if (currentUserEl) {
-                    currentUserEl.textContent = currentUserData.username || 'Unknown';
-                } else {
-                    console.warn('⚠️ currentUser要素が見つかりません');
-                }
-
-                const usernameDisplayEl = document.getElementById('usernameDisplay');
-                if (usernameDisplayEl) {
-                    usernameDisplayEl.textContent = currentUserData.username || '';
-                } else {
-                    console.warn('⚠️ usernameDisplay要素が見つかりません');
-                }
-
-                const displayNameInputEl = document.getElementById('displayNameInput');
-                if (displayNameInputEl) {
-                    displayNameInputEl.value = currentUserData.displayName || currentUserData.username || '';
-                } else {
-                    console.warn('⚠️ displayNameInput要素が見つかりません');
-                }
+                // UI設定（防御的）
+                safeSetText('currentUser', currentUserData.username || 'Unknown');
+                safeSetText('usernameDisplay', currentUserData.username || '');
+                safeSetValue('displayNameInput', currentUserData.displayName || currentUserData.username || '');
                 
                 // 権限表示
                 const roleBadges = {
@@ -751,19 +673,13 @@
                     editor: '編集者', 
                     viewer: '閲覧者'
                 };
-                
-                const roleDisplayEl = document.getElementById('roleDisplay');
-                if (roleDisplayEl) {
-                    roleDisplayEl.textContent = roleBadges[currentUserData.role] || '不明';
-                } else {
-                    console.warn('⚠️ roleDisplay要素が見つかりません');
-                }
+                safeSetText('roleDisplay', roleBadges[currentUserData.role] || '不明');
 
-                // 🆕 CEリスト読み込み
+                // CEリスト読み込み
                 console.log('📋 CEリスト読み込み開始');
                 await loadCEList();
                 
-                // 🆕 イベントリスナー設定
+                // イベントリスナー設定
                 console.log('🎯 イベントリスナー設定中');
                 setupEventListeners();
 
@@ -780,7 +696,7 @@
                     console.log('✅ メインコンテンツを表示');
                 }
                 
-                // 🆕 ステップ1から開始
+                // ステップ1から開始
                 console.log('🎬 ステップ1表示開始');
                 showStep(1);
 
@@ -788,7 +704,6 @@
 
             } catch (error) {
                 console.error('❌ 初期化エラー:', error);
-                console.error('エラースタック:', error.stack);
                 showMessage('初期化に失敗しました: ' + (error.message || error), 'error');
                 setTimeout(() => location.href = '../index.html', 2000);
             }
@@ -800,10 +715,14 @@
             
             if (isProcessing) return;
 
-            const displayName = document.getElementById('displayNameInput').value.trim();
-            const newPassword = document.getElementById('newPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
+            const displayNameInput = document.getElementById('displayNameInput');
+            const newPasswordInput = document.getElementById('newPassword');
+            const confirmPasswordInput = document.getElementById('confirmPassword');
             const saveButton = document.getElementById('saveButton');
+
+            const displayName = displayNameInput?.value?.trim() || '';
+            const newPassword = newPasswordInput?.value || '';
+            const confirmPassword = confirmPasswordInput?.value || '';
 
             // バリデーション
             if (!newPassword || !confirmPassword) {
@@ -821,7 +740,6 @@
                 return;
             }
 
-            // 🆕 CE選択チェック
             if (selectedUserType === 'ce' && !selectedCEId) {
                 showMessage('CEを選択してください', 'error');
                 return;
@@ -829,8 +747,10 @@
 
             // 処理開始
             isProcessing = true;
-            saveButton.disabled = true;
-            saveButton.innerHTML = '<div class="spinner inline-block mr-2"></div>保存中...';
+            if (saveButton) {
+                saveButton.disabled = true;
+                saveButton.innerHTML = '<div class="spinner inline-block mr-2"></div>保存中...';
+            }
 
             try {
                 const uid = sessionStorage.getItem('targetUID');
@@ -850,11 +770,9 @@
                 const updates = {
                     displayName: displayName || currentUserData.displayName || currentUserData.username,
                     password: hashedPassword,
-                    // 🆕 Phase 1: ユーザー種別・CE紐付け情報
                     userType: selectedUserType,
                     linkedCEId: selectedCEId,
                     linkedCEName: selectedCEName,
-                    // 既存フラグ
                     setupCompleted: true,
                     hasCompletedSetup: true,
                     needsSetup: false,
@@ -866,7 +784,7 @@
                     updatedBy: 'user-setup'
                 };
 
-                console.log('💾 データベース更新中:', updates);
+                console.log('💾 データベース更新中...');
                 await database.ref(`${dataRoot}/users/${uid}`).update(updates);
 
                 // 待機リストから削除
@@ -887,31 +805,57 @@
                 }, 1500);
 
             } catch (error) {
-                console.error('保存エラー:', error);
+                console.error('❌ 保存エラー:', error);
                 showMessage('保存に失敗しました: ' + (error.message || error), 'error');
             } finally {
                 isProcessing = false;
-                saveButton.disabled = false;
-                saveButton.innerHTML = '<i class="fas fa-save mr-2"></i>設定を保存してHOMEへ';
+                if (saveButton) {
+                    saveButton.disabled = false;
+                    saveButton.innerHTML = '<i class="fas fa-save mr-2"></i>設定を保存してHOMEへ';
+                }
             }
         }
 
         // ログアウト
         async function logout() {
             try {
-                await auth?.signOut?.();
-            } catch (e) { /* エラーは無視 */ }
+                if (auth && auth.signOut) {
+                    await auth.signOut();
+                }
+            } catch (e) {
+                console.warn('ログアウト時のエラー（無視）:', e);
+            }
             
             sessionStorage.clear();
             localStorage.clear();
             location.href = '../index.html';
         }
 
-        // 初期化実行（安全な起動）
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
-        } else {
+        // 安全な初期化実行
+        function safeInit() {
+            console.log('📌 DOM状態:', document.readyState);
+            
+            // DOM要素の存在確認
+            const requiredElements = ['loadingScreen', 'mainContent', 'currentUser', 'step1UserType'];
+            const missingElements = requiredElements.filter(id => !document.getElementById(id));
+            
+            if (missingElements.length > 0) {
+                console.error('❌ 必要なDOM要素が見つかりません:', missingElements);
+                alert('ページの読み込みに問題があります。ページを再読み込みしてください。');
+                return;
+            }
+            
+            console.log('✅ 必要なDOM要素確認完了');
+            
+            // 初期化実行
             setTimeout(init, 100);
+        }
+
+        // 確実な初期化
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', safeInit);
+        } else {
+            safeInit();
         }
     </script>
 </body>
