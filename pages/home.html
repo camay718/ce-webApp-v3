@@ -598,11 +598,10 @@ async function handleLogout() {
         
         let communicationManager = null;
 
-        class CommunicationPreviewManager {
+                class CommunicationPreviewManager {
             constructor() {
                 this.announcementsRef = null;
                 this.chatsRef = null;
-                this.unsubscribers = [];
             }
 
             async init() {
@@ -617,11 +616,12 @@ async function handleLogout() {
             }
 
             async waitForFirebase() {
+                if (window.waitForFirebase) {
+                    return window.waitForFirebase();
+                }
                 let attempts = 0;
                 while (attempts < 50) {
-                    if (window.database && window.DATA_ROOT) {
-                        return;
-                    }
+                    if (window.database && window.DATA_ROOT) return;
                     await new Promise(resolve => setTimeout(resolve, 100));
                     attempts++;
                 }
@@ -629,175 +629,216 @@ async function handleLogout() {
             }
 
             setupFirebaseListeners() {
-                // お知らせのリアルタイム監視
-                this.announcementsRef = window.database.ref(`${window.DATA_ROOT}/announcements/threads`);
-                this.announcementsRef.orderByChild('timestamp').limitToLast(10).on('value', snapshot => {
-                    this.renderAnnouncements(snapshot.val());
-                });
+                // ── ① ログインユーザーの UID を取得 ──
+                const uid = sessionStorage.getItem('targetUID');
 
-                // チャットルームのリアルタイム監視
-                this.chatsRef = window.database.ref(`${window.DATA_ROOT}/chats/rooms`);
+                // ── ② お知らせのリアルタイム監視 ──
+                this.announcementsRef = window.database
+                    .ref(`${window.DATA_ROOT}/announcements/threads`);
+                this.announcementsRef
+                    .orderByChild('timestamp')
+                    .limitToLast(10)
+                    .on('value', snapshot => {
+                        this.renderAnnouncements(snapshot.val());
+                    });
+
+                // ── ③ チャットルームのリアルタイム監視（自分がメンバーのみ） ──
+                this.chatsRef = window.database
+                    .ref(`${window.DATA_ROOT}/chats/rooms`);
                 this.chatsRef.on('value', snapshot => {
-                    this.renderChats(snapshot.val());
+                    const all = snapshot.val() || {};
+                    // uid が members に含まれるルームだけ抽出
+                    const myRooms = {};
+                    Object.entries(all).forEach(([id, room]) => {
+                        if (uid && room.members?.[uid]) {
+                            myRooms[id] = room;
+                        }
+                    });
+                    this.renderChats(myRooms, uid);
                 });
             }
 
+            // ── お知らせ描画 ──
             renderAnnouncements(data) {
                 const container = document.getElementById('announcementsPreview');
-                const badge = document.getElementById('announcementBadge');
-                
+                const badge     = document.getElementById('announcementBadge');
+                if (!container) return;
+
                 if (!data || Object.keys(data).length === 0) {
                     container.innerHTML = `
                         <div class="empty-state">
                             <div class="empty-state-icon">📭</div>
                             <p>新しいお知らせはありません</p>
                         </div>`;
-                    badge.style.display = 'none';
+                    if (badge) badge.style.display = 'none';
                     return;
                 }
 
-                // 配列に変換してタイムスタンプでソート（新しい順）
-                const threads = Object.entries(data).map(([id, thread]) => ({
-                    id,
-                    ...thread
-                })).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                // タイムスタンプ降順・最新3件
+                const threads = Object.entries(data)
+                    .map(([id, t]) => ({ id, ...t }))
+                    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
-                // 最新3件を表示
                 const recentThreads = threads.slice(0, 3);
-                
-                // NEW判定（24時間以内）
+
+                // NEW 判定（24時間以内）
                 const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-                const newCount = threads.filter(t => t.timestamp > oneDayAgo).length;
+                const newCount  = threads.filter(t => (t.timestamp || 0) > oneDayAgo).length;
 
                 container.innerHTML = recentThreads.map(thread => {
-                    const isNew = thread.timestamp > oneDayAgo;
-                    const date = thread.timestamp ? new Date(thread.timestamp).toLocaleString('ja-JP', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    }).replace(/\//g, '.') : '';
-                    
-                    const replyCount = thread.replies ? Object.keys(thread.replies).length : 0;
+                    const isNew = (thread.timestamp || 0) > oneDayAgo;
+                    const date  = thread.timestamp
+                        ? new Date(thread.timestamp).toLocaleString('ja-JP', {
+                            month: '2-digit', day: '2-digit',
+                            hour: '2-digit',  minute: '2-digit'
+                          })
+                        : '';
+                    const replyCount = thread.replies
+                        ? Object.keys(thread.replies).length : 0;
 
                     return `
-                        <div class="preview-item" onclick="location.href='announcements.html?thread=${thread.id}'">
+                        <div class="preview-item"
+                             onclick="location.href='announcements.html'">
                             <div class="preview-item-title">
-                                ${thread.title || '無題'}
+                                ${this._esc(thread.title || '無題')}
                                 ${isNew ? '<span class="new-badge">NEW</span>' : ''}
                             </div>
                             <div class="preview-item-meta">
-                                <span><i class="far fa-user"></i> ${thread.author || '匿名'}</span>
+                                <span><i class="far fa-user"></i>
+                                    ${this._esc(thread.authorName || thread.author || '匿名')}
+                                </span>
                                 <span><i class="far fa-clock"></i> ${date}</span>
                                 <span><i class="far fa-comment"></i> ${replyCount}件</span>
                             </div>
-                        </div>
-                    `;
+                        </div>`;
                 }).join('');
 
                 // バッジ更新
-                badge.textContent = newCount;
-                badge.style.display = newCount > 0 ? 'inline-block' : 'none';
+                if (badge) {
+                    badge.textContent    = newCount > 99 ? '99+' : newCount;
+                    badge.style.display  = newCount > 0 ? 'inline-block' : 'none';
+                }
             }
 
-            renderChats(data) {
+            // ── チャット描画 ──
+            renderChats(rooms, uid) {
                 const container = document.getElementById('chatPreview');
-                const badge = document.getElementById('chatBadge');
-                
-                if (!data || Object.keys(data).length === 0) {
+                const badge     = document.getElementById('chatBadge');
+                if (!container) return;
+
+                if (!rooms || Object.keys(rooms).length === 0) {
                     container.innerHTML = `
                         <div class="empty-state">
                             <div class="empty-state-icon">💬</div>
-                            <p>メッセージはありません</p>
+                            <p>チャットルームはありません</p>
                         </div>`;
-                    badge.style.display = 'none';
+                    if (badge) badge.style.display = 'none';
                     return;
                 }
 
-                // 現在のユーザーを取得
-                const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-                const currentUserName = currentUser.name || 'ゲスト';
+                // 最終メッセージ時刻の降順・最新3件
+                const roomList = Object.entries(rooms)
+                    .map(([id, room]) => ({
+                        id,
+                        ...room,
+                        // ★ lastMessageAt（数値）でソート
+                        _sortKey: room.lastMessageAt || room.createdAt || 0
+                    }))
+                    .sort((a, b) => b._sortKey - a._sortKey);
 
-                // 配列に変換して最終メッセージ時刻でソート
-                const rooms = Object.entries(data).map(([id, room]) => ({
-                    id,
-                    ...room,
-                    lastMessageTime: room.lastMessage?.timestamp || 0
-                })).sort((a, b) => b.lastMessageTime - a.lastMessageTime);
+                const recentRooms = roomList.slice(0, 3);
 
-                // 最新3件を表示
-                const recentRooms = rooms.slice(0, 3);
-                
-                // 未読カウント計算
+                // 未読総数（全ルームを対象）
                 let totalUnread = 0;
-                recentRooms.forEach(room => {
-                    const unread = room.unreadCount?.[currentUserName] || 0;
-                    totalUnread += unread;
+                roomList.forEach(room => {
+                    // ★ uid（文字列）で未読数を参照
+                    totalUnread += room.unreadCount?.[uid] || 0;
                 });
 
                 container.innerHTML = recentRooms.map(room => {
-                    const unreadCount = room.unreadCount?.[currentUserName] || 0;
-                    const isGroup = room.type === 'group';
-                    const lastMsg = room.lastMessage;
-                    const timeStr = lastMsg?.timestamp ? this.formatTimeAgo(lastMsg.timestamp) : '';
+                    // ★ uid で未読数を取得
+                    const unreadCount = room.unreadCount?.[uid] || 0;
+                    const isGroup     = room.type === 'group';
+                    // ★ lastMessage は文字列、lastMessageAt は数値タイムスタンプ
+                    const lastMsgText = room.lastMessage
+                        ? this._esc(room.lastMessage).substring(0, 28)
+                            + (room.lastMessage.length > 28 ? '…' : '')
+                        : 'メッセージがありません';
+                    const timeStr = room.lastMessageAt
+                        ? this.formatTimeAgo(room.lastMessageAt) : '';
 
                     return `
-                        <div class="preview-item" onclick="location.href='chat.html?room=${room.id}'" 
-                             style="border-left-color: ${unreadCount > 0 ? 'var(--brand-primary)' : 'var(--text-muted)'};">
+                        <div class="preview-item"
+                             onclick="location.href='chat.html?room=${room.id}'"
+                             style="border-left-color: ${
+                                 unreadCount > 0
+                                     ? 'var(--brand-primary)'
+                                     : 'var(--text-muted)'};">
                             <div class="preview-item-title">
-                                ${isGroup ? '<i class="fas fa-users"></i>' : '<i class="fas fa-user"></i>'}
-                                ${room.name || '無名'}
-                                ${unreadCount > 0 ? `<span class="new-badge">${unreadCount}</span>` : ''}
-                                ${unreadCount === 0 && lastMsg?.readBy?.[currentUserName] ? '<span class="read-status">✓✓ 既読</span>' : ''}
+                                ${isGroup
+                                    ? '<i class="fas fa-users"></i>'
+                                    : '<i class="fas fa-user"></i>'}
+                                ${this._esc(room.name || '無名')}
+                                ${unreadCount > 0
+                                    ? `<span class="new-badge">${unreadCount > 99 ? '99+' : unreadCount}</span>`
+                                    : ''}
                             </div>
                             <div class="preview-item-meta">
-                                <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                    ${lastMsg?.content || 'メッセージがありません'}
+                                <span style="flex:1; overflow:hidden;
+                                             text-overflow:ellipsis; white-space:nowrap;">
+                                    ${lastMsgText}
                                 </span>
                                 <span><i class="far fa-clock"></i> ${timeStr}</span>
                             </div>
-                        </div>
-                    `;
+                        </div>`;
                 }).join('');
 
                 // バッジ更新
-                badge.textContent = totalUnread;
-                badge.style.display = totalUnread > 0 ? 'inline-block' : 'none';
+                if (badge) {
+                    badge.textContent   = totalUnread > 99 ? '99+' : totalUnread;
+                    badge.style.display = totalUnread > 0 ? 'inline-block' : 'none';
+                }
             }
 
             formatTimeAgo(timestamp) {
-                const now = Date.now();
-                const diff = now - timestamp;
+                const now     = Date.now();
+                const diff    = now - timestamp;
                 const minutes = Math.floor(diff / 60000);
-                const hours = Math.floor(diff / 3600000);
-                const days = Math.floor(diff / 86400000);
+                const hours   = Math.floor(diff / 3600000);
+                const days    = Math.floor(diff / 86400000);
 
+                if (minutes < 1)  return 'たった今';
                 if (minutes < 60) return `${minutes}分前`;
-                if (hours < 24) return `${hours}時間前`;
-                if (days < 7) return `${days}日前`;
-                
-                return new Date(timestamp).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' });
+                if (hours   < 24) return `${hours}時間前`;
+                if (days    <  7) return `${days}日前`;
+
+                return new Date(timestamp).toLocaleDateString('ja-JP', {
+                    month: '2-digit', day: '2-digit'
+                });
+            }
+
+            // XSS対策エスケープ
+            _esc(str) {
+                return String(str || '')
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             }
 
             showFallbackData() {
-                // Firebase接続失敗時のフォールバック表示
-                document.getElementById('announcementsPreview').innerHTML = `
+                const msg = `
                     <div class="empty-state">
                         <div class="empty-state-icon">⚠️</div>
                         <p>データを読み込めませんでした</p>
                     </div>`;
-                document.getElementById('chatPreview').innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">⚠️</div>
-                        <p>データを読み込めませんでした</p>
-                    </div>`;
+                const a = document.getElementById('announcementsPreview');
+                const c = document.getElementById('chatPreview');
+                if (a) a.innerHTML = msg;
+                if (c) c.innerHTML = msg;
             }
 
             destroy() {
-                // リスナー解除
                 if (this.announcementsRef) this.announcementsRef.off();
-                if (this.chatsRef) this.chatsRef.off();
+                if (this.chatsRef)         this.chatsRef.off();
             }
         }
 
