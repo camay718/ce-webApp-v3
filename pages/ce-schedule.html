@@ -408,6 +408,73 @@ html, body {
     overflow: visible !important;
     height: auto !important;
 }
+
+        /* ===== Phase 3: 勤務希望入力UI ===== */
+.shift-req-banner { border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:12px; line-height:1.5; }
+.shift-req-banner.open    { background:#d1fae5; border:1px solid #6ee7b7; color:#065f46; }
+.shift-req-banner.closed  { background:#f3f4f6; border:1px solid #d1d5db; color:#6b7280; }
+.shift-req-banner.submitted { background:#ecfdf5; border:1px solid #a7f3d0; color:#047857; }
+.shift-req-banner.no-request { background:#f5f3ff; border:1px solid #c4b5fd; color:#5b21b6; }
+
+/* モーダルオーバーレイ */
+.srq-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1000; align-items:center; justify-content:center; }
+.srq-overlay.active { display:flex; }
+.srq-modal { background:white; border-radius:16px; width:min(96vw,640px); max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3); display:flex; flex-direction:column; }
+.srq-header { padding:16px 20px 12px; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; background:white; z-index:1; border-radius:16px 16px 0 0; }
+.srq-body { padding:16px 20px; flex:1; }
+.srq-footer { padding:12px 20px; border-top:1px solid #e5e7eb; display:flex; gap:8px; justify-content:flex-end; position:sticky; bottom:0; background:white; border-radius:0 0 16px 16px; flex-wrap:wrap; }
+
+/* カレンダーグリッド */
+.srq-calendar-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; margin:12px 0; }
+.srq-cal-header { text-align:center; font-size:10px; font-weight:bold; padding:4px 2px; }
+.srq-cal-header.sun { color:#ef4444; }
+.srq-cal-header.sat { color:#3b82f6; }
+.srq-cal-day { text-align:center; padding:4px 2px; border-radius:6px; cursor:pointer; border:1px solid #e5e7eb; background:white; transition:all 0.15s; min-height:46px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; }
+.srq-cal-day:hover:not(.empty) { background:#f0f9ff; border-color:#7dd3fc; }
+.srq-cal-day.empty { background:transparent; border-color:transparent; cursor:default; }
+.srq-cal-day.sun-col .day-num { color:#ef4444; }
+.srq-cal-day.sat-col .day-num { color:#3b82f6; }
+.srq-cal-day .day-num { font-size:12px; font-weight:600; line-height:1; }
+.srq-cal-day .day-status { font-size:11px; font-weight:bold; line-height:1; }
+.srq-cal-day .day-hol { font-size:8px; color:#ef4444; line-height:1; }
+
+/* ステータス別セル色 */
+.srq-cal-day.req-B   { background:#eff6ff; border-color:#93c5fd; }
+.srq-cal-day.req-B   .day-status { color:#1d4ed8; }
+.srq-cal-day.req-off { background:#f9fafb; border-color:#d1d5db; }
+.srq-cal-day.req-off .day-status { color:#6b7280; }
+.srq-cal-day.req-年  { background:#f0fdf4; border-color:#86efac; }
+.srq-cal-day.req-年  .day-status { color:#15803d; }
+.srq-cal-day.req-出  { background:#fff7ed; border-color:#fcd34d; }
+.srq-cal-day.req-出  .day-status { color:#b45309; }
+.srq-cal-day.req-研  { background:#f5f3ff; border-color:#c4b5fd; }
+.srq-cal-day.req-研  .day-status { color:#6d28d9; }
+
+/* サマリー */
+.srq-summary { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0; padding:10px; background:#f9fafb; border-radius:8px; font-size:12px; }
+.srq-summary-item { display:flex; align-items:center; gap:4px; }
+.srq-summary-badge { display:inline-block; padding:2px 7px; border-radius:4px; font-weight:bold; font-size:11px; }
+
+/* 凡例 */
+.srq-legend { display:flex; gap:5px; flex-wrap:wrap; margin-bottom:10px; font-size:11px; align-items:center; }
+.srq-legend-item { padding:3px 7px; border-radius:4px; border:1px solid #e5e7eb; }
+
+/* CE選択ダイアログ */
+.srq-ce-dialog { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1100; display:none; align-items:center; justify-content:center; }
+.srq-ce-dialog.active { display:flex; }
+.srq-ce-card { background:white; border-radius:12px; padding:24px; width:min(90vw,480px); max-height:80vh; overflow-y:auto; }
+.srq-ce-item { padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; cursor:pointer; margin-bottom:6px; display:flex; align-items:center; gap:8px; }
+.srq-ce-item:hover { background:#f0f9ff; border-color:#7dd3fc; }
+
+/* 確認ダイアログ */
+.srq-confirm-dialog { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1200; display:none; align-items:center; justify-content:center; }
+.srq-confirm-dialog.active { display:flex; }
+.srq-confirm-card { background:white; border-radius:12px; padding:28px 24px; width:min(90vw,400px); text-align:center; }
+
+/* 提出済みバッジ */
+.srq-submitted-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:bold; }
+.srq-submitted-badge.submitted  { background:#d1fae5; color:#065f46; }
+.srq-submitted-badge.no-request { background:#ede9fe; color:#5b21b6; }
         
     </style>
 </head>
@@ -486,6 +553,32 @@ html, body {
                     </div>
                 </div>
 
+                <!-- 🆕 Phase 3: 勤務希望セクション(CEユーザー向け) -->
+                <div id="shiftRequestSection" class="mb-6" style="display:none;">
+                    <h3 class="text-sm font-semibold mb-3">
+                        <i class="fas fa-calendar-check mr-2 text-green-600"></i>勤務希望
+                    </h3>
+                    <!-- バナーエリア -->
+                    <div id="srqBannerArea">
+                        <div class="shift-req-banner closed">
+                            <i class="fas fa-spinner fa-spin mr-1"></i>読み込み中...
+                        </div>
+                    </div>
+                    <!-- アクションエリア(受付中・未提出) -->
+                    <div id="srqActionArea" style="display:none;">
+                        <button id="srqOpenModalBtn" class="btn-unified btn-primary-unified btn-small w-full">
+                            <i class="fas fa-edit mr-1"></i>勤務希望を入力する
+                        </button>
+                    </div>
+                    <!-- 提出済みエリア -->
+                    <div id="srqSubmittedArea" style="display:none;">
+                        <p class="text-center text-xs text-gray-500 mt-1" id="srqSubmittedInfo"></p>
+                        <button id="srqReEditBtn" class="btn-unified btn-outline-unified btn-small w-full mt-2" style="display:none;">
+                            <i class="fas fa-pencil-alt mr-1"></i>修正する
+                        </button>
+                    </div>
+                </div>
+
                 <!-- ナビゲーション -->
                 <div class="mt-auto pt-4 border-t border-gray-200">
                     <div class="space-y-2">
@@ -520,6 +613,102 @@ html, body {
             </div>
         </div>
     </div>
+
+    <!-- ===== 🆕 Phase 3: 勤務希望入力ダイアログ群 ===== -->
+
+    <!-- [1] CE自動認識失敗時のCE選択ダイアログ -->
+    <div id="srqCESelectDialog" class="srq-ce-dialog">
+        <div class="srq-ce-card">
+            <div class="mb-4">
+                <h3 class="font-bold text-gray-800 text-base">
+                    <i class="fas fa-user-check mr-2 text-blue-600"></i>あなたのCEを選択してください
+                </h3>
+                <p class="text-sm text-gray-500 mt-2">
+                    勤務希望を提出するため、一覧からあなたの名前を選択してください。<br>
+                    次回からは自動的に認識されます。
+                </p>
+            </div>
+            <div id="srqCEList" class="max-h-64 overflow-y-auto">
+                <p class="text-center text-gray-400 text-sm py-4">読み込み中...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- [2] 勤務希望入力モーダル -->
+    <div id="srqModalOverlay" class="srq-overlay">
+        <div class="srq-modal">
+            <!-- ヘッダー -->
+            <div class="srq-header">
+                <div>
+                    <h3 class="font-bold text-gray-800">
+                        <i class="fas fa-calendar-check mr-2 text-green-600"></i>勤務希望入力
+                    </h3>
+                    <div id="srqModalPeriodInfo" class="text-xs text-gray-500 mt-1"></div>
+                </div>
+                <button id="srqModalCloseBtn" class="text-gray-400 hover:text-gray-600 text-xl p-1">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <!-- ボディ -->
+            <div class="srq-body">
+                <!-- お知らせ -->
+                <div id="srqModalAnnouncement" 
+                     class="mb-3 p-3 bg-blue-50 rounded-lg text-sm text-blue-800 border border-blue-200"
+                     style="display:none;"></div>
+
+                <!-- 凡例 -->
+                <div class="srq-legend">
+                    <span class="text-xs font-semibold text-gray-600">クリックで設定:</span>
+                    <span class="srq-legend-item" style="border-color:#93c5fd;background:#eff6ff;color:#1d4ed8;font-weight:bold;">B 当直希望</span>
+                    <span class="srq-legend-item" style="border-color:#d1d5db;background:#f9fafb;color:#6b7280;font-weight:bold;">× 休み希望</span>
+                    <span class="srq-legend-item" style="border-color:#86efac;background:#f0fdf4;color:#15803d;font-weight:bold;">年 年休</span>
+                    <span class="srq-legend-item" style="border-color:#fcd34d;background:#fff7ed;color:#b45309;font-weight:bold;">出 出張</span>
+                    <span class="srq-legend-item" style="border-color:#c4b5fd;background:#f5f3ff;color:#6d28d9;font-weight:bold;">研 研修</span>
+                </div>
+
+                <!-- カレンダー(JSで生成) -->
+                <div id="srqCalendarContainer"></div>
+
+                <!-- 入力サマリー -->
+                <div class="srq-summary" id="srqSummaryArea"></div>
+
+                <p class="text-xs text-gray-400 text-center mt-2">
+                    ※ セルをクリックするたびに切り替わります（空欄→B→×→年→出→研→空欄）
+                </p>
+            </div>
+            <!-- フッター -->
+            <div class="srq-footer">
+                <button id="srqNoRequestBtn"
+                        class="btn-unified btn-small"
+                        style="border:1px solid #7c3aed;color:#7c3aed;background:white;padding:6px 12px;border-radius:6px;">
+                    <i class="fas fa-ban mr-1"></i>希望なしで提出
+                </button>
+                <button id="srqSubmitBtn" class="btn-unified btn-primary-unified btn-small">
+                    <i class="fas fa-paper-plane mr-1"></i>希望を提出する
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- [3] 提出確認ダイアログ -->
+    <div id="srqConfirmDialog" class="srq-confirm-dialog">
+        <div class="srq-confirm-card">
+            <i class="fas fa-question-circle text-4xl text-blue-500 mb-3 block"></i>
+            <h3 id="srqConfirmTitle" class="font-bold text-gray-800 text-lg mb-3"></h3>
+            <p id="srqConfirmMsg" class="text-sm text-gray-600 mb-5"></p>
+            <div class="flex gap-3 justify-center">
+                <button id="srqConfirmNo"
+                        class="btn-unified btn-small"
+                        style="border:1px solid #d1d5db;color:#6b7280;background:white;padding:8px 20px;border-radius:6px;">
+                    キャンセル
+                </button>
+                <button id="srqConfirmYes" class="btn-unified btn-primary-unified btn-small" style="padding:8px 20px;">
+                    提出する
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- ===== Phase 3 ダイアログ群ここまで ===== -->
 
     <script>
         // 軽量メッセージ機能
@@ -1245,21 +1434,651 @@ fitTableToViewport() {
             }
         }
 
+        // ===== 🆕 Phase 3: 勤務希望入力クラス =====
+        class ShiftRequestViewer {
+            constructor() {
+                this.userData         = null;
+                this.myCEId           = null;
+                this.myCEName         = null;
+                this.activePeriodKey  = null;
+                this.activePeriod     = null;
+                this.myRequests       = {};   // dateKey → status
+                this.isSubmitted      = false;
+                this.isNoRequest      = false;
+                this.lastSubmittedAt  = null;
+                this.ceList           = [];
+                this.isOpen           = false;
+                this.submissionSource = null; // 'global' | 'individual'
+                this._pendingSubmitType = null;
+            }
+
+            // -------------------------------------------------------
+            // 初期化
+            // -------------------------------------------------------
+            async init() {
+                this.userData = window.currentUserData;
+                if (!this.userData) return;
+
+                // CEタイプのユーザーのみ機能を表示
+                if (this.userData.userType !== 'ce') {
+                    console.log('ℹ️ 非CEユーザーのため勤務希望セクションを非表示');
+                    return;
+                }
+
+                // サイドバーセクションを表示
+                const section = document.getElementById('shiftRequestSection');
+                if (section) section.style.display = 'block';
+
+                // イベントリスナーを登録
+                this._setupEventListeners();
+
+                // CE情報を解決（3段階フォールバック）
+                await this._resolveMyCE();
+                if (!this.myCEId) return; // 未解決時はダイアログで対応済み
+
+                // アクティブな受付期間を検索
+                await this._loadActivePeriod();
+
+                // 自分の提出状況を読み込み
+                if (this.activePeriodKey) {
+                    await this._loadMyRequests();
+                }
+
+                // サイドバーUIを描画
+                this._renderSidebarUI();
+
+                console.log('✅ ShiftRequestViewer初期化完了', {
+                    ceId: this.myCEId, ceName: this.myCEName,
+                    period: this.activePeriodKey, isOpen: this.isOpen
+                });
+            }
+
+            // -------------------------------------------------------
+            // CE解決（3段階フォールバック）
+            // -------------------------------------------------------
+            async _resolveMyCE() {
+                const ud = this.userData;
+
+                // ① window.currentUserData に linkedCEId があればそのまま使用
+                if (ud.linkedCEId) {
+                    this.myCEId   = ud.linkedCEId;
+                    this.myCEName = ud.linkedCEName || ud.displayName || '';
+                    console.log('✅ CE解決 [currentUserData]:', this.myCEId);
+                    return;
+                }
+
+                // ② Firebase users/{uid} から再取得
+                try {
+                    const uid  = sessionStorage.getItem('targetUID');
+                    const snap = await window.database
+                        .ref(`${window.DATA_ROOT}/users/${uid}`).once('value');
+                    const data = snap.val();
+                    if (data && data.linkedCEId) {
+                        this.myCEId   = data.linkedCEId;
+                        this.myCEName = data.linkedCEName || data.displayName || '';
+                        if (window.currentUserData) {
+                            window.currentUserData.linkedCEId   = this.myCEId;
+                            window.currentUserData.linkedCEName = this.myCEName;
+                        }
+                        console.log('✅ CE解決 [Firebase users]:', this.myCEId);
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('Firebase CE解決失敗:', e);
+                }
+
+                // ③ 表示名で最新勤務表のCEリストを検索
+                try {
+                    const snap = await window.database
+                        .ref(`${window.DATA_ROOT}/workSchedules`)
+                        .limitToLast(3).once('value');
+                    const schedules = snap.val() || {};
+                    const myName    = ud.displayName || ud.username || '';
+
+                    for (const pd of Object.values(schedules)) {
+                        const ceList = pd.ceList || [];
+                        const hit = ceList.find(ce =>
+                            ce.fullName === myName || ce.name === myName ||
+                            ce.displayName === myName || ce.iconName === myName
+                        );
+                        if (hit) {
+                            this.myCEId   = hit.id;
+                            this.myCEName = hit.fullName || hit.name || myName;
+                            console.log('✅ CE解決 [名前マッチ]:', this.myCEId);
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('名前マッチ失敗:', e);
+                }
+
+                // ④ 手動選択ダイアログへ
+                console.log('⚠️ CE自動解決不可 → ダイアログ表示');
+                await this._showCESelectDialog();
+            }
+
+            // -------------------------------------------------------
+            // アクティブ受付期間を検索
+            // -------------------------------------------------------
+            async _loadActivePeriod() {
+                try {
+                    const snap    = await window.database
+                        .ref(`${window.DATA_ROOT}/shiftRequestPeriods`).once('value');
+                    const periods = snap.val() || {};
+                    const now     = new Date();
+
+                    let bestPeriod = null, bestKey = null;
+
+                    for (const [key, period] of Object.entries(periods)) {
+                        const ia = period.individualAccess?.[this.myCEId];
+
+                        // 個別受付（最優先）
+                        if (ia?.status === 'open') {
+                            if (ia.expiresAt && new Date(ia.expiresAt) < now) continue;
+                            if (!bestPeriod || (period.createdAt||0) > (bestPeriod.createdAt||0)) {
+                                bestPeriod = period; bestKey = key;
+                                this.submissionSource = 'individual';
+                            }
+                        }
+                        // グローバル受付中（締切確認）
+                        else if (period.status === 'open') {
+                            const dl = this._parseDeadline(period.deadlineDate, period.deadlineTime);
+                            if (dl && dl < now) continue;
+                            if (!bestPeriod || (period.createdAt||0) > (bestPeriod.createdAt||0)) {
+                                bestPeriod = period; bestKey = key;
+                                this.submissionSource = 'global';
+                            }
+                        }
+                    }
+
+                    if (bestKey) {
+                        this.activePeriodKey = bestKey;
+                        this.activePeriod    = bestPeriod;
+                        this.isOpen          = true;
+                    } else {
+                        // 受付終了でも最新期間を表示目的で保持
+                        const sorted = Object.keys(periods)
+                            .sort((a,b) => (periods[b].createdAt||0) - (periods[a].createdAt||0));
+                        if (sorted.length > 0) {
+                            this.activePeriodKey = sorted[0];
+                            this.activePeriod    = periods[sorted[0]];
+                        }
+                        this.isOpen = false;
+                    }
+                } catch (e) {
+                    console.error('受付期間読み込みエラー:', e);
+                }
+            }
+
+            _parseDeadline(dateStr, timeStr) {
+                if (!dateStr) return null;
+                try { return new Date(`${dateStr}T${timeStr || '23:59'}:00`); }
+                catch (e) { return null; }
+            }
+
+            // -------------------------------------------------------
+            // 自分の提出データ読み込み
+            // -------------------------------------------------------
+            async _loadMyRequests() {
+                try {
+                    const snap = await window.database
+                        .ref(`${window.DATA_ROOT}/shiftRequests/${this.activePeriodKey}/${this.myCEId}`)
+                        .once('value');
+                    const data = snap.val() || {};
+                    const meta = data._meta || {};
+
+                    this.isSubmitted     = meta.submitted       === true;
+                    this.isNoRequest     = meta.noRequestDeclared === true;
+                    this.lastSubmittedAt = meta.lastSubmittedAt || null;
+
+                    this.myRequests = {};
+                    for (const [k, v] of Object.entries(data)) {
+                        if (k !== '_meta' && v?.status) this.myRequests[k] = v.status;
+                    }
+                    console.log('✅ 提出データ:', { submitted: this.isSubmitted, noReq: this.isNoRequest });
+                } catch (e) {
+                    console.error('提出データ読み込みエラー:', e);
+                }
+            }
+
+            // -------------------------------------------------------
+            // サイドバーUI描画
+            // -------------------------------------------------------
+            _renderSidebarUI() {
+                const bannerArea    = document.getElementById('srqBannerArea');
+                const actionArea    = document.getElementById('srqActionArea');
+                const submittedArea = document.getElementById('srqSubmittedArea');
+                const reEditBtn     = document.getElementById('srqReEditBtn');
+                const infoEl        = document.getElementById('srqSubmittedInfo');
+                if (!bannerArea) return;
+
+                if (!this.activePeriod) {
+                    bannerArea.innerHTML = `
+                        <div class="shift-req-banner closed">
+                            <i class="fas fa-calendar-times mr-1"></i>
+                            現在、受付期間はありません
+                        </div>`;
+                    actionArea.style.display    = 'none';
+                    submittedArea.style.display  = 'none';
+                    return;
+                }
+
+                const p       = this.activePeriod;
+                const range   = `${p.targetStartDate||''} ～ ${p.targetEndDate||''}`;
+                const dl      = this._parseDeadline(p.deadlineDate, p.deadlineTime);
+                const dlStr   = dl ? dl.toLocaleString('ja-JP',
+                    {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+
+                if (this.isSubmitted || this.isNoRequest) {
+                    // ── 提出済み ──
+                    const isNR      = this.isNoRequest;
+                    const txt       = isNR ? '希望なしで提出済み' : '提出済み';
+                    const badgeCls  = isNR ? 'no-request' : 'submitted';
+                    const icon      = isNR ? 'fa-ban' : 'fa-check-circle';
+                    const bannerCls = isNR ? 'no-request' : 'submitted';
+                    const submAt    = this.lastSubmittedAt
+                        ? new Date(this.lastSubmittedAt).toLocaleString('ja-JP',
+                            {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
+                        : '';
+
+                    bannerArea.innerHTML = `
+                        <div class="shift-req-banner ${bannerCls}">
+                            <div class="font-semibold mb-1">
+                                <i class="fas ${icon} mr-1"></i>
+                                <span class="srq-submitted-badge ${badgeCls}">${txt}</span>
+                            </div>
+                            <div style="font-size:11px;">対象: ${range}</div>
+                            ${submAt ? `<div style="font-size:10px;opacity:.7;margin-top:2px;">提出: ${submAt}</div>` : ''}
+                        </div>`;
+
+                    actionArea.style.display   = 'none';
+                    submittedArea.style.display = 'block';
+                    if (infoEl) infoEl.textContent = this.isOpen ? '受付期間中は修正できます' : '受付は終了しています';
+                    if (reEditBtn) {
+                        reEditBtn.style.display = this.isOpen ? 'block' : 'none';
+                        reEditBtn.onclick = () => this.openModal();
+                    }
+
+                } else if (this.isOpen) {
+                    // ── 受付中・未提出 ──
+                    const srcTag = this.submissionSource === 'individual'
+                        ? '<span style="font-size:10px;background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:3px;margin-left:4px;">個別受付</span>'
+                        : '';
+
+                    bannerArea.innerHTML = `
+                        <div class="shift-req-banner open">
+                            <div class="font-semibold mb-1">
+                                <i class="fas fa-door-open mr-1"></i>受付中${srcTag}
+                            </div>
+                            <div style="font-size:11px;">対象: ${range}</div>
+                            ${dlStr ? `<div style="font-size:11px;">締切: ${dlStr}</div>` : ''}
+                            ${p.announcement ? `<div style="font-size:10px;margin-top:4px;opacity:.85;">${p.announcement}</div>` : ''}
+                        </div>`;
+
+                    actionArea.style.display   = 'block';
+                    submittedArea.style.display = 'none';
+
+                } else {
+                    // ── 受付終了・未提出 ──
+                    bannerArea.innerHTML = `
+                        <div class="shift-req-banner closed">
+                            <i class="fas fa-lock mr-1"></i>受付終了<br>
+                            <span style="font-size:10px;">対象: ${range}</span>
+                        </div>`;
+                    actionArea.style.display   = 'none';
+                    submittedArea.style.display = 'none';
+                }
+            }
+
+            // -------------------------------------------------------
+            // イベントリスナー設定
+            // -------------------------------------------------------
+            _setupEventListeners() {
+                const bind = (id, fn) => {
+                    const el = document.getElementById(id);
+                    if (el) el.onclick = fn;
+                };
+                bind('srqOpenModalBtn',  () => this.openModal());
+                bind('srqModalCloseBtn', () => this.closeModal());
+                bind('srqSubmitBtn',     () => this._showConfirmDialog('normal'));
+                bind('srqNoRequestBtn',  () => this._showConfirmDialog('no_request'));
+                bind('srqConfirmYes',    () => this._executeSubmission());
+                bind('srqConfirmNo',     () => this._hideConfirmDialog());
+
+                const overlay = document.getElementById('srqModalOverlay');
+                if (overlay) overlay.onclick = e => { if (e.target === overlay) this.closeModal(); };
+            }
+
+            // -------------------------------------------------------
+            // モーダル開閉
+            // -------------------------------------------------------
+            openModal() {
+                if (!this.isOpen) {
+                    window.showMessage('現在、受付期間外です', 'warning');
+                    return;
+                }
+                const overlay = document.getElementById('srqModalOverlay');
+                if (!overlay) return;
+
+                // 期間情報表示
+                const p  = this.activePeriod;
+                const el = document.getElementById('srqModalPeriodInfo');
+                if (el && p) {
+                    const dl    = this._parseDeadline(p.deadlineDate, p.deadlineTime);
+                    const dlStr = dl ? dl.toLocaleString('ja-JP',
+                        {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+                    el.innerHTML = `対象期間: <strong>${p.targetStartDate} ～ ${p.targetEndDate}</strong>`
+                        + (dlStr ? ` ／ 締切: <strong>${dlStr}</strong>` : '');
+                }
+
+                // お知らせ
+                const ann = document.getElementById('srqModalAnnouncement');
+                if (ann) {
+                    ann.textContent    = p?.announcement || '';
+                    ann.style.display  = p?.announcement ? 'block' : 'none';
+                }
+
+                this._buildCalendar();
+                this._updateSummary();
+                overlay.classList.add('active');
+            }
+
+            closeModal() {
+                const overlay = document.getElementById('srqModalOverlay');
+                if (overlay) overlay.classList.remove('active');
+            }
+
+            // -------------------------------------------------------
+            // カレンダー生成
+            // -------------------------------------------------------
+            _buildCalendar() {
+                const container = document.getElementById('srqCalendarContainer');
+                if (!container || !this.activePeriod) return;
+
+                const start = new Date(this.activePeriod.targetStartDate + 'T00:00:00');
+                const end   = new Date(this.activePeriod.targetEndDate   + 'T00:00:00');
+
+                const dayLabels  = ['日','月','火','水','木','金','土'];
+                const dayColCls  = ['sun','','','','','','sat'];
+                let html = '<div class="srq-calendar-grid">';
+
+                // 曜日ヘッダー
+                dayLabels.forEach((n, i) =>
+                    html += `<div class="srq-cal-header ${dayColCls[i]}">${n}</div>`
+                );
+
+                // 先頭空白
+                const startDow = start.getDay();
+                for (let i = 0; i < startDow; i++)
+                    html += '<div class="srq-cal-day empty"></div>';
+
+                // 日付セル
+                const cur = new Date(start);
+                while (cur <= end) {
+                    const dk      = this._fmt(cur);
+                    const dow     = cur.getDay();
+                    const isHol   = this._isHoliday(cur);
+                    const req     = this.myRequests[dk] || null;
+                    const reqCls  = req ? ` req-${req === '×' ? 'off' : req}` : '';
+                    const colCls  = dow === 0 ? ' sun-col' : (dow === 6 ? ' sat-col' : '');
+
+                    html += `<div class="srq-cal-day${colCls}${reqCls}" data-date="${dk}"
+                                  onclick="window.shiftRequestViewer._onDayClick('${dk}')">
+                        <div class="day-num">${cur.getDate()}</div>
+                        ${isHol ? '<div class="day-hol">祝</div>' : ''}
+                        <div class="day-status">${req || ''}</div>
+                    </div>`;
+
+                    cur.setDate(cur.getDate() + 1);
+                }
+
+                // 末尾空白
+                const endDow = end.getDay();
+                for (let i = endDow + 1; i <= 6; i++)
+                    html += '<div class="srq-cal-day empty"></div>';
+
+                html += '</div>';
+                container.innerHTML = html;
+            }
+
+            // セルクリック：ステータスをサイクル変更
+            _onDayClick(dk) {
+                if (!this.isOpen) return;
+                const cycle = [null, 'B', '×', '年', '出', '研'];
+                const cur   = this.myRequests[dk] || null;
+                const next  = cycle[(cycle.indexOf(cur) + 1) % cycle.length];
+
+                if (next === null) delete this.myRequests[dk];
+                else               this.myRequests[dk] = next;
+
+                // DOM更新
+                const cell = document.querySelector(`[data-date="${dk}"]`);
+                if (cell) {
+                    cell.className = cell.className.replace(/\breq-\S+/g, '').trimEnd();
+                    if (next) cell.classList.add(next === '×' ? 'req-off' : `req-${next}`);
+                    const st = cell.querySelector('.day-status');
+                    if (st) st.textContent = next || '';
+                }
+                this._updateSummary();
+            }
+
+            // サマリー更新
+            _updateSummary() {
+                const cnt = { B:0, '×':0, '年':0, '出':0, '研':0 };
+                for (const s of Object.values(this.myRequests))
+                    if (cnt[s] !== undefined) cnt[s]++;
+
+                const el = document.getElementById('srqSummaryArea');
+                if (!el) return;
+
+                const items = [
+                    {key:'B',  label:'当直(B)', color:'#1d4ed8', bg:'#eff6ff'},
+                    {key:'×',  label:'休み(×)', color:'#6b7280', bg:'#f3f4f6'},
+                    {key:'年', label:'年休(年)', color:'#15803d', bg:'#f0fdf4'},
+                    {key:'出', label:'出張(出)', color:'#b45309', bg:'#fff7ed'},
+                    {key:'研', label:'研修(研)', color:'#6d28d9', bg:'#f5f3ff'},
+                ];
+                el.innerHTML = items.map(it =>
+                    `<div class="srq-summary-item">
+                        <span class="srq-summary-badge" style="background:${it.bg};color:${it.color};">${it.label}</span>
+                        <span>${cnt[it.key]}日</span>
+                    </div>`
+                ).join('');
+            }
+
+            // -------------------------------------------------------
+            // 確認ダイアログ
+            // -------------------------------------------------------
+            _showConfirmDialog(type) {
+                this._pendingSubmitType = type;
+                const count = Object.keys(this.myRequests).length;
+                document.getElementById('srqConfirmTitle').textContent =
+                    type === 'no_request' ? '希望なしで提出' : '勤務希望を提出';
+                document.getElementById('srqConfirmMsg').innerHTML =
+                    type === 'no_request'
+                    ? '勤務希望を <strong>「希望なし」</strong> として提出します。<br>特定の希望がない場合に選択してください。<br><br>よろしいですか？'
+                    : `選択した希望内容（<strong>${count}件</strong>）を提出します。<br><br>よろしいですか？`;
+                document.getElementById('srqConfirmDialog').classList.add('active');
+            }
+
+            _hideConfirmDialog() {
+                document.getElementById('srqConfirmDialog').classList.remove('active');
+            }
+
+            // -------------------------------------------------------
+            // Firebase への提出実行
+            // -------------------------------------------------------
+            async _executeSubmission() {
+                this._hideConfirmDialog();
+                const uid = sessionStorage.getItem('targetUID') || '';
+                const now = Date.now();
+
+                try {
+                    const basePath = `${window.DATA_ROOT}/shiftRequests/${this.activePeriodKey}/${this.myCEId}`;
+
+                    if (this._pendingSubmitType === 'no_request') {
+                        await window.database.ref(basePath).set({
+                            _meta: {
+                                submitted: true, noRequestDeclared: true,
+                                lastSubmittedAt: now, submittedBy: uid,
+                                ceName: this.myCEName || ''
+                            }
+                        });
+                        this.isNoRequest = true;
+                    } else {
+                        const data = {
+                            _meta: {
+                                submitted: true, noRequestDeclared: false,
+                                lastSubmittedAt: now, submittedBy: uid,
+                                ceName: this.myCEName || ''
+                            }
+                        };
+                        for (const [dk, status] of Object.entries(this.myRequests))
+                            data[dk] = { status, submittedAt: now };
+
+                        await window.database.ref(basePath).set(data);
+                        this.isNoRequest = false;
+                    }
+
+                    this.isSubmitted     = true;
+                    this.lastSubmittedAt = now;
+
+                    this.closeModal();
+                    window.showMessage(
+                        this._pendingSubmitType === 'no_request'
+                            ? '「希望なし」として提出しました ✅'
+                            : '勤務希望を提出しました ✅',
+                        'success'
+                    );
+                    this._renderSidebarUI();
+
+                } catch (e) {
+                    console.error('提出エラー:', e);
+                    window.showMessage('提出に失敗しました。再度お試しください。', 'error');
+                    this.isSubmitted = false;
+                }
+            }
+
+            // -------------------------------------------------------
+            // CE選択ダイアログ
+            // -------------------------------------------------------
+            async _showCESelectDialog() {
+                // 最新の勤務表からCEリストを取得
+                try {
+                    const snap = await window.database
+                        .ref(`${window.DATA_ROOT}/workSchedules`)
+                        .limitToLast(1).once('value');
+                    const schedules = snap.val() || {};
+                    for (const pd of Object.values(schedules))
+                        this.ceList = pd.ceList || [];
+                } catch (e) {
+                    console.warn('CEリスト取得失敗:', e);
+                }
+
+                const list = document.getElementById('srqCEList');
+                if (!list) return;
+
+                if (this.ceList.length === 0) {
+                    list.innerHTML = '<p class="text-sm text-red-500 py-4 text-center">CEリストを取得できませんでした。<br>管理者に連絡してください。</p>';
+                } else {
+                    const colors = { OPE:'#3b82f6', ME:'#10b981', HD:'#f59e0b', FLEX:'#8b5cf6' };
+                    list.innerHTML = this.ceList.map(ce => {
+                        const color = colors[ce.workType] || '#6b7280';
+                        const name  = (ce.fullName || ce.name || ce.id).replace(/'/g, "\\'");
+                        return `<div class="srq-ce-item"
+                                     onclick="window.shiftRequestViewer._selectCE('${ce.id}','${name}')">
+                            <span style="width:9px;height:9px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0;"></span>
+                            <span class="font-medium text-sm">${ce.fullName || ce.name || ce.id}</span>
+                            <span class="text-xs text-gray-400 ml-auto">${ce.workType || ''}</span>
+                        </div>`;
+                    }).join('');
+                }
+
+                document.getElementById('srqCESelectDialog').classList.add('active');
+            }
+
+            async _selectCE(ceId, ceName) {
+                this.myCEId   = ceId;
+                this.myCEName = ceName;
+
+                // Firebase に保存
+                try {
+                    const uid = sessionStorage.getItem('targetUID');
+                    if (uid) {
+                        await window.database.ref(`${window.DATA_ROOT}/users/${uid}`).update({
+                            linkedCEId: ceId, linkedCEName: ceName, userType: 'ce'
+                        });
+                    }
+                } catch (e) { console.warn('CE保存エラー:', e); }
+
+                if (window.currentUserData) {
+                    window.currentUserData.linkedCEId   = ceId;
+                    window.currentUserData.linkedCEName = ceName;
+                }
+
+                document.getElementById('srqCESelectDialog').classList.remove('active');
+                window.showMessage(`CE「${ceName}」として設定しました`, 'success');
+
+                await this._loadActivePeriod();
+                if (this.activePeriodKey) await this._loadMyRequests();
+                this._renderSidebarUI();
+            }
+
+            // -------------------------------------------------------
+            // ユーティリティ
+            // -------------------------------------------------------
+            _fmt(date) {
+                const y = date.getFullYear();
+                const m = String(date.getMonth()+1).padStart(2,'0');
+                const d = String(date.getDate()).padStart(2,'0');
+                return `${y}-${m}-${d}`;
+            }
+
+            _isHoliday(date) {
+                const H = new Set([
+                    '2024-01-01','2024-01-08','2024-02-11','2024-02-12','2024-02-23',
+                    '2024-03-20','2024-04-29','2024-05-03','2024-05-04','2024-05-05',
+                    '2024-05-06','2024-07-15','2024-08-11','2024-08-12','2024-09-16',
+                    '2024-09-22','2024-09-23','2024-10-14','2024-11-03','2024-11-04',
+                    '2024-11-23','2025-01-01','2025-01-13','2025-02-11','2025-02-23',
+                    '2025-02-24','2025-03-20','2025-04-29','2025-05-03','2025-05-04',
+                    '2025-05-05','2025-05-06','2025-07-21','2025-08-11','2025-09-15',
+                    '2025-09-23','2025-10-13','2025-11-03','2025-11-23','2025-11-24',
+                    '2026-01-01','2026-01-12','2026-02-11','2026-02-23','2026-03-20',
+                    '2026-04-29','2026-05-03','2026-05-04','2026-05-05','2026-05-06',
+                    '2026-07-20','2026-08-11','2026-09-21','2026-09-22','2026-09-23',
+                    '2026-10-12','2026-11-03','2026-11-23'
+                ]);
+                return H.has(this._fmt(date));
+            }
+        }
+        // ===== Phase 3 クラスここまで =====
+
+
         // 初期化
-        window.ceScheduleManager = null;
+        window.ceScheduleManager  = null;
+        window.shiftRequestViewer = null;
+
         document.addEventListener('DOMContentLoaded', async () => {
             try {
+                // ① 勤務表管理
                 window.ceScheduleManager = new CEScheduleManager();
                 await window.ceScheduleManager.init();
                 if (window.auditLogger) {
-    await window.auditLogger.logPageAccess('ce-schedule');
-}
+                    await window.auditLogger.logPageAccess('ce-schedule');
+                }
                 console.log('✅ 勤務表管理初期化完了');
+
+                // ② 🆕 Phase 3: 勤務希望入力(CEユーザーのみ)
+                window.shiftRequestViewer = new ShiftRequestViewer();
+                await window.shiftRequestViewer.init();
+
             } catch (error) {
                 console.error('❌ 勤務表管理初期化エラー:', error);
                 window.showMessage('勤務表管理の初期化に失敗しました', 'error');
             }
         });
+
     </script>
 </body>
 </html>
