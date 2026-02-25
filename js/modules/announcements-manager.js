@@ -1,757 +1,622 @@
-/**
- * お知らせ掲示板管理モジュール (Announcements Manager)
- * 
- * 依存ファイル:
- *   - js/config/firebase-config.js  （window.database, window.DATA_ROOT）
- *   - js/utils/auth-guard.js         （AuthGuard.getSession()）
- *   - js/modules/user-manager.js     （window.userManager ※任意）
- *   - js/constants.js                （window.DEPARTMENTS）
- * 
- * Firebase パス:
- *   ceScheduleV3/announcements/categories/{categoryId}
- *   ceScheduleV3/announcements/threads/{threadId}
- *   ceScheduleV3/announcements/threads/{threadId}/replies/{replyId}
- * 
- * 権限:
- *   投稿・返信  : 全ユーザー
- *   カテゴリ管理: editor 以上
- *   スレッド削除: admin のみ
- */
+// ============================================================
+// js/modules/announcements-manager.js
+// お知らせ管理モジュール（バグ修正版）
+// ============================================================
 
 class AnnouncementsManager {
-    constructor() {
-        this.db            = null;
-        this.dataRoot      = null;
-        this.currentUser   = null;      // { uid, username, displayName, role }
-        this.categories    = {};        // { categoryId: { name, icon, order, ... } }
-        this.threads       = {};        // { threadId: { title, content, ... } }
-        this.currentCategoryId = 'all'; // 選択中カテゴリ
-        this.currentThreadId   = null;  // 詳細表示中スレッド
-        this.listeners     = [];        // 解除用リスナー参照
+  constructor() {
+    this.currentUser    = null;
+    this.categories     = {};
+    this.threads        = {};
+    this.currentCategoryId = null;
+    this.currentThreadId   = null;
+    this._catListener      = null;
+    this._threadListener   = null;
+    this._replyListener    = null;
+    this._db   = null;
+    this._root = null;
+  }
+
+  // ─────────────────────────────────────────
+  // 初期化
+  // ─────────────────────────────────────────
+  async init() {
+    try {
+      await this._waitForFirebase();
+      this._db   = window.database;
+      this._root = window.DATA_ROOT;
+
+      await this._loadCurrentUser();
+      await this._initCategories();   // デフォルトカテゴリ作成
+      this._setupListeners();         // リアルタイム監視
+      this._bindEvents();             // ボタンイベント
+      this._applyPermissions();       // 権限に応じた表示制御
+
+      // URLパラメータでスレッドを直接開く
+      const params = new URLSearchParams(location.search);
+      const threadId = params.get('thread');
+      if (threadId) setTimeout(() => this.openThread(threadId), 800);
+
+      console.log('✅ AnnouncementsManager 初期化完了');
+    } catch (e) {
+      console.error('❌ AnnouncementsManager 初期化エラー:', e);
+    }
+  }
+
+  async _waitForFirebase() {
+    for (let i = 0; i < 50; i++) {
+      if (window.database && window.DATA_ROOT) return;
+      await new Promise(r => setTimeout(r, 100));
+    }
+    throw new Error('Firebase 初期化タイムアウト');
+  }
+
+  // ─────────────────────────────────────────
+  // ユーザー読み込み
+  // ─────────────────────────────────────────
+  async _loadCurrentUser() {
+    const uid      = sessionStorage.getItem('targetUID');
+    const username = sessionStorage.getItem('currentUsername');
+    const role     = sessionStorage.getItem('userRole') || 'viewer';
+
+    if (!uid || !username) {
+      alert('ログインが必要です');
+      location.href = '../index.html';
+      throw new Error('未認証');
     }
 
-    // =========================================================
-    // 初期化
-    // =========================================================
+    const snap = await this._db.ref(`${this._root}/users/${uid}`).once('value');
+    const data = snap.val() || {};
+    this.currentUser = {
+      uid,
+      username:    data.username    || username,
+      displayName: data.displayName || data.username || username,
+      role:        data.role        || role,
+    };
+  }
 
-    async init() {
-        console.log('[AnnouncementsManager] 初期化開始');
-        try {
-            // 1. Firebase 待機
-            await this._waitForFirebase();
+  // ─────────────────────────────────────────
+  // デフォルトカテゴリ初期化
+  // ─────────────────────────────────────────
+  async _initCategories() {
+    const snap = await this._db.ref(`${this._root}/announcements/categories`).once('value');
+    if (snap.exists()) return; // 既にある場合はスキップ
 
-            // 2. ログインユーザー取得
-            await this._loadCurrentUser();
+    const depts = window.DEPARTMENTS || [
+      '業務A','業務B','業務C','業務D','業務E',
+      '業務F','業務G','業務H','業務I'
+    ];
+    const defaults = [
+      { name: '重要なお知らせ',    icon: '📢', order: 0 },
+      { name: '業務連絡全般',      icon: '📋', order: 1 },
+      ...depts.map((d, i) => ({ name: d, icon: '🏢', order: i + 2 })),
+    ];
 
-            // 3. カテゴリ初期化（初回のみデフォルト作成）
-            await this._initCategories();
+    const updates = {};
+    defaults.forEach(cat => {
+      const key = this._db.ref(`${this._root}/announcements/categories`).push().key;
+      updates[`${this._root}/announcements/categories/${key}`] = {
+        ...cat,
+        createdAt: Date.now(),
+        createdBy: this.currentUser?.uid || 'system',
+      };
+    });
+    await this._db.ref().update(updates);
+    console.log('✅ デフォルトカテゴリ作成完了');
+  }
 
-            // 4. リアルタイムリスナー設定
-            this._setupListeners();
-
-            // 5. UI イベントバインド
-            this._bindUIEvents();
-
-            // 6. 権限に応じてボタン表示制御
-            this._applyPermissions();
-
-            console.log('[AnnouncementsManager] ✅ 初期化完了');
-        } catch (err) {
-            console.error('[AnnouncementsManager] ❌ 初期化失敗:', err);
-        }
-    }
-
-    // Firebase 依存の待機
-    async _waitForFirebase() {
-        // firebase-config.js が提供する Promise を優先使用
-        if (window.waitForFirebase) {
-            await window.waitForFirebase();
-        } else {
-            let attempts = 0;
-            while (!(window.database && window.DATA_ROOT) && attempts < 50) {
-                await new Promise(r => setTimeout(r, 100));
-                attempts++;
-            }
-        }
-        if (!window.database) throw new Error('Firebase database が利用できません');
-        this.db       = window.database;
-        this.dataRoot = window.DATA_ROOT;
-    }
-
-    // ログインユーザー情報を取得
-    async _loadCurrentUser() {
-        // user-manager.js が初期化済みであればそちらを優先
-        if (window.userManager?.currentUser) {
-            this.currentUser = window.userManager.currentUser;
-            console.log('[AnnouncementsManager] userManager からユーザー取得:', this.currentUser);
-            return;
-        }
-
-        // AuthGuard のセッションから取得
-        const session = window.AuthGuard ? window.AuthGuard.getSession() : null;
-        if (session?.uid) {
-            // Firebase の users/{uid} から詳細を取得
-            try {
-                const snap = await this.db
-                    .ref(`${this.dataRoot}/users/${session.uid}`)
-                    .once('value');
-                const data = snap.val();
-                this.currentUser = {
-                    uid        : session.uid,
-                    username   : session.username,
-                    displayName: data?.displayName || data?.name || session.username,
-                    role       : data?.role || session.role || 'user'
-                };
-            } catch {
-                this.currentUser = {
-                    uid        : session.uid,
-                    username   : session.username,
-                    displayName: session.username,
-                    role       : session.role || 'user'
-                };
-            }
-        } else {
-            // フォールバック（開発中 admin）
-            this.currentUser = { uid: 'admin', username: 'admin', displayName: '管理者', role: 'admin' };
-            console.warn('[AnnouncementsManager] セッション情報なし。admin でフォールバック');
-        }
-        console.log('[AnnouncementsManager] currentUser:', this.currentUser);
-    }
-
-    // =========================================================
-    // カテゴリ初期化
-    // =========================================================
-
-    // デフォルトカテゴリ定義
-    _getDefaultCategories() {
-        // constants.js の DEPARTMENTS を活用
-        const deptIcons = {
-            '機器管理・人工呼吸'             : '🫁',
-            '血液浄化'                       : '🩸',
-            '不整脈'                         : '💓',
-            '心・カテーテル'                 : '❤️',
-            '人工心肺・補助循環'             : '🫀',
-            '手術・麻酔'                     : '🏥',
-            '会議・ミーティング・勉強会・打ち合わせ': '💬',
-            '出張・研修内容'                 : '✈️',
-            'その他・連絡'                   : 'ℹ️'
-        };
-
-        const defaults = [
-            { name: '重要なお知らせ', icon: '🔴', order: 0 },
-            { name: '全体業務連絡',   icon: '📢', order: 1 }
-        ];
-
-        // constants.js の DEPARTMENTS 順に追加
-        const departments = window.DEPARTMENTS || Object.keys(deptIcons);
-        departments.forEach((dept, i) => {
-            defaults.push({
-                name : dept,
-                icon : deptIcons[dept] || '📌',
-                order: i + 2
-            });
-        });
-
-        return defaults;
-    }
-
-    async _initCategories() {
-        const ref  = this.db.ref(`${this.dataRoot}/announcements/categories`);
-        const snap = await ref.once('value');
-
-        if (!snap.exists()) {
-            console.log('[AnnouncementsManager] デフォルトカテゴリを作成します');
-            const defaults = this._getDefaultCategories();
-            const batch = {};
-            defaults.forEach(cat => {
-                const key     = ref.push().key;
-                batch[key] = {
-                    ...cat,
-                    createdAt: new Date().toISOString(),
-                    createdBy: this.currentUser.uid
-                };
-            });
-            await ref.set(batch);
-        }
-    }
-
-    // =========================================================
-    // リアルタイムリスナー
-    // =========================================================
-
-    _setupListeners() {
-        // カテゴリ監視
-        const catRef = this.db.ref(`${this.dataRoot}/announcements/categories`);
-        catRef.on('value', snap => {
-            this.categories = snap.exists() ? snap.val() : {};
-            this._renderCategories();
-            this._populateCategorySelect();
-        });
-        this.listeners.push({ ref: catRef, event: 'value' });
-
-        // スレッド監視
-        const thrRef = this.db.ref(`${this.dataRoot}/announcements/threads`);
-        thrRef.on('value', snap => {
-            this.threads = snap.exists() ? snap.val() : {};
-            this._renderThreads(this.currentCategoryId);
-        });
-        this.listeners.push({ ref: thrRef, event: 'value' });
-    }
-
-    // =========================================================
-    // レンダリング
-    // =========================================================
-
-    // カテゴリサイドバーを描画
-    _renderCategories() {
-        const container = document.getElementById('categoriesList');
-        if (!container) return;
-
-        // 「すべて」ボタン
-        const allCount = Object.keys(this.threads).length;
-        let html = `
-            <div class="category-item ${this.currentCategoryId === 'all' ? 'active' : ''}"
-                 onclick="window.announcementsManager.selectCategory('all')">
-                <span class="category-icon">📋</span>
-                <span class="category-name">すべて</span>
-                <span class="category-count">${allCount}</span>
-            </div>`;
-
-        // カテゴリ一覧（order 順）
-        const sorted = Object.entries(this.categories)
-            .sort(([, a], [, b]) => (a.order ?? 99) - (b.order ?? 99));
-
-        sorted.forEach(([id, cat]) => {
-            const count = Object.values(this.threads)
-                .filter(t => t.category === id).length;
-            const isActive = this.currentCategoryId === id;
-            html += `
-                <div class="category-item ${isActive ? 'active' : ''}"
-                     onclick="window.announcementsManager.selectCategory('${id}')">
-                    <span class="category-icon">${cat.icon || '📌'}</span>
-                    <span class="category-name">${this._esc(cat.name)}</span>
-                    ${count > 0 ? `<span class="category-count">${count}</span>` : ''}
-                </div>`;
-        });
-
-        container.innerHTML = html;
-    }
-
-    // スレッド一覧を描画
-    _renderThreads(categoryId) {
-        const container = document.getElementById('threadsList');
-        const titleEl   = document.getElementById('currentCategoryTitle');
-        const countEl   = document.getElementById('threadCount');
-        if (!container) return;
-
-        // フィルタリング
-        let filtered = Object.entries(this.threads);
-        if (categoryId !== 'all') {
-            filtered = filtered.filter(([, t]) => t.category === categoryId);
-        }
-
-        // 新しい順にソート
-        filtered.sort(([, a], [, b]) => (b.timestamp || 0) - (a.timestamp || 0));
-
-        // タイトル更新
-        if (categoryId === 'all') {
-            if (titleEl) titleEl.textContent = 'すべてのお知らせ';
-        } else {
-            const cat = this.categories[categoryId];
-            if (titleEl) titleEl.textContent = cat ? `${cat.icon} ${cat.name}` : 'お知らせ';
-        }
-        if (countEl) countEl.textContent = filtered.length;
-
-        // 空の場合
-        if (filtered.length === 0) {
-            container.innerHTML = `
-                <div style="text-align:center; padding:4rem; color:var(--text-secondary);">
-                    <i class="fas fa-inbox" style="font-size:3rem; margin-bottom:1rem; display:block;"></i>
-                    まだ投稿がありません
-                </div>`;
-            return;
-        }
-
-        // スレッドカード描画
-        const now = Date.now();
-        const NEW_THRESHOLD = 3 * 24 * 60 * 60 * 1000; // 3日以内は NEW
-
-        let html = '';
-        filtered.forEach(([id, thread]) => {
-            const isNew     = (now - (thread.timestamp || 0)) < NEW_THRESHOLD;
-            const catName   = this.categories[thread.category]?.name || thread.category || '未分類';
-            const catIcon   = this.categories[thread.category]?.icon || '📌';
-            const replyCount = thread.replies ? Object.keys(thread.replies).length : 0;
-            const dateStr   = this._formatDate(thread.timestamp);
-
-            html += `
-                <div class="thread-card" onclick="window.announcementsManager.openThread('${id}')">
-                    <div class="thread-header">
-                        <div>
-                            <div class="thread-title">
-                                ${isNew ? '<span class="new-badge">NEW</span>' : ''}
-                                ${this._esc(thread.title)}
-                            </div>
-                            <div class="thread-meta">
-                                <span><i class="fas fa-tag" style="color:var(--accent-color);"></i>
-                                    ${catIcon} ${this._esc(catName)}</span>
-                                <span><i class="fas fa-user"></i> ${this._esc(thread.authorName || '不明')}</span>
-                                <span><i class="fas fa-calendar"></i> ${dateStr}</span>
-                            </div>
-                        </div>
-                        <div class="thread-stats">
-                            <span class="stat-item">
-                                <i class="fas fa-comments"></i> ${replyCount}
-                            </span>
-                            <span class="stat-item">
-                                <i class="fas fa-eye"></i> ${thread.views || 0}
-                            </span>
-                        </div>
-                    </div>
-                    ${thread.content ? `
-                    <p style="color:var(--text-secondary); font-size:0.875rem;
-                              overflow:hidden; display:-webkit-box;
-                              -webkit-line-clamp:2; -webkit-box-orient:vertical;">
-                        ${this._esc(thread.content)}
-                    </p>` : ''}
-                </div>`;
-        });
-
-        container.innerHTML = html;
-    }
-
-    // カテゴリ選択
-    selectCategory(categoryId) {
-        this.currentCategoryId = categoryId;
+  // ─────────────────────────────────────────
+  // リアルタイムリスナー
+  // ─────────────────────────────────────────
+  _setupListeners() {
+    // カテゴリ
+    this._catListener = this._db.ref(`${this._root}/announcements/categories`)
+      .orderByChild('order').on('value', snap => {
+        this.categories = snap.val() || {};
         this._renderCategories();
-        this._renderThreads(categoryId);
+      });
+
+    // スレッド
+    this._threadListener = this._db.ref(`${this._root}/announcements/threads`)
+      .orderByChild('timestamp').on('value', snap => {
+        this.threads = snap.val() || {};
+        this._renderThreads(this.currentCategoryId);
+      });
+  }
+
+  // ─────────────────────────────────────────
+  // カテゴリ描画
+  // ─────────────────────────────────────────
+  _renderCategories() {
+    const sidebar = document.getElementById('categoriesSidebar');
+    if (!sidebar) return;
+
+    const cats = Object.entries(this.categories)
+      .sort((a, b) => (a[1].order || 0) - (b[1].order || 0));
+
+    if (cats.length === 0) {
+      sidebar.innerHTML = `<div style="padding:16px;color:#888;font-size:0.85rem;">カテゴリなし</div>`;
+      return;
     }
 
-    // =========================================================
-    // スレッド詳細
-    // =========================================================
+    sidebar.innerHTML = [
+      `<div class="cat-item ${this.currentCategoryId === null ? 'active' : ''}"
+           onclick="announcementsManager.selectCategory(null)"
+           style="padding:12px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;border-left:3px solid transparent;">
+        📌 <span>すべて</span>
+      </div>`,
+      ...cats.map(([id, cat]) => {
+        const count = Object.values(this.threads).filter(t => t.category === id).length;
+        return `
+          <div class="cat-item ${this.currentCategoryId === id ? 'active' : ''}"
+               onclick="announcementsManager.selectCategory('${id}')"
+               style="padding:12px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;border-left:3px solid transparent;">
+            <span>${this._esc(cat.icon || '📁')} ${this._esc(cat.name)}</span>
+            ${count > 0 ? `<span style="background:#4ade80;color:#111;border-radius:10px;padding:2px 8px;font-size:0.75rem;font-weight:600;">${count}</span>` : ''}
+          </div>`;
+      })
+    ].join('');
 
-    async openThread(threadId) {
-        const thread = this.threads[threadId];
-        if (!thread) return;
+    // active スタイル適用
+    sidebar.querySelectorAll('.cat-item').forEach(el => {
+      el.style.borderLeftColor = el.classList.contains('active') ? 'var(--brand-primary, #4ade80)' : 'transparent';
+      el.style.background = el.classList.contains('active') ? 'rgba(74,222,128,0.08)' : '';
+    });
 
-        this.currentThreadId = threadId;
+    // 初期選択
+    if (this.currentCategoryId === null) {
+      this._renderThreads(null);
+    }
+  }
 
-        // 閲覧数カウントアップ
-        this.db.ref(`${this.dataRoot}/announcements/threads/${threadId}/views`)
-            .transaction(v => (v || 0) + 1);
+  selectCategory(categoryId) {
+    this.currentCategoryId = categoryId;
+    this._renderCategories();
+    this._renderThreads(categoryId);
+  }
 
-        // モーダルに情報をセット
-        document.getElementById('threadDetailTitle').textContent = thread.title || '';
-        document.getElementById('threadDetailAuthor').textContent = thread.authorName || '不明';
-        document.getElementById('threadDetailDate').textContent   = this._formatDate(thread.timestamp);
-        document.getElementById('threadDetailViews').textContent  = (thread.views || 0) + 1;
-        document.getElementById('threadDetailContent').textContent = thread.content || '';
+  // ─────────────────────────────────────────
+  // スレッド描画
+  // ─────────────────────────────────────────
+  _renderThreads(categoryId) {
+    const container = document.getElementById('threadsContainer');
+    const titleEl   = document.getElementById('currentCategoryTitle');
+    const countEl   = document.getElementById('threadCount');
+    if (!container) return;
 
-        // 削除ボタン表示（admin のみ）
-        const adminActions = document.getElementById('adminActions');
-        if (adminActions) {
-            adminActions.style.display =
-                this.currentUser.role === 'admin' ? 'block' : 'none';
-        }
+    let filtered = Object.entries(this.threads)
+      .map(([id, t]) => ({ id, ...t }))
+      .filter(t => categoryId === null || t.category === categoryId)
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
-        // 返信を読み込む
-        await this._loadReplies(threadId);
+    if (titleEl) {
+      titleEl.textContent = categoryId
+        ? (this.categories[categoryId]?.name || 'カテゴリ')
+        : 'すべてのお知らせ';
+    }
+    if (countEl) countEl.textContent = `${filtered.length} 件`;
 
-        // モーダルを開く
-        document.getElementById('threadDetailModal').classList.add('active');
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center;padding:40px;color:var(--text-muted,#888);">
+          <div style="font-size:2.5rem;margin-bottom:12px;">📭</div>
+          <p>投稿がありません</p>
+        </div>`;
+      return;
     }
 
-    async _loadReplies(threadId) {
-        const repliesRef  = this.db.ref(
-            `${this.dataRoot}/announcements/threads/${threadId}/replies`
-        );
-        const snap = await repliesRef.once('value');
-        const replies = snap.exists() ? snap.val() : {};
-        this._renderReplies(replies);
+    const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000;
+    container.innerHTML = filtered.map(thread => {
+      const isNew     = (thread.timestamp || 0) > threeDaysAgo;
+      const dateStr   = thread.timestamp
+        ? new Date(thread.timestamp).toLocaleString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }).replace(/\//g, '.')
+        : '';
+      const replyCount = thread.replies ? Object.keys(thread.replies).length : 0;
+      const catName    = this.categories[thread.category]?.name || '';
 
-        // リアルタイム更新（既存リスナーを解除してから再設定）
-        repliesRef.off('value');
-        repliesRef.on('value', s => {
-            this._renderReplies(s.exists() ? s.val() : {});
-        });
+      return `
+        <div class="thread-item" onclick="announcementsManager.openThread('${thread.id}')"
+             style="padding:16px;border-bottom:1px solid var(--glass-border,rgba(255,255,255,0.07));cursor:pointer;transition:background 0.2s;"
+             onmouseover="this.style.background='rgba(255,255,255,0.03)'"
+             onmouseout="this.style.background=''">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="flex:1;">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                <span style="font-size:0.95rem;font-weight:600;color:var(--text-color,#e0e0e0);">${this._esc(thread.title || '無題')}</span>
+                ${isNew ? '<span style="background:#ef4444;color:white;padding:2px 7px;border-radius:8px;font-size:0.72rem;font-weight:700;">NEW</span>' : ''}
+                ${catName ? `<span style="background:rgba(74,222,128,0.15);color:#4ade80;padding:2px 8px;border-radius:8px;font-size:0.72rem;">${this._esc(catName)}</span>` : ''}
+              </div>
+              <div style="font-size:0.82rem;color:var(--text-muted,#888);display:flex;gap:16px;flex-wrap:wrap;">
+                <span><i class="far fa-user"></i> ${this._esc(thread.authorName || thread.author || '匿名')}</span>
+                <span><i class="far fa-clock"></i> ${dateStr}</span>
+                <span><i class="far fa-comment"></i> ${replyCount}件</span>
+                <span><i class="far fa-eye"></i> ${thread.views || 0}</span>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ─────────────────────────────────────────
+  // スレッド詳細
+  // ─────────────────────────────────────────
+  async openThread(threadId) {
+    const thread = this.threads[threadId];
+    if (!thread) {
+      // Firebase から直接取得
+      const snap = await this._db.ref(`${this._root}/announcements/threads/${threadId}`).once('value');
+      if (!snap.exists()) { alert('スレッドが見つかりません'); return; }
+      this.threads[threadId] = { id: threadId, ...snap.val() };
+    }
+    this.currentThreadId = threadId;
+
+    // 閲覧数カウントアップ
+    this._db.ref(`${this._root}/announcements/threads/${threadId}/views`)
+      .transaction(v => (v || 0) + 1);
+
+    this._showThreadModal(this.threads[threadId]);
+    this._loadReplies(threadId);
+  }
+
+  _showThreadModal(thread) {
+    const modal = document.getElementById('threadDetailModal');
+    if (!modal) return;
+
+    const dateStr = thread.timestamp
+      ? new Date(thread.timestamp).toLocaleString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }).replace(/\//g, '.')
+      : '';
+    const isAdmin = this.currentUser?.role === 'admin';
+
+    document.getElementById('modalThreadTitle').textContent   = thread.title || '無題';
+    document.getElementById('modalThreadAuthor').textContent  = thread.authorName || thread.author || '匿名';
+    document.getElementById('modalThreadDate').textContent    = dateStr;
+    document.getElementById('modalThreadContent').innerHTML   = this._esc(thread.content || '').replace(/\n/g, '<br>');
+
+    const deleteBtn = document.getElementById('deleteThreadBtn');
+    if (deleteBtn) deleteBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
+
+  _loadReplies(threadId) {
+    if (this._replyListener) {
+      this._db.ref(`${this._root}/announcements/threads/${this._replyListenerThreadId}/replies`).off();
+    }
+    this._replyListenerThreadId = threadId;
+    this._replyListener = this._db.ref(`${this._root}/announcements/threads/${threadId}/replies`)
+      .orderByChild('timestamp').on('value', snap => {
+        this._renderReplies(snap.val() || {});
+      });
+  }
+
+  _renderReplies(replies) {
+    const container = document.getElementById('repliesContainer');
+    if (!container) return;
+    const list = Object.entries(replies)
+      .map(([id, r]) => ({ id, ...r }))
+      .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+    if (list.length === 0) {
+      container.innerHTML = `<div style="text-align:center;padding:20px;color:#888;font-size:0.85rem;">返信はありません</div>`;
+      return;
     }
 
-    _renderReplies(replies) {
-        const container = document.getElementById('repliesList');
-        const countEl   = document.getElementById('replyCount');
-        if (!container) return;
+    container.innerHTML = list.map(r => {
+      const dateStr = r.timestamp
+        ? new Date(r.timestamp).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }).replace(/\//g, '.')
+        : '';
+      return `
+        <div style="padding:12px;border-left:3px solid var(--brand-primary,#4ade80);background:var(--surface-0,rgba(20,20,40,0.5));border-radius:0 8px 8px 0;margin-bottom:10px;">
+          <div style="font-size:0.82rem;color:var(--text-muted,#888);margin-bottom:6px;">
+            <strong style="color:var(--text-color,#e0e0e0);">${this._esc(r.authorName || '匿名')}</strong>　${dateStr}
+          </div>
+          <div style="font-size:0.9rem;color:var(--text-color,#e0e0e0);">${this._esc(r.content || '').replace(/\n/g,'<br>')}</div>
+        </div>`;
+    }).join('');
+  }
 
-        const sorted = Object.entries(replies)
-            .sort(([, a], [, b]) => (a.timestamp || 0) - (b.timestamp || 0));
+  // ─────────────────────────────────────────
+  // 新規投稿
+  // ─────────────────────────────────────────
+  async submitPost() {
+    const title    = document.getElementById('postTitle')?.value.trim();
+    const content  = document.getElementById('postContent')?.value.trim();
+    const catSelect= document.getElementById('postCategory');
+    const catId    = catSelect?.value || '';
 
-        if (countEl) countEl.textContent = sorted.length;
+    if (!title)   { alert('タイトルを入力してください'); return; }
+    if (!content) { alert('内容を入力してください'); return; }
+    if (!catId)   { alert('カテゴリを選択してください'); return; }
 
-        if (sorted.length === 0) {
-            container.innerHTML = `
-                <p style="color:var(--text-secondary); text-align:center; padding:1.5rem;">
-                    まだ返信がありません。最初の返信を投稿しましょう！
-                </p>`;
-            return;
-        }
+    const btn = document.getElementById('submitPostBtn');
+    if (btn) btn.disabled = true;
 
-        let html = '';
-        sorted.forEach(([, reply]) => {
-            html += `
-                <div class="reply-card">
-                    <div class="reply-header">
-                        <span class="reply-author">
-                            <i class="fas fa-user-circle"></i>
-                            ${this._esc(reply.authorName || '不明')}
-                        </span>
-                        <span>${this._formatDate(reply.timestamp)}</span>
-                    </div>
-                    <div class="reply-content">${this._esc(reply.content)}</div>
-                </div>`;
-        });
+    try {
+      const ref = this._db.ref(`${this._root}/announcements/threads`).push();
+      await ref.set({
+        title,
+        content,
+        category:   catId,
+        authorUid:  this.currentUser.uid,
+        authorName: this.currentUser.displayName,
+        timestamp:  Date.now(),
+        views:      0,
+      });
+      this._closeNewPostModal();
+      // 投稿したカテゴリへ移動
+      this.selectCategory(catId);
+    } catch (e) {
+      console.error('投稿エラー:', e);
+      alert('投稿に失敗しました');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
 
-        container.innerHTML = html;
+  // ─────────────────────────────────────────
+  // 返信
+  // ─────────────────────────────────────────
+  async submitReply() {
+    const textarea = document.getElementById('replyInput');
+    const content  = textarea?.value.trim();
+    if (!content || !this.currentThreadId) return;
+
+    const btn = document.getElementById('submitReplyBtn');
+    if (btn) btn.disabled = true;
+
+    try {
+      const ref = this._db.ref(`${this._root}/announcements/threads/${this.currentThreadId}/replies`).push();
+      await ref.set({
+        content,
+        authorUid:  this.currentUser.uid,
+        authorName: this.currentUser.displayName,
+        timestamp:  Date.now(),
+      });
+      textarea.value = '';
+    } catch (e) {
+      console.error('返信エラー:', e);
+      alert('返信に失敗しました');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  // ─────────────────────────────────────────
+  // スレッド削除
+  // ─────────────────────────────────────────
+  async deleteThread(threadId) {
+    if (this.currentUser?.role !== 'admin') { alert('権限がありません'); return; }
+    if (!confirm('このスレッドを削除しますか？この操作は取り消せません。')) return;
+    try {
+      await this._db.ref(`${this._root}/announcements/threads/${threadId}`).remove();
+      this._closeThreadModal();
+    } catch (e) {
+      console.error('削除エラー:', e);
+      alert('削除に失敗しました');
+    }
+  }
+
+  // ─────────────────────────────────────────
+  // カテゴリ追加・削除
+  // ─────────────────────────────────────────
+  async addCategory(name, icon) {
+    if (!['admin','editor'].includes(this.currentUser?.role)) { alert('権限がありません'); return; }
+    if (!name.trim()) { alert('カテゴリ名を入力してください'); return; }
+
+    const exists = Object.values(this.categories).some(c => c.name === name.trim());
+    if (exists) { alert('同名のカテゴリが既に存在します'); return; }
+
+    const order = Object.keys(this.categories).length;
+    const ref   = this._db.ref(`${this._root}/announcements/categories`).push();
+    await ref.set({
+      name:      name.trim(),
+      icon:      icon || '📁',
+      order,
+      createdAt: Date.now(),
+      createdBy: this.currentUser.uid,
+    });
+  }
+
+  async deleteCategory(categoryId) {
+    if (this.currentUser?.role !== 'admin') { alert('権限がありません'); return; }
+    const count = Object.values(this.threads).filter(t => t.category === categoryId).length;
+    if (count > 0) {
+      if (!confirm(`このカテゴリには ${count} 件の投稿があります。削除しますか？（投稿は残ります）`)) return;
+    } else {
+      if (!confirm('このカテゴリを削除しますか？')) return;
+    }
+    await this._db.ref(`${this._root}/announcements/categories/${categoryId}`).remove();
+  }
+
+  // ─────────────────────────────────────────
+  // UIイベントバインド
+  // ─────────────────────────────────────────
+  _bindEvents() {
+    // 【新規投稿】ボタン
+    const newPostBtn = document.getElementById('newPostBtn');
+    if (newPostBtn) {
+      newPostBtn.addEventListener('click', () => this._openNewPostModal());
     }
 
-    // =========================================================
-    // 投稿・返信・削除
-    // =========================================================
-
-    async submitPost(e) {
-        e.preventDefault();
-        const category = document.getElementById('postCategory').value;
-        const title    = document.getElementById('postTitle').value.trim();
-        const content  = document.getElementById('postContent').value.trim();
-
-        if (!title || !content || !category) {
-            alert('カテゴリ・タイトル・内容をすべて入力してください。');
-            return;
-        }
-
-        try {
-            const ref  = this.db.ref(`${this.dataRoot}/announcements/threads`);
-            const key  = ref.push().key;
-            await ref.child(key).set({
-                title     : title,
-                content   : content,
-                category  : category,
-                authorUid : this.currentUser.uid,
-                authorName: this.currentUser.displayName,
-                timestamp : Date.now(),
-                views     : 0
-            });
-
-            // 監査ログ
-            if (window.auditLogger?.log) {
-                window.auditLogger.log('announcement_post', { title });
-            }
-
-            // フォームリセット＆モーダルを閉じる
-            document.getElementById('newPostForm').reset();
-            document.getElementById('newPostModal').classList.remove('active');
-            console.log('[AnnouncementsManager] 投稿完了:', title);
-        } catch (err) {
-            console.error('[AnnouncementsManager] 投稿エラー:', err);
-            alert('投稿に失敗しました。もう一度お試しください。');
-        }
+    // 【カテゴリ管理】ボタン
+    const catMgrBtn = document.getElementById('categoryManagerBtn');
+    if (catMgrBtn) {
+      catMgrBtn.addEventListener('click', () => this._openCategoryModal());
     }
 
-    async submitReply(e) {
-        e.preventDefault();
-        const content = document.getElementById('replyContent').value.trim();
-        if (!content || !this.currentThreadId) return;
-
-        try {
-            const ref = this.db.ref(
-                `${this.dataRoot}/announcements/threads/${this.currentThreadId}/replies`
-            );
-            const key = ref.push().key;
-            await ref.child(key).set({
-                content   : content,
-                authorUid : this.currentUser.uid,
-                authorName: this.currentUser.displayName,
-                timestamp : Date.now()
-            });
-
-            document.getElementById('replyContent').value = '';
-            console.log('[AnnouncementsManager] 返信完了');
-        } catch (err) {
-            console.error('[AnnouncementsManager] 返信エラー:', err);
-            alert('返信に失敗しました。もう一度お試しください。');
-        }
+    // 新規投稿モーダル: 送信
+    const submitPostBtn = document.getElementById('submitPostBtn');
+    if (submitPostBtn) {
+      submitPostBtn.addEventListener('click', () => this.submitPost());
     }
 
-    async deleteThread() {
-        if (this.currentUser.role !== 'admin') {
-            alert('スレッドの削除は管理者のみ可能です。');
-            return;
-        }
-        if (!this.currentThreadId) return;
-
-        const thread = this.threads[this.currentThreadId];
-        if (!confirm(`「${thread?.title}」を削除しますか？\nこの操作は取り消せません。`)) return;
-
-        try {
-            await this.db.ref(
-                `${this.dataRoot}/announcements/threads/${this.currentThreadId}`
-            ).remove();
-
-            document.getElementById('threadDetailModal').classList.remove('active');
-            this.currentThreadId = null;
-
-            // 監査ログ
-            if (window.auditLogger?.log) {
-                window.auditLogger.log('announcement_delete', { title: thread?.title });
-            }
-            console.log('[AnnouncementsManager] スレッド削除完了');
-        } catch (err) {
-            console.error('[AnnouncementsManager] 削除エラー:', err);
-            alert('削除に失敗しました。もう一度お試しください。');
-        }
+    // 新規投稿モーダル: 閉じる
+    const closePostModal = document.getElementById('closePostModal');
+    if (closePostModal) {
+      closePostModal.addEventListener('click', () => this._closeNewPostModal());
     }
 
-    // =========================================================
-    // カテゴリ管理
-    // =========================================================
-
-    async addCategory() {
-        if (!['admin', 'editor'].includes(this.currentUser.role)) {
-            alert('カテゴリの追加は編集者以上の権限が必要です。');
-            return;
-        }
-
-        const input = document.getElementById('newCategoryName');
-        const name  = input.value.trim();
-        if (!name) {
-            alert('カテゴリ名を入力してください。');
-            return;
-        }
-
-        // 重複チェック
-        const exists = Object.values(this.categories)
-            .some(c => c.name === name);
-        if (exists) {
-            alert('同じ名前のカテゴリが既に存在します。');
-            return;
-        }
-
-        try {
-            const ref  = this.db.ref(`${this.dataRoot}/announcements/categories`);
-            const key  = ref.push().key;
-            const maxOrder = Object.values(this.categories)
-                .reduce((max, c) => Math.max(max, c.order ?? 0), 0);
-
-            await ref.child(key).set({
-                name     : name,
-                icon     : '📌',
-                order    : maxOrder + 1,
-                createdAt: new Date().toISOString(),
-                createdBy: this.currentUser.uid
-            });
-
-            input.value = '';
-            console.log('[AnnouncementsManager] カテゴリ追加:', name);
-        } catch (err) {
-            console.error('[AnnouncementsManager] カテゴリ追加エラー:', err);
-            alert('カテゴリの追加に失敗しました。');
-        }
+    // スレッド詳細モーダル: 閉じる
+    const closeThreadModal = document.getElementById('closeThreadModal');
+    if (closeThreadModal) {
+      closeThreadModal.addEventListener('click', () => this._closeThreadModal());
     }
 
-    async deleteCategory(categoryId) {
-        if (this.currentUser.role !== 'admin') {
-            alert('カテゴリの削除は管理者のみ可能です。');
-            return;
-        }
-
-        const cat = this.categories[categoryId];
-        if (!confirm(`カテゴリ「${cat?.name}」を削除しますか？\n※このカテゴリのスレッドは「未分類」として残ります。`)) return;
-
-        try {
-            await this.db.ref(
-                `${this.dataRoot}/announcements/categories/${categoryId}`
-            ).remove();
-            console.log('[AnnouncementsManager] カテゴリ削除:', cat?.name);
-        } catch (err) {
-            console.error('[AnnouncementsManager] カテゴリ削除エラー:', err);
-            alert('カテゴリの削除に失敗しました。');
-        }
+    // 返信送信
+    const submitReplyBtn = document.getElementById('submitReplyBtn');
+    if (submitReplyBtn) {
+      submitReplyBtn.addEventListener('click', () => this.submitReply());
     }
 
-    // カテゴリ管理モーダルの一覧を描画
-    _renderCategoryManageList() {
-        const container = document.getElementById('categoryManageList');
-        if (!container) return;
-
-        const sorted = Object.entries(this.categories)
-            .sort(([, a], [, b]) => (a.order ?? 99) - (b.order ?? 99));
-
-        if (sorted.length === 0) {
-            container.innerHTML = '<p style="color:var(--text-secondary)">カテゴリがありません</p>';
-            return;
-        }
-
-        const isAdmin = this.currentUser.role === 'admin';
-        let html = '';
-        sorted.forEach(([id, cat]) => {
-            const count = Object.values(this.threads)
-                .filter(t => t.category === id).length;
-            html += `
-                <div class="category-manage-item">
-                    <div>
-                        <span style="font-size:1.25rem; margin-right:0.5rem;">${cat.icon || '📌'}</span>
-                        <span class="category-manage-name">${this._esc(cat.name)}</span>
-                        <span style="color:var(--text-secondary); font-size:0.8rem; margin-left:0.5rem;">
-                            (${count}件)
-                        </span>
-                    </div>
-                    ${isAdmin ? `
-                    <button class="btn-delete"
-                            onclick="window.announcementsManager.deleteCategory('${id}')">
-                        <i class="fas fa-trash"></i>
-                    </button>` : '<span style="color:var(--text-secondary);font-size:0.75rem;">削除不可</span>'}
-                </div>`;
-        });
-
-        container.innerHTML = html;
+    // スレッド削除
+    const deleteThreadBtn = document.getElementById('deleteThreadBtn');
+    if (deleteThreadBtn) {
+      deleteThreadBtn.addEventListener('click', () => this.deleteThread(this.currentThreadId));
     }
 
-    // 投稿フォームのセレクトを更新
-    _populateCategorySelect() {
-        const select = document.getElementById('postCategory');
-        if (!select) return;
-
-        const sorted = Object.entries(this.categories)
-            .sort(([, a], [, b]) => (a.order ?? 99) - (b.order ?? 99));
-
-        select.innerHTML = '<option value="">カテゴリを選択してください</option>';
-        sorted.forEach(([id, cat]) => {
-            const opt   = document.createElement('option');
-            opt.value   = id;
-            opt.textContent = `${cat.icon || ''} ${cat.name}`;
-            select.appendChild(opt);
-        });
+    // カテゴリ追加
+    const addCatBtn = document.getElementById('addCategoryBtn');
+    if (addCatBtn) {
+      addCatBtn.addEventListener('click', () => {
+        const nameInput = document.getElementById('newCategoryName');
+        const iconInput = document.getElementById('newCategoryIcon');
+        this.addCategory(nameInput?.value || '', iconInput?.value || '📁');
+        if (nameInput) nameInput.value = '';
+        if (iconInput) iconInput.value = '';
+      });
     }
 
-    // =========================================================
-    // UI イベントバインド
-    // =========================================================
-
-    _bindUIEvents() {
-        // 新規投稿ボタン
-        const newPostBtn = document.getElementById('newPostBtn');
-        if (newPostBtn) {
-            newPostBtn.addEventListener('click', () => {
-                document.getElementById('newPostModal').classList.add('active');
-            });
-        }
-
-        // 投稿フォーム送信
-        const newPostForm = document.getElementById('newPostForm');
-        if (newPostForm) {
-            newPostForm.addEventListener('submit', e => this.submitPost(e));
-        }
-
-        // カテゴリ管理ボタン
-        const catManageBtn = document.getElementById('categoryManageBtn');
-        if (catManageBtn) {
-            catManageBtn.addEventListener('click', () => {
-                this._renderCategoryManageList();
-                document.getElementById('categoryManageModal').classList.add('active');
-            });
-        }
-
-        // カテゴリ追加ボタン
-        const addCatBtn = document.getElementById('addCategoryBtn');
-        if (addCatBtn) {
-            addCatBtn.addEventListener('click', () => this.addCategory());
-        }
-
-        // 返信フォーム送信
-        const replyForm = document.getElementById('replyForm');
-        if (replyForm) {
-            replyForm.addEventListener('submit', e => this.submitReply(e));
-        }
-
-        // スレッド削除ボタン
-        const delBtn = document.getElementById('deleteThreadBtn');
-        if (delBtn) {
-            delBtn.addEventListener('click', () => this.deleteThread());
-        }
-
-        // モーダル外クリックで閉じる
-        ['newPostModal', 'categoryManageModal', 'threadDetailModal'].forEach(id => {
-            const modal = document.getElementById(id);
-            if (modal) {
-                modal.addEventListener('click', e => {
-                    if (e.target === modal) modal.classList.remove('active');
-                });
-            }
-        });
+    // カテゴリ管理モーダル: 閉じる
+    const closeCatModal = document.getElementById('closeCategoryModal');
+    if (closeCatModal) {
+      closeCatModal.addEventListener('click', () => this._closeCategoryModal());
     }
 
-    // =========================================================
-    // 権限による表示制御
-    // =========================================================
-
-    _applyPermissions() {
-        const role = this.currentUser.role;
-
-        // カテゴリ管理ボタン：editor 以上のみ表示
-        const catManageBtn = document.getElementById('categoryManageBtn');
-        if (catManageBtn) {
-            catManageBtn.style.display =
-                ['admin', 'editor'].includes(role) ? 'inline-flex' : 'none';
+    // モーダル背景クリックで閉じる
+    ['newPostModal','threadDetailModal','categoryModal'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('click', e => {
+        if (e.target === el) {
+          el.classList.add('hidden');
+          el.style.display = 'none';
         }
-    }
+      });
+    });
+  }
 
-    // =========================================================
-    // ユーティリティ
-    // =========================================================
-
-    _formatDate(timestamp) {
-        if (!timestamp) return '日時不明';
-        const d = new Date(timestamp);
-        const pad = n => String(n).padStart(2, '0');
-        return `${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())} `
-             + `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  // ─────────────────────────────────────────
+  // 権限UI
+  // ─────────────────────────────────────────
+  _applyPermissions() {
+    const role = this.currentUser?.role;
+    const catMgrBtn = document.getElementById('categoryManagerBtn');
+    if (catMgrBtn) {
+      catMgrBtn.style.display = ['admin','editor'].includes(role) ? 'inline-flex' : 'none';
     }
+  }
 
-    _esc(str) {
-        if (!str) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
+  // ─────────────────────────────────────────
+  // モーダル開閉
+  // ─────────────────────────────────────────
+  _openNewPostModal() {
+    const modal = document.getElementById('newPostModal');
+    if (!modal) return;
+    // カテゴリセレクト更新
+    const sel = document.getElementById('postCategory');
+    if (sel) {
+      const cats = Object.entries(this.categories)
+        .sort((a,b) => (a[1].order||0)-(b[1].order||0));
+      sel.innerHTML = `<option value="">カテゴリを選択...</option>`
+        + cats.map(([id,c]) => `<option value="${id}">${this._esc(c.icon||'')} ${this._esc(c.name)}</option>`).join('');
+      if (this.currentCategoryId) sel.value = this.currentCategoryId;
     }
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
 
-    // リスナー解除（ページ離脱時）
-    destroy() {
-        this.listeners.forEach(({ ref, event }) => ref.off(event));
-        // 返信リスナーも解除
-        if (this.currentThreadId) {
-            this.db.ref(
-                `${this.dataRoot}/announcements/threads/${this.currentThreadId}/replies`
-            ).off('value');
-        }
-        console.log('[AnnouncementsManager] クリーンアップ完了');
+  _closeNewPostModal() {
+    const modal = document.getElementById('newPostModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+    document.getElementById('postTitle').value   = '';
+    document.getElementById('postContent').value = '';
+  }
+
+  _closeThreadModal() {
+    const modal = document.getElementById('threadDetailModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+    if (this._replyListener && this.currentThreadId) {
+      this._db.ref(`${this._root}/announcements/threads/${this.currentThreadId}/replies`).off();
+      this._replyListener = null;
     }
+    this.currentThreadId = null;
+  }
+
+  _openCategoryModal() {
+    const modal = document.getElementById('categoryModal');
+    if (!modal) return;
+    this._renderCategoryList();
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
+
+  _closeCategoryModal() {
+    const modal = document.getElementById('categoryModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+
+  _renderCategoryList() {
+    const list = document.getElementById('categoryListInModal');
+    if (!list) return;
+    const cats = Object.entries(this.categories)
+      .sort((a,b) => (a[1].order||0)-(b[1].order||0));
+    const isAdmin = this.currentUser?.role === 'admin';
+
+    list.innerHTML = cats.map(([id, cat]) => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.07);">
+        <span style="font-size:0.9rem;color:var(--text-color,#e0e0e0);">${this._esc(cat.icon||'📁')} ${this._esc(cat.name)}</span>
+        ${isAdmin ? `<button onclick="announcementsManager.deleteCategory('${id}')"
+          style="background:#ef4444;color:white;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.78rem;">削除</button>` : ''}
+      </div>`).join('');
+  }
+
+  // ─────────────────────────────────────────
+  // ユーティリティ
+  // ─────────────────────────────────────────
+  _esc(str) {
+    return String(str || '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  destroy() {
+    if (this._db && this._root) {
+      this._db.ref(`${this._root}/announcements/categories`).off();
+      this._db.ref(`${this._root}/announcements/threads`).off();
+      if (this._replyListener && this.currentThreadId) {
+        this._db.ref(`${this._root}/announcements/threads/${this.currentThreadId}/replies`).off();
+      }
+    }
+  }
 }
 
-// =========================================================
-// グローバル登録・自動起動
-// =========================================================
+// ─────────────────────────────────────────
+// グローバル登録 & 自動初期化
+// ─────────────────────────────────────────
 window.announcementsManager = new AnnouncementsManager();
 
-document.addEventListener('DOMContentLoaded', async () => {
-    // AuthGuard で認証チェック（未ログインなら index.html へリダイレクト）
-    if (window.AuthGuard) {
-        const ok = await window.AuthGuard.init({ requireAuth: true });
-        if (!ok) return;
-    }
-    // 初期化実行
-    await window.announcementsManager.init();
+document.addEventListener('DOMContentLoaded', () => {
+  const uid = sessionStorage.getItem('targetUID');
+  if (!uid) { location.href = '../index.html'; return; }
+  window.announcementsManager.init();
 });
 
-console.log('[AnnouncementsManager] モジュール読み込み完了');
+window.addEventListener('beforeunload', () => {
+  window.announcementsManager?.destroy();
+});
