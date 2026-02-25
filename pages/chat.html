@@ -4,721 +4,770 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>トーク - CE web App v3</title>
-    
-    <!-- 外部ライブラリ -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+
+    <!-- External Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Theme -->
     <link rel="stylesheet" href="../css/theme-unified.css">
-    
-    <!-- Firebase SDK -->
+
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <!-- Custom Scripts -->
     <script src="../js/config/firebase-config.js"></script>
-    
-    <!-- 認証ガード -->
     <script src="../js/utils/auth-guard.js"></script>
-    
-    <!-- 監査ログ -->
     <script src="../js/utils/audit-logger.js"></script>
-    
+    <script src="../js/ui/theme-switcher.js"></script>
+
     <style>
+        * { box-sizing: border-box; }
+
         body {
-            background: var(--primary-gradient);
-            font-family: 'Noto Sans JP', 'Segoe UI', sans-serif;
-            color: var(--text-color);
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-        }
-
-        .chat-container {
-            display: flex;
+            background: var(--bg-gradient);
+            color: var(--text-primary);
             height: 100vh;
-            max-width: 1600px;
-            margin: 0 auto;
-        }
-
-        /* サイドバー */
-        .chat-sidebar {
-            width: 340px;
-            background: var(--glass-bg);
-            border-right: 1px solid var(--glass-border);
+            overflow: hidden;
             display: flex;
             flex-direction: column;
         }
 
-        .sidebar-header {
-            padding: 20px;
-            background: var(--glass-bg-strong);
+        /* ========== ヘッダー ========== */
+        .chat-header {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            box-shadow: var(--shadow-lg);
+            z-index: 10;
+        }
+
+        .chat-header h1 {
+            font-size: 1.375rem;
+            font-weight: 600;
+        }
+
+        /* ========== メインレイアウト ========== */
+        .chat-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ========== 左サイドバー（ルーム一覧） ========== */
+        .rooms-sidebar {
+            width: 300px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .rooms-sidebar-header {
+            padding: 1rem;
             border-bottom: 1px solid var(--glass-border);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .sidebar-header h2 {
-            margin: 0;
-            font-size: 20px;
-            color: var(--text-strong);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .new-chat-btn {
-            background: var(--brand-primary);
-            color: #0B1220;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
-            cursor: pointer;
+        .rooms-sidebar-header h2 {
+            font-size: 1rem;
             font-weight: 600;
-            font-size: 14px;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 6px;
+            color: var(--text-primary);
         }
 
-        .new-chat-btn:hover {
-            background: var(--brand-secondary);
-            transform: translateY(-2px);
-        }
-
-        .search-box {
-            padding: 16px;
-            border-bottom: 1px solid var(--glass-border);
-        }
-
-        .search-box input {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid var(--glass-border);
-            border-radius: 8px;
-            font-size: 14px;
-            box-sizing: border-box;
-            background: var(--surface-0);
-            color: var(--text-color);
-        }
-
-        .search-box input:focus {
-            outline: none;
-            border-color: var(--brand-primary);
-        }
-
-        .room-list {
+        .rooms-list {
             flex: 1;
             overflow-y: auto;
+            padding: 0.5rem 0;
         }
 
         .room-item {
-            padding: 16px;
-            border-bottom: 1px solid var(--glass-border);
+            padding: 0.875rem 1rem;
             cursor: pointer;
-            transition: all 0.3s;
-            position: relative;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
 
         .room-item:hover {
-            background: var(--surface-0);
+            background: rgba(45, 212, 191, 0.08);
         }
 
         .room-item.active {
-            background: rgba(45, 212, 191, 0.15);
-            border-left: 4px solid var(--brand-primary);
+            background: rgba(45, 212, 191, 0.12);
+            border-left-color: var(--accent-color);
         }
 
-        .room-header {
+        .room-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(45, 212, 191, 0.2);
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-bottom: 6px;
+            justify-content: center;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+            border: 1px solid rgba(45, 212, 191, 0.3);
+        }
+
+        .room-info {
+            flex: 1;
+            overflow: hidden;
         }
 
         .room-name {
             font-weight: 600;
-            color: var(--text-strong);
-            font-size: 15px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .room-time {
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        .room-preview {
-            font-size: 13px;
-            color: var(--text-muted);
+            font-size: 0.9375rem;
+            color: var(--text-primary);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            margin-bottom: 6px;
+        }
+
+        .room-last-message {
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 0.2rem;
+        }
+
+        .room-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0.375rem;
+            flex-shrink: 0;
+        }
+
+        .room-time {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
         }
 
         .unread-badge {
-            background: #ff5722;
+            background: #FF5722;
             color: white;
-            border-radius: 12px;
-            padding: 2px 8px;
-            font-size: 11px;
-            font-weight: bold;
-            margin-left: 8px;
-        }
-
-        .read-status {
-            font-size: 12px;
-            color: var(--brand-primary);
-        }
-
-        .back-home-btn {
-            padding: 16px;
-            border-top: 1px solid var(--glass-border);
-            text-align: center;
-        }
-
-        .back-home-btn a {
-            display: block;
-            padding: 10px;
-            background: var(--surface-0);
-            border: 1px solid var(--glass-border);
-            border-radius: 8px;
-            color: var(--text-color);
-            text-decoration: none;
-            transition: all 0.3s;
-        }
-
-        .back-home-btn a:hover {
-            background: var(--surface-1);
-            border-color: var(--brand-primary);
-        }
-
-        /* チャットエリア */
-        .chat-area {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            background: var(--glass-bg);
-        }
-
-        .chat-header {
-            padding: 20px 24px;
-            background: var(--glass-bg-strong);
-            border-bottom: 1px solid var(--glass-border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .chat-header-info {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .chat-avatar {
-            width: 48px;
-            height: 48px;
             border-radius: 50%;
-            background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
+            min-width: 20px;
+            height: 20px;
+            padding: 0 5px;
+            font-size: 0.6875rem;
+            font-weight: 700;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #0B1220;
-            font-weight: bold;
-            font-size: 18px;
         }
 
-        .chat-title {
-            margin: 0;
-            font-size: 18px;
-            color: var(--text-strong);
+        /* ========== 右メインエリア（チャット） ========== */
+        .chat-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
-        .chat-members {
-            font-size: 13px;
-            color: var(--text-muted);
-            margin-top: 4px;
+        /* 空の状態 */
+        .chat-empty {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            gap: 1rem;
         }
 
+        .chat-empty i {
+            font-size: 4rem;
+            opacity: 0.4;
+        }
+
+        /* チャットルーム */
+        .chat-room {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .chat-room.active {
+            display: flex;
+        }
+
+        /* チャットエリアヘッダー */
+        .chat-room-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            flex-shrink: 0;
+        }
+
+        .chat-room-name {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .chat-room-members {
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+        }
+
+        /* メッセージエリア */
         .messages-area {
             flex: 1;
             overflow-y: auto;
-            padding: 24px;
-            background: var(--surface-0);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
         }
 
+        /* 日付区切り */
         .date-divider {
             text-align: center;
-            margin: 24px 0;
-            position: relative;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            padding: 0.75rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
 
-        .date-divider::before {
+        .date-divider::before,
+        .date-divider::after {
             content: '';
-            position: absolute;
-            left: 0;
-            right: 0;
-            top: 50%;
+            flex: 1;
             height: 1px;
             background: var(--glass-border);
         }
 
-        .date-divider span {
-            background: var(--surface-0);
-            padding: 6px 16px;
-            border-radius: 12px;
-            font-size: 13px;
-            color: var(--text-muted);
-            position: relative;
-            z-index: 1;
-        }
-
-        .message {
+        /* メッセージバブル */
+        .message-row {
             display: flex;
-            gap: 12px;
-            margin-bottom: 16px;
+            align-items: flex-end;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
         }
 
-        .message.own {
+        .message-row.mine {
             flex-direction: row-reverse;
         }
 
-        .message-avatar {
-            width: 40px;
-            height: 40px;
+        .message-avatar-small {
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: rgba(45, 212, 191, 0.2);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 14px;
+            font-size: 0.75rem;
             flex-shrink: 0;
+            border: 1px solid rgba(45, 212, 191, 0.3);
         }
 
-        .message-content {
-            max-width: 60%;
+        .message-content-wrap {
+            max-width: 65%;
             display: flex;
             flex-direction: column;
         }
 
-        .message.own .message-content {
+        .message-row.mine .message-content-wrap {
             align-items: flex-end;
         }
 
-        .message-sender {
-            font-size: 13px;
-            color: var(--text-muted);
-            margin-bottom: 4px;
-            font-weight: 500;
-        }
-
-        .message.own .message-sender {
-            display: none;
+        .message-sender-name {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+            padding-left: 0.25rem;
         }
 
         .message-bubble {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            padding: 12px 16px;
+            padding: 0.625rem 1rem;
             border-radius: 16px;
-            word-wrap: break-word;
-            color: var(--text-color);
+            font-size: 0.9375rem;
             line-height: 1.5;
+            word-break: break-word;
+            white-space: pre-wrap;
         }
 
-        .message.own .message-bubble {
-            background: var(--brand-primary);
+        .message-row.mine .message-bubble {
+            background: var(--accent-color);
             color: #0B1220;
-            border-color: var(--brand-primary);
+            border-radius: 16px 16px 4px 16px;
+        }
+
+        .message-row.others .message-bubble {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            border-radius: 16px 16px 16px 4px;
+        }
+
+        .message-footer {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            margin-top: 0.25rem;
+            padding: 0 0.25rem;
         }
 
         .message-time {
-            font-size: 11px;
-            color: var(--text-muted);
-            margin-top: 4px;
-            display: flex;
-            align-items: center;
-            gap: 4px;
+            font-size: 0.6875rem;
+            color: var(--text-secondary);
         }
 
-        .read-receipt {
-            color: var(--brand-primary);
-            font-weight: bold;
+        .message-read {
+            font-size: 0.6875rem;
+            color: var(--accent-color);
         }
 
-        .message-input-area {
-            padding: 20px 24px;
-            background: var(--glass-bg-strong);
+        /* 入力エリア */
+        .chat-input-area {
+            padding: 1rem 1.5rem;
             border-top: 1px solid var(--glass-border);
-        }
-
-        .input-wrapper {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
             display: flex;
-            gap: 12px;
+            gap: 0.75rem;
             align-items: flex-end;
+            flex-shrink: 0;
         }
 
-        .message-input {
+        .chat-input {
             flex: 1;
-            padding: 12px 16px;
+            padding: 0.75rem 1rem;
+            background: rgba(17, 24, 39, 0.4);
             border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            font-size: 14px;
+            border-radius: 24px;
+            color: var(--text-primary);
+            font-size: 0.9375rem;
             resize: none;
-            min-height: 44px;
             max-height: 120px;
-            font-family: inherit;
-            background: var(--surface-0);
-            color: var(--text-color);
+            line-height: 1.5;
+            transition: border-color 0.2s;
         }
 
-        .message-input:focus {
+        .chat-input:focus {
             outline: none;
-            border-color: var(--brand-primary);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.1);
+        }
+
+        .chat-input::placeholder {
+            color: var(--text-secondary);
         }
 
         .send-btn {
-            background: var(--brand-primary);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: var(--accent-color);
             color: #0B1220;
             border: none;
-            padding: 12px 24px;
-            border-radius: 20px;
             cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s;
             display: flex;
             align-items: center;
-            gap: 6px;
+            justify-content: center;
+            font-size: 1rem;
+            transition: all 0.2s;
+            flex-shrink: 0;
         }
 
         .send-btn:hover {
-            background: var(--brand-secondary);
-            transform: translateY(-2px);
+            background: #26bfa5;
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(45, 212, 191, 0.4);
         }
 
         .send-btn:disabled {
-            background: var(--text-muted);
+            opacity: 0.4;
             cursor: not-allowed;
             transform: none;
         }
 
-        .empty-state {
-            display: flex;
-            flex-direction: column;
+        /* ========== ボタン共通 ========== */
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            display: inline-flex;
             align-items: center;
-            justify-content: center;
-            height: 100%;
-            color: var(--text-muted);
+            gap: 0.5rem;
+            font-size: 0.875rem;
         }
 
-        .empty-state-icon {
-            font-size: 64px;
-            margin-bottom: 16px;
-            opacity: 0.5;
+        .btn-primary {
+            background: var(--accent-color);
+            color: #0B1220;
         }
 
-        /* モーダル */
+        .btn-primary:hover {
+            background: #26bfa5;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--glass-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--glass-border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent-color);
+        }
+
+        /* ========== モーダル ========== */
         .modal {
             display: none;
             position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.7);
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
             backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
         }
 
-        .modal.active {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            animation: fadeIn 0.3s;
-        }
+        .modal.active { display: flex; }
 
         .modal-content {
-            background: var(--glass-bg-strong);
-            border: 1px solid var(--glass-border-strong);
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
             border-radius: 16px;
-            padding: 32px;
-            max-width: 600px;
+            padding: 2rem;
             width: 90%;
-            max-height: 80vh;
+            max-width: 500px;
+            max-height: 85vh;
             overflow-y: auto;
-            animation: slideUp 0.3s;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
         }
 
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 24px;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--glass-border);
         }
 
-        .modal-header h2 {
-            margin: 0;
-            color: var(--text-strong);
+        .modal-header h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
         }
 
-        .close-btn {
-            font-size: 28px;
-            font-weight: bold;
-            color: var(--text-muted);
-            cursor: pointer;
-            border: none;
+        .close-modal {
             background: none;
+            border: none;
+            font-size: 1.375rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            line-height: 1;
+            padding: 0.25rem;
         }
 
-        .close-btn:hover {
-            color: var(--text-strong);
+        .close-modal:hover { color: var(--text-primary); }
+
+        /* チャットタイプ切替 */
+        .chat-type-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.25rem;
         }
 
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
+        .type-tab {
+            flex: 1;
+            padding: 0.625rem;
+            border-radius: 8px;
+            border: 1px solid var(--glass-border);
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
             font-weight: 500;
-            color: var(--text-color);
+            transition: all 0.2s;
+            text-align: center;
         }
 
-        .form-group input {
+        .type-tab.active {
+            background: rgba(45, 212, 191, 0.15);
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        /* フォーム */
+        .form-group { margin-bottom: 1.25rem; }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-size: 0.9375rem;
+        }
+
+        .form-input {
             width: 100%;
-            padding: 12px;
+            padding: 0.75rem 1rem;
+            background: rgba(17, 24, 39, 0.4);
             border: 1px solid var(--glass-border);
             border-radius: 8px;
-            font-size: 14px;
-            box-sizing: border-box;
-            background: var(--surface-0);
-            color: var(--text-color);
+            color: var(--text-primary);
+            font-size: 0.9375rem;
+            transition: all 0.2s;
         }
 
-        .chat-type-buttons {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 20px;
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.1);
         }
 
-        .type-btn {
-            flex: 1;
-            padding: 12px;
-            border: 2px solid var(--glass-border);
-            border-radius: 8px;
-            background: var(--surface-0);
-            color: var(--text-color);
-            cursor: pointer;
-            transition: all 0.3s;
-            font-weight: 500;
-        }
-
-        .type-btn.active {
-            border-color: var(--brand-primary);
-            background: rgba(45, 212, 191, 0.1);
-            color: var(--brand-primary);
-        }
-
+        /* ユーザー選択リスト */
         .user-select-list {
-            max-height: 300px;
+            max-height: 260px;
             overflow-y: auto;
             border: 1px solid var(--glass-border);
             border-radius: 8px;
-            padding: 12px;
-            background: var(--surface-0);
+            background: rgba(17, 24, 39, 0.3);
         }
 
         .user-select-item {
             display: flex;
             align-items: center;
-            padding: 10px;
-            border-radius: 6px;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: background 0.15s;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
         }
 
-        .user-select-item:hover {
-            background: var(--surface-1);
-        }
+        .user-select-item:last-child { border-bottom: none; }
 
-        .user-select-item input[type="checkbox"] {
-            margin-right: 12px;
+        .user-select-item:hover { background: rgba(45, 212, 191, 0.07); }
+
+        .user-select-item.selected { background: rgba(45, 212, 191, 0.12); }
+
+        .user-checkbox {
             width: 18px;
             height: 18px;
-            cursor: pointer;
+            border-radius: 4px;
+            border: 2px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.15s;
         }
 
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s;
+        .user-select-item.selected .user-checkbox {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
         }
 
-        .btn-primary {
-            background: var(--brand-primary);
+        .user-select-item.selected .user-checkbox::after {
+            content: '✓';
             color: #0B1220;
+            font-size: 0.75rem;
+            font-weight: 700;
         }
 
-        .btn-primary:hover {
-            background: var(--brand-secondary);
+        .user-display-name {
+            font-weight: 500;
+            color: var(--text-primary);
         }
 
-        .btn-secondary {
-            background: transparent;
-            border: 1px solid var(--glass-border);
-            color: var(--text-color);
+        .user-role-badge {
+            font-size: 0.6875rem;
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+            margin-left: auto;
         }
 
-        .btn-secondary:hover {
-            border-color: var(--brand-primary);
-            background: rgba(45, 212, 191, 0.1);
-        }
+        .role-admin { background: rgba(239,68,68,0.2); color: #FCA5A5; }
+        .role-editor { background: rgba(234,179,8,0.2); color: #FDE68A; }
+        .role-user { background: rgba(45,212,191,0.15); color: var(--accent-color); }
 
-        .loading-spinner {
-            text-align: center;
-            padding: 40px;
-            color: var(--text-muted);
-        }
-
-        .spinner {
-            border: 3px solid var(--glass-border);
-            border-top: 3px solid var(--brand-primary);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 16px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes slideUp {
-            from { transform: translateY(50px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
+        /* スクロールバー */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(17, 24, 39, 0.3); }
+        ::-webkit-scrollbar-thumb { background: rgba(45, 212, 191, 0.3); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(45, 212, 191, 0.5); }
 
         /* レスポンシブ */
         @media (max-width: 768px) {
-            .chat-sidebar {
-                width: 100%;
-                position: absolute;
-                z-index: 10;
-                height: 100%;
-            }
+            .rooms-sidebar { width: 240px; }
+            .messages-area { padding: 1rem; }
+            .chat-input-area { padding: 0.75rem 1rem; }
+            .modal-content { padding: 1.5rem; }
+        }
 
-            .chat-sidebar.hidden {
-                display: none;
-            }
-
-            .chat-area.hidden {
-                display: none;
-            }
+        @media (max-width: 520px) {
+            .rooms-sidebar { display: none; }
+            .rooms-sidebar.show { display: flex; position: absolute; z-index: 20; height: 100%; }
         }
     </style>
 </head>
-<body class="theme-unified">
-    <div class="chat-container">
-        <!-- チャットルーム一覧サイドバー -->
-        <div class="chat-sidebar" id="chatSidebar">
-            <div class="sidebar-header">
-                <h2>
-                    <i class="fas fa-comments"></i>
-                    トーク
-                </h2>
-                <button class="new-chat-btn" onclick="openNewChatModal()">
-                    <i class="fas fa-plus"></i> 新規
-                </button>
-            </div>
-            <div class="search-box">
-                <input type="text" placeholder="🔍 チャットを検索..." id="searchInput" oninput="chatManager.searchRooms(this.value)">
-            </div>
-            <div class="room-list" id="roomList">
-                <div class="loading-spinner">
-                    <div class="spinner"></div>
-                    <p>読み込み中...</p>
-                </div>
-            </div>
-            <div class="back-home-btn">
-                <a href="home.html">
-                    <i class="fas fa-home"></i> ホームへ戻る
-                </a>
-            </div>
-        </div>
+<body>
 
-        <!-- チャットエリア -->
-        <div class="chat-area" id="chatArea">
-            <div class="empty-state">
-                <div class="empty-state-icon">💬</div>
-                <h3>チャットを選択してください</h3>
-                <p style="margin-top: 10px;">左側からチャットルームを選択するか、<br>新しいチャットを作成してください</p>
-                <button class="btn btn-primary" style="margin-top: 20px;" onclick="openNewChatModal()">
-                    <i class="fas fa-plus"></i> 新規チャット
-                </button>
-            </div>
+    <!-- ヘッダー -->
+    <div class="chat-header">
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+            <button id="sidebarToggleBtn" class="btn btn-secondary"
+                    style="display:none; padding:0.5rem 0.75rem;"
+                    onclick="document.querySelector('.rooms-sidebar').classList.toggle('show')">
+                <i class="fas fa-bars"></i>
+            </button>
+            <h1>💬 トーク</h1>
+        </div>
+        <div style="display:flex; gap:0.75rem; align-items:center;">
+            <button id="newChatBtn" class="btn btn-primary">
+                <i class="fas fa-plus"></i> 新規チャット
+            </button>
+            <button onclick="window.location.href='../pages/home.html'" class="btn btn-secondary">
+                <i class="fas fa-home"></i> ホームへ戻る
+            </button>
         </div>
     </div>
 
-    <!-- 新規チャット作成モーダル -->
-    <div id="newChatModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2><i class="fas fa-plus-circle"></i> 新しいチャット</h2>
-                <button class="close-btn" onclick="closeNewChatModal()">&times;</button>
+    <!-- メインレイアウト -->
+    <div class="chat-body">
+
+        <!-- 左サイドバー（ルーム一覧） -->
+        <div class="rooms-sidebar">
+            <div class="rooms-sidebar-header">
+                <h2>チャット一覧</h2>
+                <span id="totalUnreadBadge" style="display:none;"
+                      class="unread-badge"></span>
             </div>
-            
-            <div class="form-group">
-                <label>チャットタイプ</label>
-                <div class="chat-type-buttons">
-                    <button class="type-btn active" id="directBtn" onclick="selectChatType('direct')">
-                        <i class="fas fa-user"></i> 1対1
-                    </button>
-                    <button class="type-btn" id="groupBtn" onclick="selectChatType('group')">
-                        <i class="fas fa-users"></i> グループ
+            <div id="roomsList" class="rooms-list">
+                <div style="text-align:center; padding:2rem; color:var(--text-secondary);">
+                    <i class="fas fa-spinner fa-spin"></i> 読み込み中...
+                </div>
+            </div>
+        </div>
+
+        <!-- 右メインエリア -->
+        <div class="chat-main">
+
+            <!-- 空状態（ルーム未選択） -->
+            <div id="chatEmpty" class="chat-empty">
+                <i class="fas fa-comments"></i>
+                <p style="font-size:1.125rem; font-weight:500;">チャットを選択してください</p>
+                <p style="font-size:0.875rem;">左の一覧からチャットを選ぶか、<br>「新規チャット」で会話を始めましょう</p>
+            </div>
+
+            <!-- チャットルーム -->
+            <div id="chatRoom" class="chat-room">
+                <!-- チャットルームヘッダー -->
+                <div class="chat-room-header">
+                    <div class="room-avatar" id="roomHeaderAvatar">💬</div>
+                    <div>
+                        <div class="chat-room-name" id="roomHeaderName">ルーム名</div>
+                        <div class="chat-room-members" id="roomHeaderMembers"></div>
+                    </div>
+                </div>
+
+                <!-- メッセージエリア -->
+                <div id="messagesArea" class="messages-area"></div>
+
+                <!-- 入力エリア -->
+                <div class="chat-input-area">
+                    <textarea id="chatInput"
+                              class="chat-input"
+                              rows="1"
+                              placeholder="メッセージを入力... (Shift+Enterで改行)"
+                              maxlength="2000"></textarea>
+                    <button id="sendBtn" class="send-btn" disabled>
+                        <i class="fas fa-paper-plane"></i>
                     </button>
                 </div>
             </div>
 
-            <div class="form-group" id="groupNameField" style="display: none;">
-                <label for="groupName">グループ名</label>
-                <input type="text" id="groupName" placeholder="例：プロジェクトチーム">
+        </div>
+    </div>
+
+    <!-- 新規チャットモーダル -->
+    <div id="newChatModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>新規チャット</h3>
+                <button class="close-modal"
+                        onclick="document.getElementById('newChatModal').classList.remove('active')">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
 
+            <!-- タイプ選択タブ -->
+            <div class="chat-type-tabs">
+                <button class="type-tab active" id="tabDirect"
+                        onclick="window.chatManager.switchChatType('direct')">
+                    <i class="fas fa-user"></i> 1対1チャット
+                </button>
+                <button class="type-tab" id="tabGroup"
+                        onclick="window.chatManager.switchChatType('group')">
+                    <i class="fas fa-users"></i> グループチャット
+                </button>
+            </div>
+
+            <!-- グループ名（グループのみ表示） -->
+            <div id="groupNameSection" class="form-group" style="display:none;">
+                <label class="form-label">グループ名</label>
+                <input type="text" id="groupNameInput" class="form-input"
+                       placeholder="グループ名を入力（省略可）" maxlength="50">
+            </div>
+
+            <!-- ユーザー選択 -->
             <div class="form-group">
-                <label id="memberLabel">相手を選択</label>
-                <div class="user-select-list" id="userSelectList">
-                    <div class="loading-spinner">
-                        <div class="spinner"></div>
+                <label class="form-label" id="userSelectLabel">
+                    チャットする相手を選択
+                </label>
+                <div id="userSelectList" class="user-select-list">
+                    <div style="text-align:center; padding:1.5rem; color:var(--text-secondary);">
+                        <i class="fas fa-spinner fa-spin"></i> ユーザー読み込み中...
                     </div>
                 </div>
             </div>
 
-            <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
-                <button class="btn btn-secondary" onclick="closeNewChatModal()">キャンセル</button>
-                <button class="btn btn-primary" onclick="chatManager.createNewChat()">
-                    <i class="fas fa-check"></i> 作成
+            <div style="display:flex; gap:0.75rem; justify-content:flex-end;">
+                <button class="btn btn-secondary"
+                        onclick="document.getElementById('newChatModal').classList.remove('active')">
+                    キャンセル
+                </button>
+                <button id="createChatBtn" class="btn btn-primary" disabled>
+                    <i class="fas fa-plus"></i> 作成する
                 </button>
             </div>
         </div>
     </div>
 
+    <!-- Scripts -->
+    <script src="../js/modules/user-manager.js"></script>
     <script src="../js/modules/chat-manager.js"></script>
 </body>
 </html>
