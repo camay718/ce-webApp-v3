@@ -1,771 +1,636 @@
-/**
- * チャット管理モジュール (Chat Manager)
- *
- * 依存ファイル:
- *   - js/config/firebase-config.js  （window.database, window.DATA_ROOT）
- *   - js/utils/auth-guard.js         （AuthGuard.getSession()）
- *   - js/modules/user-manager.js     （window.userManager ※任意）
- *
- * Firebase パス:
- *   ceScheduleV3/chats/rooms/{roomId}
- *   ceScheduleV3/chats/messages/{roomId}/{messageId}
- *
- * 権限:
- *   チャット閲覧・送信 : 自分がメンバーのルームのみ
- *   ルーム作成         : 全ユーザー
- */
+// ============================================================
+// js/modules/chat-manager.js
+// チャット管理モジュール（完全修正版）
+// ============================================================
 
 class ChatManager {
-    constructor() {
-        this.db              = null;
-        this.dataRoot        = null;
-        this.currentUser     = null;   // { uid, username, displayName, role }
-        this.allUsers        = [];     // 全ユーザーキャッシュ
-        this.rooms           = {};     // { roomId: roomData }
-        this.currentRoomId   = null;
-        this.chatType        = 'direct'; // 'direct' | 'group'
-        this.selectedUserIds = [];       // 新規チャット用選択ユーザー
-        this.msgListener     = null;     // 現在のメッセージリスナー解除関数
-        this.roomsListener   = null;
+  constructor() {
+    this.currentUser = null;   // { uid, username, displayName, role }
+    this.allUsers    = {};      // { uid: userData }
+    this.rooms       = {};      // { roomId: roomData }
+    this.currentRoomId = null;
+    this.currentChatType = 'direct'; // 'direct' | 'group'
+    this.selectedUsers = [];
+    this._roomsListener = null;
+    this._msgListener   = null;
+    this._editingMsgId  = null;
+    this._editingRoomId = null;
+    this._db = null;
+    this._root = null;
+  }
+
+  // ─────────────────────────────────────────
+  // 初期化
+  // ─────────────────────────────────────────
+  async init() {
+    try {
+      await this._waitForFirebase();
+      this._db   = window.database;
+      this._root = window.DATA_ROOT;
+
+      await this._loadCurrentUser();
+      await this._loadAllUsers();
+      this._setupRoomsListener();
+      this._bindUIEvents();
+      this._openRoomFromURL();
+
+      console.log('✅ ChatManager 初期化完了:', this.currentUser);
+    } catch (e) {
+      console.error('❌ ChatManager 初期化エラー:', e);
+    }
+  }
+
+  async _waitForFirebase() {
+    for (let i = 0; i < 50; i++) {
+      if (window.database && window.DATA_ROOT && window.auth) return;
+      await new Promise(r => setTimeout(r, 100));
+    }
+    throw new Error('Firebase 初期化タイムアウト');
+  }
+
+  // ─────────────────────────────────────────
+  // ユーザー読み込み
+  // ─────────────────────────────────────────
+  async _loadCurrentUser() {
+    // 1. AuthGuard → sessionStorage
+    const uid      = sessionStorage.getItem('targetUID');
+    const username = sessionStorage.getItem('currentUsername');
+    const role     = sessionStorage.getItem('userRole') || 'viewer';
+
+    if (!uid || !username) {
+      alert('ログインが必要です');
+      location.href = '../index.html';
+      throw new Error('未認証');
     }
 
-    // =========================================================
-    // 初期化
-    // =========================================================
+    // Firebase からフル情報を取得
+    const snap = await this._db.ref(`${this._root}/users/${uid}`).once('value');
+    const data = snap.val() || {};
 
-    async init() {
-        console.log('[ChatManager] 初期化開始');
-        try {
-            await this._waitForFirebase();
-            await this._loadCurrentUser();
-            await this._loadAllUsers();
-            this._setupRoomsListener();
-            this._bindUIEvents();
+    this.currentUser = {
+      uid,
+      username:    data.username    || username,
+      displayName: data.displayName || data.username || username,
+      role:        data.role        || role,
+    };
+  }
 
-            // URLパラメータでルーム直接開く
-            const params = new URLSearchParams(location.search);
-            const roomParam = params.get('room');
-            if (roomParam) {
-                setTimeout(() => this.selectRoom(roomParam), 800);
-            }
+  async _loadAllUsers() {
+    const snap = await this._db.ref(`${this._root}/users`).once('value');
+    const data = snap.val() || {};
+    this.allUsers = data;
+  }
 
-            console.log('[ChatManager] ✅ 初期化完了');
-        } catch (err) {
-            console.error('[ChatManager] ❌ 初期化失敗:', err);
+  // ─────────────────────────────────────────
+  // ルームリスナー
+  // ─────────────────────────────────────────
+  _setupRoomsListener() {
+    const ref = this._db.ref(`${this._root}/chats/rooms`);
+    this._roomsListener = ref.on('value', snap => {
+      const all = snap.val() || {};
+      // 自分がメンバーのルームのみ（admin は全件見れる）
+      const myRooms = {};
+      const uid   = this.currentUser.uid;
+      const isAdmin = this.currentUser.role === 'admin';
+      Object.entries(all).forEach(([id, room]) => {
+        if (isAdmin || (room.members && room.members[uid])) {
+          myRooms[id] = room;
         }
+      });
+      this.rooms = myRooms;
+      this._renderRoomList();
+    });
+  }
+
+  // ─────────────────────────────────────────
+  // サイドバー描画
+  // ─────────────────────────────────────────
+  _renderRoomList() {
+    const list = document.getElementById('roomsList');
+    const totalBadge = document.getElementById('totalUnreadBadge');
+    if (!list) return;
+
+    const uid = this.currentUser.uid;
+    const sorted = Object.entries(this.rooms).sort((a, b) => {
+      return (b[1].lastMessageAt || b[1].createdAt || 0) - (a[1].lastMessageAt || a[1].createdAt || 0);
+    });
+
+    let totalUnread = 0;
+    if (sorted.length === 0) {
+      list.innerHTML = `<div style="padding:20px;text-align:center;color:#888;font-size:0.85rem;">トークはありません</div>`;
+    } else {
+      list.innerHTML = sorted.map(([id, room]) => {
+        const unread = (room.unreadCount && room.unreadCount[uid]) ? room.unreadCount[uid] : 0;
+        totalUnread += unread;
+        const isGroup = room.type === 'group';
+        const avatar  = isGroup
+          ? `<div class="room-avatar group-avatar"><i class="fas fa-users"></i></div>`
+          : `<div class="room-avatar">${this._initials(room.name || '?')}</div>`;
+        const timeStr = room.lastMessageAt ? this._fmtTimeAgo(room.lastMessageAt) : '';
+        return `
+          <div class="room-item ${id === this.currentRoomId ? 'active' : ''}"
+               onclick="chatManager.selectRoom('${id}')">
+            ${avatar}
+            <div class="room-info">
+              <div class="room-name">${this._esc(room.name || '無名')}</div>
+              <div class="room-last-msg">${this._esc(room.lastMessage || '')}</div>
+            </div>
+            <div class="room-meta">
+              <span class="room-time">${timeStr}</span>
+              ${unread > 0 ? `<span class="unread-badge">${unread > 99 ? '99+' : unread}</span>` : ''}
+            </div>
+          </div>`;
+      }).join('');
     }
 
-    async _waitForFirebase() {
-        if (window.waitForFirebase) {
-            await window.waitForFirebase();
-        } else {
-            let attempts = 0;
-            while (!(window.database && window.DATA_ROOT) && attempts < 50) {
-                await new Promise(r => setTimeout(r, 100));
-                attempts++;
-            }
-        }
-        if (!window.database) throw new Error('Firebase database が利用できません');
-        this.db       = window.database;
-        this.dataRoot = window.DATA_ROOT;
+    // 合計未読バッジ
+    if (totalBadge) {
+      totalBadge.textContent = totalUnread > 99 ? '99+' : totalUnread;
+      totalBadge.style.display = totalUnread > 0 ? 'inline-block' : 'none';
+    }
+  }
+
+  // ─────────────────────────────────────────
+  // ルーム選択
+  // ─────────────────────────────────────────
+  async selectRoom(roomId) {
+    if (this._msgListener && this.currentRoomId) {
+      this._db.ref(`${this._root}/chats/messages/${this.currentRoomId}`).off();
+      this._msgListener = null;
+    }
+    this.currentRoomId = roomId;
+    const room = this.rooms[roomId];
+    if (!room) return;
+
+    // ルームヘッダー更新
+    document.getElementById('chatEmptyState').style.display   = 'none';
+    const area = document.getElementById('chatRoomArea');
+    area.style.display = 'flex';
+
+    const isGroup = room.type === 'group';
+    const avatarEl = document.getElementById('chatRoomAvatar');
+    avatarEl.textContent = isGroup ? '' : this._initials(room.name || '?');
+    if (isGroup) {
+      avatarEl.innerHTML = '<i class="fas fa-users"></i>';
+      avatarEl.className = 'room-avatar group-avatar';
+    } else {
+      avatarEl.className = 'room-avatar';
+    }
+    document.getElementById('chatRoomTitle').textContent = room.name || '無名';
+
+    // メンバー名一覧
+    if (room.members) {
+      const memberNames = Object.keys(room.members).map(uid => {
+        const u = this.allUsers[uid];
+        return u ? (u.displayName || u.username) : uid;
+      });
+      document.getElementById('chatRoomMembers').textContent = memberNames.join('、');
     }
 
-    async _loadCurrentUser() {
-        // user-manager.js が初期化済みであれば優先使用
-        if (window.userManager?.currentUser) {
-            this.currentUser = window.userManager.currentUser;
-            console.log('[ChatManager] userManager からユーザー取得:', this.currentUser);
-            return;
-        }
+    document.getElementById('sendBtn').disabled = false;
 
-        const session = window.AuthGuard ? window.AuthGuard.getSession() : null;
-        if (session?.uid) {
-            try {
-                const snap = await this.db
-                    .ref(`${this.dataRoot}/users/${session.uid}`)
-                    .once('value');
-                const data = snap.val();
-                this.currentUser = {
-                    uid        : session.uid,
-                    username   : session.username,
-                    displayName: data?.displayName || data?.name || session.username,
-                    role       : data?.role || session.role || 'user'
-                };
-            } catch {
-                this.currentUser = {
-                    uid        : session.uid,
-                    username   : session.username,
-                    displayName: session.username,
-                    role       : session.role || 'user'
-                };
-            }
-        } else {
-            // 開発中フォールバック
-            this.currentUser = { uid: 'admin', username: 'admin', displayName: '管理者', role: 'admin' };
-            console.warn('[ChatManager] セッション情報なし。admin でフォールバック');
-        }
-        console.log('[ChatManager] currentUser:', this.currentUser);
+    // サイドバーの active 状態更新
+    document.querySelectorAll('.room-item').forEach(el => el.classList.remove('active'));
+    const items = document.querySelectorAll('.room-item');
+    items.forEach(el => {
+      if (el.onclick && el.getAttribute('onclick')?.includes(roomId)) el.classList.add('active');
+    });
+    this._renderRoomList(); // active 再描画
+
+    // 未読をクリア（Firebase）
+    await this._markAsRead(roomId);
+
+    // メッセージリスナー起動
+    this._setupMessageListener(roomId);
+
+    // スマホ: サイドバー閉じる
+    if (window.innerWidth <= 600) {
+      document.getElementById('roomsSidebar').classList.add('hidden-mobile');
     }
+  }
 
-    async _loadAllUsers() {
-        try {
-            const snap = await this.db.ref(`${this.dataRoot}/users`).once('value');
-            if (snap.exists()) {
-                this.allUsers = Object.entries(snap.val())
-                    .map(([key, u]) => ({
-                        id         : key,
-                        uid        : u.uid || key,
-                        username   : u.username,
-                        displayName: u.displayName || u.name || u.username,
-                        role       : u.role || 'user'
-                    }))
-                    // 自分自身は除外
-                    .filter(u => u.uid !== this.currentUser.uid);
-            } else {
-                // Firebase にユーザーがなければ CE_LIST_INITIAL を使用
-                const ce = window.CE_LIST_INITIAL || [];
-                this.allUsers = ce.map((c, i) => ({
-                    id         : `ce-${i}`,
-                    uid        : `ce-${i}`,
-                    username   : c.name,
-                    displayName: c.fullName || c.name,
-                    role       : 'user'
-                })).filter(u => u.uid !== this.currentUser.uid);
-            }
-            console.log('[ChatManager] ユーザー数:', this.allUsers.length);
-        } catch (err) {
-            console.error('[ChatManager] ユーザー取得エラー:', err);
-            this.allUsers = [];
-        }
+  // ─────────────────────────────────────────
+  // 未読クリア
+  // ─────────────────────────────────────────
+  async _markAsRead(roomId) {
+    const uid = this.currentUser.uid;
+    try {
+      // unreadCount[uid] = 0
+      await this._db.ref(`${this._root}/chats/rooms/${roomId}/unreadCount/${uid}`).set(0);
+    } catch (e) {
+      console.warn('未読クリアエラー:', e);
     }
+  }
 
-    // =========================================================
-    // ルームリスナー
-    // =========================================================
+  // ─────────────────────────────────────────
+  // メッセージリスナー & 描画
+  // ─────────────────────────────────────────
+  _setupMessageListener(roomId) {
+    const ref = this._db.ref(`${this._root}/chats/messages/${roomId}`)
+      .orderByChild('timestamp').limitToLast(100);
+    this._msgListener = ref.on('value', snap => {
+      const data = snap.val() || {};
+      this._renderMessages(data, roomId);
+    });
+  }
 
-    _setupRoomsListener() {
-        const ref = this.db.ref(`${this.dataRoot}/chats/rooms`);
-        ref.on('value', snap => {
-            const all = snap.exists() ? snap.val() : {};
-            // 自分がメンバーのルームだけフィルタ
-            this.rooms = {};
-            Object.entries(all).forEach(([id, room]) => {
-                if (room.members && room.members[this.currentUser.uid]) {
-                    this.rooms[id] = room;
-                }
-            });
-            this._renderRoomList();
+  _renderMessages(data, roomId) {
+    const area = document.getElementById('messagesArea');
+    if (!area) return;
+    const uid = this.currentUser.uid;
+    const msgs = Object.entries(data)
+      .map(([id, m]) => ({ id, ...m }))
+      .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+    let lastDate = '';
+    let html = '';
+
+    msgs.forEach(msg => {
+      // 日付区切り
+      const d = new Date(msg.timestamp || 0);
+      const dateStr = d.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+      if (dateStr !== lastDate) {
+        html += `<div class="date-divider"><span>${dateStr}</span></div>`;
+        lastDate = dateStr;
+      }
+
+      const isSelf   = msg.senderUid === uid;
+      const isSystem = msg.type === 'system';
+      const timeStr  = new Date(msg.timestamp || 0).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+      const senderName = msg.senderName || '不明';
+      const readCount  = msg.readBy ? Object.keys(msg.readBy).filter(k => k !== msg.senderUid).length : 0;
+      const editedMark = msg.editedAt ? '<span class="msg-edited">(編集済)</span>' : '';
+
+      if (isSystem) {
+        html += `<div class="msg-row system"><div class="msg-bubble">${this._esc(msg.content)}</div></div>`;
+        return;
+      }
+
+      // アバター（相手のみ）
+      const avatarHtml = !isSelf
+        ? `<div class="msg-avatar">${this._initials(senderName)}</div>`
+        : '';
+
+      // アクションボタン（自分のメッセージのみ編集・削除）
+      const actionBtns = isSelf ? `
+        <div class="msg-actions">
+          <button class="msg-action-btn" title="編集"
+            onclick="chatManager.openEditModal('${roomId}','${msg.id}',\`${this._escAttr(msg.content)}\`)">
+            <i class="fas fa-edit"></i>
+          </button>
+          <button class="msg-action-btn delete" title="削除"
+            onclick="chatManager.deleteMessage('${roomId}','${msg.id}')">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>` : '';
+
+      html += `
+        <div class="msg-row ${isSelf ? 'self' : 'other'}">
+          ${!isSelf ? `<div class="msg-sender-name">${this._esc(senderName)}</div>` : ''}
+          <div class="msg-bubble-wrap">
+            ${avatarHtml}
+            <div>
+              <div class="msg-bubble">${this._esc(msg.content)}</div>
+            </div>
+            ${actionBtns}
+          </div>
+          <div class="msg-meta">
+            <span class="msg-time">${timeStr}</span>
+            ${editedMark}
+            ${isSelf && readCount > 0 ? `<span class="msg-read">✓✓ 既読${readCount}</span>` : ''}
+          </div>
+        </div>`;
+    });
+
+    area.innerHTML = html || `<div class="chat-empty"><i class="fas fa-comment-slash"></i><p>まだメッセージがありません</p></div>`;
+    area.scrollTop = area.scrollHeight;
+  }
+
+  // ─────────────────────────────────────────
+  // メッセージ送信
+  // ─────────────────────────────────────────
+  async sendMessage() {
+    const input = document.getElementById('chatInput');
+    const content = input.value.trim();
+    if (!content || !this.currentRoomId) return;
+
+    const uid  = this.currentUser.uid;
+    const room = this.rooms[this.currentRoomId];
+    input.value = '';
+    input.style.height = '44px';
+    document.getElementById('sendBtn').disabled = true;
+
+    try {
+      const msgRef = this._db.ref(`${this._root}/chats/messages/${this.currentRoomId}`).push();
+      await msgRef.set({
+        content,
+        senderUid:  uid,
+        senderName: this.currentUser.displayName,
+        timestamp:  Date.now(),
+        readBy:     { [uid]: true },
+      });
+
+      // ルーム最終メッセージ & 未読カウント更新
+      const updates = {
+        [`${this._root}/chats/rooms/${this.currentRoomId}/lastMessage`]:   content,
+        [`${this._root}/chats/rooms/${this.currentRoomId}/lastMessageAt`]: Date.now(),
+      };
+      if (room && room.members) {
+        Object.keys(room.members).forEach(memberId => {
+          if (memberId !== uid) {
+            updates[`${this._root}/chats/rooms/${this.currentRoomId}/unreadCount/${memberId}`]
+              = (room.unreadCount?.[memberId] || 0) + 1;
+          }
         });
-        this.roomsListener = ref;
+      }
+      await this._db.ref().update(updates);
+    } catch (e) {
+      console.error('送信エラー:', e);
+    } finally {
+      document.getElementById('sendBtn').disabled = false;
+      input.focus();
+    }
+  }
+
+  // ─────────────────────────────────────────
+  // 削除・編集
+  // ─────────────────────────────────────────
+  async deleteMessage(roomId, msgId) {
+    if (!confirm('このメッセージを削除しますか？')) return;
+    try {
+      await this._db.ref(`${this._root}/chats/messages/${roomId}/${msgId}`).remove();
+    } catch (e) {
+      console.error('削除エラー:', e);
+      alert('削除に失敗しました');
+    }
+  }
+
+  openEditModal(roomId, msgId, content) {
+    this._editingRoomId = roomId;
+    this._editingMsgId  = msgId;
+    document.getElementById('editInput').value = content;
+    document.getElementById('editModal').classList.remove('hidden');
+    document.getElementById('editInput').focus();
+  }
+
+  async submitEdit() {
+    const newContent = document.getElementById('editInput').value.trim();
+    if (!newContent || !this._editingMsgId) return;
+    try {
+      await this._db.ref(`${this._root}/chats/messages/${this._editingRoomId}/${this._editingMsgId}`).update({
+        content:  newContent,
+        editedAt: Date.now(),
+      });
+      document.getElementById('editModal').classList.add('hidden');
+    } catch (e) {
+      console.error('編集エラー:', e);
+      alert('編集に失敗しました');
+    }
+  }
+
+  // ─────────────────────────────────────────
+  // 新規チャット作成
+  // ─────────────────────────────────────────
+  switchChatType(type) {
+    this.currentChatType = type;
+    this.selectedUsers = [];
+    document.getElementById('tab1on1').classList.toggle('active', type === 'direct');
+    document.getElementById('tabGroup').classList.toggle('active', type === 'group');
+    document.getElementById('groupNameInput').style.display = type === 'group' ? 'block' : 'none';
+    this._renderUserSelectList();
+    this._updateCreateBtnState();
+  }
+
+  _renderUserSelectList() {
+    const list  = document.getElementById('userSelectList');
+    const myUid = this.currentUser.uid;
+    const users = Object.entries(this.allUsers)
+      .filter(([uid]) => uid !== myUid)
+      .sort((a, b) => (a[1].displayName || '').localeCompare(b[1].displayName || ''));
+
+    if (users.length === 0) {
+      list.innerHTML = `<div style="padding:16px; text-align:center; color:#888;">ユーザーが見つかりません</div>`;
+      return;
     }
 
-    // =========================================================
-    // ルーム一覧レンダリング
-    // =========================================================
+    list.innerHTML = users.map(([uid, u]) => {
+      const name    = u.displayName || u.username || uid;
+      const sel     = this.selectedUsers.includes(uid);
+      return `
+        <div class="user-select-item ${sel ? 'selected' : ''}"
+             onclick="chatManager.toggleUserSelect('${uid}')">
+          <div class="usr-avatar">${this._initials(name)}</div>
+          <span class="usr-name">${this._esc(name)}</span>
+          <div class="usr-check">${sel ? '<i class="fas fa-check"></i>' : ''}</div>
+        </div>`;
+    }).join('');
+  }
 
-    _renderRoomList() {
-        const container = document.getElementById('roomsList');
-        if (!container) return;
+  toggleUserSelect(uid) {
+    const idx = this.selectedUsers.indexOf(uid);
+    if (this.currentChatType === 'direct') {
+      // 1対1: 1人だけ選択
+      this.selectedUsers = idx >= 0 ? [] : [uid];
+    } else {
+      if (idx >= 0) this.selectedUsers.splice(idx, 1);
+      else this.selectedUsers.push(uid);
+    }
+    this._renderUserSelectList();
+    this._updateCreateBtnState();
+  }
 
-        // 最終メッセージ時刻の降順でソート
-        const sorted = Object.entries(this.rooms)
-            .sort(([, a], [, b]) => (b.lastMessageAt || b.createdAt || 0) - (a.lastMessageAt || a.createdAt || 0));
+  _updateCreateBtnState() {
+    const btn = document.getElementById('createRoomBtn');
+    const ok  = this.selectedUsers.length > 0
+      && (this.currentChatType === 'direct' || document.getElementById('groupNameInput').value.trim() !== '');
+    btn.disabled = !ok;
+  }
 
-        // 未読総数を計算してバッジ更新
-        let totalUnread = 0;
-        sorted.forEach(([, room]) => {
-            totalUnread += (room.unreadCount?.[this.currentUser.uid] || 0);
-        });
-        const totalBadge = document.getElementById('totalUnreadBadge');
-        if (totalBadge) {
-            if (totalUnread > 0) {
-                totalBadge.textContent = totalUnread > 99 ? '99+' : totalUnread;
-                totalBadge.style.display = 'flex';
-            } else {
-                totalBadge.style.display = 'none';
-            }
+  async createRoom() {
+    if (this.selectedUsers.length === 0) return;
+    const uid  = this.currentUser.uid;
+    const type = this.currentChatType;
+
+    // 1対1の場合：既存ルームをチェック
+    if (type === 'direct') {
+      const existing = await this._findExistingDirectRoom(uid, this.selectedUsers[0]);
+      if (existing) {
+        this._closeNewChatModal();
+        this.selectRoom(existing);
+        return;
+      }
+    }
+
+    const otherUid  = this.selectedUsers[0];
+    const otherUser = this.allUsers[otherUid];
+    const groupName = document.getElementById('groupNameInput').value.trim();
+    const roomName  = type === 'direct'
+      ? (otherUser?.displayName || otherUser?.username || '不明')
+      : groupName;
+
+    const members = { [uid]: true };
+    this.selectedUsers.forEach(id => { members[id] = true; });
+
+    const roomRef = this._db.ref(`${this._root}/chats/rooms`).push();
+    await roomRef.set({
+      name:          roomName,
+      type,
+      members,
+      creator:       uid,
+      createdAt:     Date.now(),
+      lastMessage:   '',
+      lastMessageAt: 0,
+      unreadCount:   {},
+    });
+
+    this._closeNewChatModal();
+    this.selectRoom(roomRef.key);
+  }
+
+  async _findExistingDirectRoom(uid1, uid2) {
+    const snap = await this._db.ref(`${this._root}/chats/rooms`).once('value');
+    const all  = snap.val() || {};
+    for (const [id, room] of Object.entries(all)) {
+      if (room.type === 'direct' && room.members?.[uid1] && room.members?.[uid2]
+          && Object.keys(room.members).length === 2) {
+        return id;
+      }
+    }
+    return null;
+  }
+
+  // ─────────────────────────────────────────
+  // UIイベント
+  // ─────────────────────────────────────────
+  _bindUIEvents() {
+    // 新規チャットボタン
+    document.getElementById('newChatBtn')?.addEventListener('click', () => {
+      this.openNewChatModal();
+    });
+    document.getElementById('modalCloseBtn')?.addEventListener('click', () => {
+      this._closeNewChatModal();
+    });
+    document.getElementById('newChatModal')?.addEventListener('click', e => {
+      if (e.target === document.getElementById('newChatModal')) this._closeNewChatModal();
+    });
+
+    // 作成ボタン
+    document.getElementById('createRoomBtn')?.addEventListener('click', () => {
+      this.createRoom();
+    });
+
+    // グループ名入力
+    document.getElementById('groupNameInput')?.addEventListener('input', () => {
+      this._updateCreateBtnState();
+    });
+
+    // 送信ボタン
+    document.getElementById('sendBtn')?.addEventListener('click', () => {
+      this.sendMessage();
+    });
+
+    // テキストエリア: Enter → 改行、送信ボタンのみで送信
+    const input = document.getElementById('chatInput');
+    if (input) {
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          // Enter 単独では何もしない（改行扱い）—デフォルト通り
+          // ※ 送信はボタンのみ
+          // e.preventDefault(); // コメントアウト: 改行を許可
         }
-
-        if (sorted.length === 0) {
-            container.innerHTML = `
-                <div style="text-align:center; padding:2.5rem 1rem; color:var(--text-secondary);">
-                    <i class="fas fa-comment-slash" style="font-size:2rem; display:block; margin-bottom:0.75rem; opacity:0.4;"></i>
-                    チャットがありません<br>
-                    <span style="font-size:0.8125rem;">「新規チャット」で始めましょう</span>
-                </div>`;
-            return;
-        }
-
-        let html = '';
-        sorted.forEach(([id, room]) => {
-            const unread    = room.unreadCount?.[this.currentUser.uid] || 0;
-            const isActive  = id === this.currentRoomId;
-            const isGroup   = room.type === 'group';
-            const avatar    = isGroup ? '👥' : '👤';
-            const name      = room.name || '不明なルーム';
-            const lastMsg   = room.lastMessage
-                ? this._esc(room.lastMessage).substring(0, 30) + (room.lastMessage.length > 30 ? '…' : '')
-                : 'まだメッセージがありません';
-            const timeStr   = this._formatTime(room.lastMessageAt || room.createdAt);
-
-            html += `
-                <div class="room-item ${isActive ? 'active' : ''}"
-                     onclick="window.chatManager.selectRoom('${id}')">
-                    <div class="room-avatar">${avatar}</div>
-                    <div class="room-info">
-                        <div class="room-name">${this._esc(name)}</div>
-                        <div class="room-last-message" style="${unread > 0 ? 'color:var(--text-primary);font-weight:500;' : ''}">
-                            ${lastMsg}
-                        </div>
-                    </div>
-                    <div class="room-meta">
-                        <span class="room-time">${timeStr}</span>
-                        ${unread > 0 ? `<span class="unread-badge">${unread > 99 ? '99+' : unread}</span>` : ''}
-                    </div>
-                </div>`;
-        });
-
-        container.innerHTML = html;
+      });
+      input.addEventListener('input', () => {
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+      });
     }
 
-    // =========================================================
-    // ルーム選択・メッセージ表示
-    // =========================================================
+    // スマホ: サイドバートグル
+    document.getElementById('sidebarToggle')?.addEventListener('click', () => {
+      document.getElementById('roomsSidebar').classList.remove('hidden-mobile');
+    });
+    document.getElementById('sidebarCloseBtn')?.addEventListener('click', () => {
+      document.getElementById('roomsSidebar').classList.add('hidden-mobile');
+    });
+  }
 
-    selectRoom(roomId) {
-        if (!this.rooms[roomId]) return;
+  openNewChatModal() {
+    this.selectedUsers = [];
+    this.currentChatType = 'direct';
+    document.getElementById('tab1on1').classList.add('active');
+    document.getElementById('tabGroup').classList.remove('active');
+    document.getElementById('groupNameInput').style.display = 'none';
+    document.getElementById('groupNameInput').value = '';
+    document.getElementById('createRoomBtn').disabled = true;
+    document.getElementById('newChatModal').classList.remove('hidden');
+    this._renderUserSelectList();
+  }
 
-        this.currentRoomId = roomId;
-        const room = this.rooms[roomId];
-        const memberCount = room.members ? Object.keys(room.members).length : 0;
+  _closeNewChatModal() {
+    document.getElementById('newChatModal').classList.add('hidden');
+    this.selectedUsers = [];
+  }
 
-        // ヘッダー更新
-        const headerName    = document.getElementById('roomHeaderName');
-        const headerMembers = document.getElementById('roomHeaderMembers');
-        const headerAvatar  = document.getElementById('roomHeaderAvatar');
-        if (headerName)    headerName.textContent    = room.name || '不明なルーム';
-        if (headerMembers) headerMembers.textContent = `${memberCount}名`;
-        if (headerAvatar)  headerAvatar.textContent  = room.type === 'group' ? '👥' : '👤';
+  _openRoomFromURL() {
+    const params = new URLSearchParams(location.search);
+    const roomId = params.get('room');
+    if (roomId) setTimeout(() => this.selectRoom(roomId), 500);
+  }
 
-        // 空状態を非表示、チャットルームを表示
-        document.getElementById('chatEmpty').style.display = 'none';
-        const chatRoom = document.getElementById('chatRoom');
-        chatRoom.classList.add('active');
+  // ─────────────────────────────────────────
+  // ユーティリティ
+  // ─────────────────────────────────────────
+  _initials(name) {
+    return (name || '?').trim().charAt(0).toUpperCase();
+  }
 
-        // 送信ボタン有効化
-        const sendBtn = document.getElementById('sendBtn');
-        if (sendBtn) sendBtn.disabled = false;
+  _esc(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/\n/g, '<br>');
+  }
 
-        // ルーム一覧の選択状態を更新
-        this._renderRoomList();
+  _escAttr(str) {
+    return String(str || '').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+  }
 
-        // 既読処理
-        this._markAsRead(roomId);
+  _fmtTimeAgo(ts) {
+    const diff = Date.now() - ts;
+    const m = Math.floor(diff / 60000);
+    const h = Math.floor(diff / 3600000);
+    const d = Math.floor(diff / 86400000);
+    if (m < 1)  return 'たった今';
+    if (m < 60) return `${m}分前`;
+    if (h < 24) return `${h}時間前`;
+    if (d < 7)  return `${d}日前`;
+    return new Date(ts).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' });
+  }
 
-        // メッセージリスナー設定
-        this._setupMessageListener(roomId);
+  destroy() {
+    if (this._db && this._root && this.currentRoomId) {
+      this._db.ref(`${this._root}/chats/messages/${this.currentRoomId}`).off();
     }
-
-    _setupMessageListener(roomId) {
-        // 既存リスナーを解除
-        if (this.msgListener) {
-            this.msgListener();
-            this.msgListener = null;
-        }
-
-        const ref = this.db.ref(`${this.dataRoot}/chats/messages/${roomId}`);
-        const handler = ref.on('value', snap => {
-            const msgs = snap.exists() ? snap.val() : {};
-            this._renderMessages(msgs);
-            // 新着メッセージは既読にする
-            if (this.currentRoomId === roomId) {
-                this._markAsRead(roomId);
-            }
-        });
-        // 解除用クロージャ
-        this.msgListener = () => ref.off('value', handler);
+    if (this._db && this._root) {
+      this._db.ref(`${this._root}/chats/rooms`).off();
     }
-
-    // =========================================================
-    // メッセージレンダリング
-    // =========================================================
-
-    _renderMessages(messages) {
-        const area = document.getElementById('messagesArea');
-        if (!area) return;
-
-        const sorted = Object.entries(messages)
-            .sort(([, a], [, b]) => (a.timestamp || 0) - (b.timestamp || 0));
-
-        if (sorted.length === 0) {
-            area.innerHTML = `
-                <div style="text-align:center; padding:3rem; color:var(--text-secondary);">
-                    <i class="fas fa-comment-dots" style="font-size:2.5rem; display:block; margin-bottom:1rem; opacity:0.3;"></i>
-                    最初のメッセージを送信してください
-                </div>`;
-            return;
-        }
-
-        let html = '';
-        let lastDateStr = '';
-
-        sorted.forEach(([msgId, msg]) => {
-            const isMine   = msg.senderUid === this.currentUser.uid;
-            const dateStr  = this._formatDateOnly(msg.timestamp);
-            const timeStr  = this._formatTimeOnly(msg.timestamp);
-            const readBy   = msg.readBy ? Object.keys(msg.readBy) : [];
-            // 自分以外の既読者数
-            const readCount = readBy.filter(uid => uid !== this.currentUser.uid).length;
-
-            // 日付区切り
-            if (dateStr !== lastDateStr) {
-                html += `<div class="date-divider">${dateStr}</div>`;
-                lastDateStr = dateStr;
-            }
-
-            if (isMine) {
-                // 自分のメッセージ（右側）
-                html += `
-                    <div class="message-row mine">
-                        <div class="message-content-wrap">
-                            <div class="message-bubble">
-                                ${this._esc(msg.content)}
-                            </div>
-                            <div class="message-footer">
-                                ${readCount > 0
-                                    ? `<span class="message-read">既読 ${readCount}</span>`
-                                    : ''}
-                                <span class="message-time">${timeStr}</span>
-                            </div>
-                        </div>
-                    </div>`;
-            } else {
-                // 相手のメッセージ（左側）
-                const senderInitial = (msg.senderName || '?').charAt(0);
-                html += `
-                    <div class="message-row others">
-                        <div class="message-avatar-small">${senderInitial}</div>
-                        <div class="message-content-wrap">
-                            <div class="message-sender-name">${this._esc(msg.senderName || '不明')}</div>
-                            <div class="message-bubble">
-                                ${this._esc(msg.content)}
-                            </div>
-                            <div class="message-footer">
-                                <span class="message-time">${timeStr}</span>
-                            </div>
-                        </div>
-                    </div>`;
-            }
-        });
-
-        area.innerHTML = html;
-        // 最新メッセージまでスクロール
-        area.scrollTop = area.scrollHeight;
-    }
-
-    // =========================================================
-    // メッセージ送信
-    // =========================================================
-
-    async sendMessage() {
-        const input = document.getElementById('chatInput');
-        if (!input) return;
-
-        const content = input.value.trim();
-        if (!content || !this.currentRoomId) return;
-
-        const sendBtn = document.getElementById('sendBtn');
-        if (sendBtn) sendBtn.disabled = true;
-
-        try {
-            const msgRef = this.db.ref(
-                `${this.dataRoot}/chats/messages/${this.currentRoomId}`
-            );
-            const key = msgRef.push().key;
-
-            // readBy に自分を登録（送信と同時に自分は既読）
-            const readBy = { [this.currentUser.uid]: true };
-
-            await msgRef.child(key).set({
-                content   : content,
-                senderUid : this.currentUser.uid,
-                senderName: this.currentUser.displayName,
-                timestamp : Date.now(),
-                readBy    : readBy
-            });
-
-            // ルームの lastMessage を更新
-            const roomRef = this.db.ref(
-                `${this.dataRoot}/chats/rooms/${this.currentRoomId}`
-            );
-            const room = this.rooms[this.currentRoomId];
-            const updates = {
-                lastMessage  : content,
-                lastMessageAt: Date.now(),
-                lastMessageBy: this.currentUser.uid
-            };
-
-            // 自分以外のメンバーの未読数をインクリメント
-            if (room?.members) {
-                Object.keys(room.members).forEach(uid => {
-                    if (uid !== this.currentUser.uid) {
-                        updates[`unreadCount/${uid}`] = (room.unreadCount?.[uid] || 0) + 1;
-                    }
-                });
-            }
-
-            await roomRef.update(updates);
-
-            input.value = '';
-            input.style.height = 'auto';
-            if (sendBtn) sendBtn.disabled = false;
-            console.log('[ChatManager] メッセージ送信完了');
-
-        } catch (err) {
-            console.error('[ChatManager] 送信エラー:', err);
-            alert('メッセージの送信に失敗しました。もう一度お試しください。');
-            if (sendBtn) sendBtn.disabled = false;
-        }
-    }
-
-    // =========================================================
-    // 既読処理
-    // =========================================================
-
-    async _markAsRead(roomId) {
-        try {
-            // 未読カウントをリセット
-            await this.db.ref(
-                `${this.dataRoot}/chats/rooms/${roomId}/unreadCount/${this.currentUser.uid}`
-            ).set(0);
-
-            // 直近100件のメッセージに readBy を記録
-            const msgsSnap = await this.db
-                .ref(`${this.dataRoot}/chats/messages/${roomId}`)
-                .limitToLast(100)
-                .once('value');
-
-            if (!msgsSnap.exists()) return;
-
-            const updates = {};
-            msgsSnap.forEach(child => {
-                const msg = child.val();
-                if (!msg.readBy?.[this.currentUser.uid]) {
-                    updates[`${child.key}/readBy/${this.currentUser.uid}`] = true;
-                }
-            });
-
-            if (Object.keys(updates).length > 0) {
-                await this.db
-                    .ref(`${this.dataRoot}/chats/messages/${roomId}`)
-                    .update(updates);
-            }
-        } catch (err) {
-            console.error('[ChatManager] 既読処理エラー:', err);
-        }
-    }
-
-    // =========================================================
-    // 新規チャット作成
-    // =========================================================
-
-    // チャットタイプ切替（モーダル内）
-    switchChatType(type) {
-        this.chatType = type;
-        this.selectedUserIds = [];
-
-        document.getElementById('tabDirect').classList.toggle('active', type === 'direct');
-        document.getElementById('tabGroup').classList.toggle('active', type === 'group');
-        document.getElementById('groupNameSection').style.display =
-            type === 'group' ? 'block' : 'none';
-
-        const label = document.getElementById('userSelectLabel');
-        if (label) {
-            label.textContent = type === 'direct'
-                ? 'チャットする相手を選択'
-                : 'グループメンバーを選択（複数可）';
-        }
-
-        this._renderUserSelectList();
-        this._updateCreateBtnState();
-    }
-
-    // ユーザー選択リストを描画
-    _renderUserSelectList() {
-        const container = document.getElementById('userSelectList');
-        if (!container) return;
-
-        if (this.allUsers.length === 0) {
-            container.innerHTML = `
-                <div style="text-align:center; padding:1.5rem; color:var(--text-secondary);">
-                    ユーザーが見つかりません
-                </div>`;
-            return;
-        }
-
-        let html = '';
-        this.allUsers.forEach(user => {
-            const isSelected = this.selectedUserIds.includes(user.uid);
-            const roleLabel  = user.role === 'admin'  ? '<span class="user-role-badge role-admin">管理者</span>'
-                             : user.role === 'editor' ? '<span class="user-role-badge role-editor">編集者</span>'
-                             : '';
-            html += `
-                <div class="user-select-item ${isSelected ? 'selected' : ''}"
-                     onclick="window.chatManager.toggleUserSelect('${user.uid}')">
-                    <div class="user-checkbox"></div>
-                    <span class="user-display-name">${this._esc(user.displayName)}</span>
-                    ${roleLabel}
-                </div>`;
-        });
-
-        container.innerHTML = html;
-    }
-
-    toggleUserSelect(uid) {
-        if (this.chatType === 'direct') {
-            // 1対1は1人だけ選択
-            this.selectedUserIds = this.selectedUserIds.includes(uid) ? [] : [uid];
-        } else {
-            // グループは複数選択
-            const idx = this.selectedUserIds.indexOf(uid);
-            if (idx >= 0) {
-                this.selectedUserIds.splice(idx, 1);
-            } else {
-                this.selectedUserIds.push(uid);
-            }
-        }
-        this._renderUserSelectList();
-        this._updateCreateBtnState();
-    }
-
-    _updateCreateBtnState() {
-        const btn = document.getElementById('createChatBtn');
-        if (!btn) return;
-        const valid = this.chatType === 'direct'
-            ? this.selectedUserIds.length === 1
-            : this.selectedUserIds.length >= 1;
-        btn.disabled = !valid;
-    }
-
-    async createRoom() {
-        if (this.selectedUserIds.length === 0) return;
-
-        const btn = document.getElementById('createChatBtn');
-        if (btn) btn.disabled = true;
-
-        try {
-            const allMemberUids = [this.currentUser.uid, ...this.selectedUserIds];
-
-            if (this.chatType === 'direct') {
-                // 1対1: 既存の direct ルームがあれば再利用
-                const existingId = await this._findExistingDirectRoom(this.selectedUserIds[0]);
-                if (existingId) {
-                    document.getElementById('newChatModal').classList.remove('active');
-                    this.selectRoom(existingId);
-                    return;
-                }
-            }
-
-            // ルーム名の決定
-            let roomName = '';
-            if (this.chatType === 'group') {
-                const inputName = document.getElementById('groupNameInput').value.trim();
-                if (inputName) {
-                    roomName = inputName;
-                } else {
-                    // 参加者名を並べてグループ名に
-                    const names = this.selectedUserIds
-                        .map(uid => this.allUsers.find(u => u.uid === uid)?.displayName || uid)
-                        .slice(0, 3);
-                    roomName = names.join('、') + (this.selectedUserIds.length > 3 ? '...他' : '');
-                }
-            } else {
-                // 1対1: 相手の名前をルーム名に
-                const partner = this.allUsers.find(u => u.uid === this.selectedUserIds[0]);
-                roomName = partner?.displayName || '1対1チャット';
-            }
-
-            // members を { uid: true } 形式に変換
-            const members = {};
-            allMemberUids.forEach(uid => { members[uid] = true; });
-
-            // Firebase にルームを作成
-            const ref  = this.db.ref(`${this.dataRoot}/chats/rooms`);
-            const key  = ref.push().key;
-            await ref.child(key).set({
-                name       : roomName,
-                type       : this.chatType,
-                members    : members,
-                createdBy  : this.currentUser.uid,
-                createdAt  : Date.now(),
-                lastMessage: '',
-                lastMessageAt: Date.now(),
-                unreadCount: {}
-            });
-
-            // モーダルを閉じて新しいルームを開く
-            document.getElementById('newChatModal').classList.remove('active');
-            document.getElementById('groupNameInput').value = '';
-            this.selectedUserIds = [];
-
-            setTimeout(() => this.selectRoom(key), 500);
-            console.log('[ChatManager] ルーム作成完了:', roomName);
-
-        } catch (err) {
-            console.error('[ChatManager] ルーム作成エラー:', err);
-            alert('チャットの作成に失敗しました。もう一度お試しください。');
-        } finally {
-            if (btn) btn.disabled = false;
-        }
-    }
-
-    // 既存の 1対1 ルームを探す
-    async _findExistingDirectRoom(partnerUid) {
-        const entry = Object.entries(this.rooms).find(([, room]) => {
-            if (room.type !== 'direct') return false;
-            const memberUids = Object.keys(room.members || {});
-            return memberUids.length === 2
-                && memberUids.includes(this.currentUser.uid)
-                && memberUids.includes(partnerUid);
-        });
-        return entry ? entry[0] : null;
-    }
-
-    // =========================================================
-    // UI イベントバインド
-    // =========================================================
-
-    _bindUIEvents() {
-        // 新規チャットボタン
-        const newChatBtn = document.getElementById('newChatBtn');
-        if (newChatBtn) {
-            newChatBtn.addEventListener('click', () => {
-                this.chatType        = 'direct';
-                this.selectedUserIds = [];
-                document.getElementById('tabDirect').classList.add('active');
-                document.getElementById('tabGroup').classList.remove('active');
-                document.getElementById('groupNameSection').style.display = 'none';
-                document.getElementById('groupNameInput').value = '';
-                this._renderUserSelectList();
-                this._updateCreateBtnState();
-                document.getElementById('newChatModal').classList.add('active');
-            });
-        }
-
-        // チャット作成ボタン
-        const createChatBtn = document.getElementById('createChatBtn');
-        if (createChatBtn) {
-            createChatBtn.addEventListener('click', () => this.createRoom());
-        }
-
-        // 送信ボタン
-        const sendBtn = document.getElementById('sendBtn');
-        if (sendBtn) {
-            sendBtn.addEventListener('click', () => this.sendMessage());
-        }
-
-        // テキストエリア：Enter送信 / Shift+Enter改行
-        const chatInput = document.getElementById('chatInput');
-        if (chatInput) {
-            chatInput.addEventListener('keydown', e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    this.sendMessage();
-                }
-            });
-            // 高さ自動調整
-            chatInput.addEventListener('input', () => {
-                chatInput.style.height = 'auto';
-                chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
-                const sendBtn = document.getElementById('sendBtn');
-                if (sendBtn) sendBtn.disabled = chatInput.value.trim() === '';
-            });
-        }
-
-        // モーダル外クリックで閉じる
-        const modal = document.getElementById('newChatModal');
-        if (modal) {
-            modal.addEventListener('click', e => {
-                if (e.target === modal) modal.classList.remove('active');
-            });
-        }
-
-        // モバイル: 小画面でサイドバートグルボタン表示
-        const toggleBtn = document.getElementById('sidebarToggleBtn');
-        if (toggleBtn && window.innerWidth <= 520) {
-            toggleBtn.style.display = 'inline-flex';
-        }
-    }
-
-    // =========================================================
-    // ユーティリティ
-    // =========================================================
-
-    _formatTime(timestamp) {
-        if (!timestamp) return '';
-        const d   = new Date(timestamp);
-        const now = new Date();
-        const pad = n => String(n).padStart(2, '0');
-
-        if (d.toDateString() === now.toDateString()) {
-            return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-        }
-        const diff = now - d;
-        if (diff < 7 * 24 * 60 * 60 * 1000) {
-            const days = ['日','月','火','水','木','金','土'];
-            return days[d.getDay()] + '曜日';
-        }
-        return `${d.getMonth()+1}/${d.getDate()}`;
-    }
-
-    _formatDateOnly(timestamp) {
-        if (!timestamp) return '';
-        const d   = new Date(timestamp);
-        const now = new Date();
-        if (d.toDateString() === now.toDateString()) return '今日';
-        const yesterday = new Date(now);
-        yesterday.setDate(now.getDate() - 1);
-        if (d.toDateString() === yesterday.toDateString()) return '昨日';
-        return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
-    }
-
-    _formatTimeOnly(timestamp) {
-        if (!timestamp) return '';
-        const d   = new Date(timestamp);
-        const pad = n => String(n).padStart(2, '0');
-        return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    }
-
-    _esc(str) {
-        if (!str) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-    }
-
-    // クリーンアップ
-    destroy() {
-        if (this.roomsListener) this.roomsListener.off();
-        if (this.msgListener)   this.msgListener();
-        console.log('[ChatManager] クリーンアップ完了');
-    }
+  }
 }
 
-// =========================================================
-// グローバル登録・自動起動
-// =========================================================
+// ─────────────────────────────────────────
+// グローバル登録 & 自動初期化
+// ─────────────────────────────────────────
 window.chatManager = new ChatManager();
 
-document.addEventListener('DOMContentLoaded', async () => {
-    // AuthGuard で認証チェック
-    if (window.AuthGuard) {
-        const ok = await window.AuthGuard.init({ requireAuth: true });
-        if (!ok) return;
-    }
-    await window.chatManager.init();
+document.addEventListener('DOMContentLoaded', () => {
+  // AuthGuard チェック後に初期化
+  const uid = sessionStorage.getItem('targetUID');
+  if (!uid) {
+    location.href = '../index.html';
+    return;
+  }
+  window.chatManager.init();
 });
 
-console.log('[ChatManager] モジュール読み込み完了');
+window.addEventListener('beforeunload', () => {
+  window.chatManager?.destroy();
+});
