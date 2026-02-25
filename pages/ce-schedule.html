@@ -1472,8 +1472,12 @@ fitTableToViewport() {
                 // イベントリスナーを登録
                 this._setupEventListeners();
 
-                // CE情報を解決（3段階フォールバック）
+                // CEリストを事前読み込み（ID解決に使用）
+                await this._loadCEListFromWorkSchedules();
+
+                // CE情報を解決（4段階フォールバック）
                 await this._resolveMyCE();
+
                 if (!this.myCEId) return; // 未解決時はダイアログで対応済み
 
                 // アクティブな受付期間を検索
@@ -1493,69 +1497,104 @@ fitTableToViewport() {
                 });
             }
 
-            // -------------------------------------------------------
-            // CE解決（3段階フォールバック）
-            // -------------------------------------------------------
-            async _resolveMyCE() {
-                const ud = this.userData;
+// -------------------------------------------------------
+// CE解決（4段階フォールバック）
+// -------------------------------------------------------
+async _resolveMyCE() {
+    const ud = this.userData;
 
-                // ① window.currentUserData に linkedCEId があればそのまま使用
-                if (ud.linkedCEId) {
-                    this.myCEId   = ud.linkedCEId;
-                    this.myCEName = ud.linkedCEName || ud.displayName || '';
-                    console.log('✅ CE解決 [currentUserData]:', this.myCEId);
+    // ① linkedCEId が ceList の実IDと一致するか確認（ID形式不一致チェック）
+    if (ud.linkedCEId && this.ceList.length > 0) {
+        const hit = this.ceList.find(ce => ce.id === ud.linkedCEId);
+        if (hit) {
+            this.myCEId   = hit.id;
+            this.myCEName = hit.fullName || hit.name || ud.linkedCEName || '';
+            console.log('✅ CE解決 [ID直接マッチ]:', this.myCEId);
+            return;
+        }
+        console.log('⚠️ linkedCEId形式不一致:', ud.linkedCEId, '→ 名前マッチへ');
+    }
+
+    // ② linkedCEName / displayName / username で ceList を名前マッチ
+    if (this.ceList.length > 0) {
+        const searchNames = [ud.linkedCEName, ud.displayName, ud.username].filter(Boolean);
+        for (const name of searchNames) {
+            const hit = this.ceList.find(ce =>
+                ce.fullName === name || ce.name === name ||
+                ce.displayName === name || ce.iconName === name
+            );
+            if (hit) {
+                this.myCEId   = hit.id;
+                this.myCEName = hit.fullName || hit.name || name;
+                console.log('✅ CE解決 [名前マッチ ceList]:', this.myCEId, this.myCEName);
+                return;
+            }
+        }
+    }
+
+    // ③ Firebase users/{uid} から再取得して名前マッチ
+    try {
+        const uid  = sessionStorage.getItem('targetUID');
+        const snap = await window.database
+            .ref(`${window.DATA_ROOT}/users/${uid}`).once('value');
+        const data = snap.val();
+        if (data) {
+            if (window.currentUserData) Object.assign(window.currentUserData, data);
+            const searchNames = [data.linkedCEName, data.displayName, data.username].filter(Boolean);
+            for (const name of searchNames) {
+                const hit = this.ceList.find(ce =>
+                    ce.fullName === name || ce.name === name
+                );
+                if (hit) {
+                    this.myCEId   = hit.id;
+                    this.myCEName = hit.fullName || hit.name || name;
+                    // Firebase に正しい ID を更新保存
+                    if (uid) {
+                        window.database.ref(`${window.DATA_ROOT}/users/${uid}`)
+                            .update({ linkedCEId: hit.id, linkedCEName: this.myCEName })
+                            .catch(e => console.warn('CE ID更新失敗:', e));
+                    }
+                    console.log('✅ CE解決 [Firebase名前マッチ]:', this.myCEId);
                     return;
                 }
-
-                // ② Firebase users/{uid} から再取得
-                try {
-                    const uid  = sessionStorage.getItem('targetUID');
-                    const snap = await window.database
-                        .ref(`${window.DATA_ROOT}/users/${uid}`).once('value');
-                    const data = snap.val();
-                    if (data && data.linkedCEId) {
-                        this.myCEId   = data.linkedCEId;
-                        this.myCEName = data.linkedCEName || data.displayName || '';
-                        if (window.currentUserData) {
-                            window.currentUserData.linkedCEId   = this.myCEId;
-                            window.currentUserData.linkedCEName = this.myCEName;
-                        }
-                        console.log('✅ CE解決 [Firebase users]:', this.myCEId);
-                        return;
-                    }
-                } catch (e) {
-                    console.warn('Firebase CE解決失敗:', e);
-                }
-
-                // ③ 表示名で最新勤務表のCEリストを検索
-                try {
-                    const snap = await window.database
-                        .ref(`${window.DATA_ROOT}/workSchedules`)
-                        .limitToLast(3).once('value');
-                    const schedules = snap.val() || {};
-                    const myName    = ud.displayName || ud.username || '';
-
-                    for (const pd of Object.values(schedules)) {
-                        const ceList = pd.ceList || [];
-                        const hit = ceList.find(ce =>
-                            ce.fullName === myName || ce.name === myName ||
-                            ce.displayName === myName || ce.iconName === myName
-                        );
-                        if (hit) {
-                            this.myCEId   = hit.id;
-                            this.myCEName = hit.fullName || hit.name || myName;
-                            console.log('✅ CE解決 [名前マッチ]:', this.myCEId);
-                            return;
-                        }
-                    }
-                } catch (e) {
-                    console.warn('名前マッチ失敗:', e);
-                }
-
-                // ④ 手動選択ダイアログへ
-                console.log('⚠️ CE自動解決不可 → ダイアログ表示');
-                await this._showCESelectDialog();
             }
+        }
+    } catch (e) {
+        console.warn('Firebase CE解決失敗:', e);
+    }
+
+    // ④ 手動選択ダイアログへ
+    console.log('⚠️ CE自動解決不可 → ダイアログ表示');
+    await this._showCESelectDialog();
+}
+
+// -------------------------------------------------------
+// 最新勤務表からCEリストを事前読み込み
+// -------------------------------------------------------
+async _loadCEListFromWorkSchedules() {
+    try {
+        const snap = await window.database
+            .ref(`${window.DATA_ROOT}/workSchedules`)
+            .limitToLast(5).once('value');
+        const schedules = snap.val() || {};
+
+        // createdAt で降順ソートして最新を優先
+        const sorted = Object.values(schedules)
+            .sort((a, b) => (b.metadata?.createdAt || 0) - (a.metadata?.createdAt || 0));
+
+        for (const pd of sorted) {
+            if (pd.ceList && pd.ceList.length > 0) {
+                this.ceList = pd.ceList;
+                console.log(`✅ CEリスト読み込み完了: ${this.ceList.length}件`,
+                    this.ceList.slice(0, 3).map(c => c.fullName));
+                return;
+            }
+        }
+        console.warn('⚠️ 勤務表にCEリストが見つかりません');
+    } catch (e) {
+        console.warn('CEリスト読み込み失敗:', e);
+    }
+}
 
             // -------------------------------------------------------
             // アクティブ受付期間を検索
@@ -1962,20 +2001,23 @@ fitTableToViewport() {
             // -------------------------------------------------------
             // CE選択ダイアログ
             // -------------------------------------------------------
-            async _showCESelectDialog() {
-                // 最新の勤務表からCEリストを取得
-                try {
-                    const snap = await window.database
-                        .ref(`${window.DATA_ROOT}/workSchedules`)
-                        .limitToLast(1).once('value');
-                    const schedules = snap.val() || {};
-                    for (const pd of Object.values(schedules))
-                        this.ceList = pd.ceList || [];
-                } catch (e) {
-                    console.warn('CEリスト取得失敗:', e);
-                }
+            // ✅ 修正後（ceListが空の場合のみ再取得）
+async _showCESelectDialog() {
+    // ceListが事前読み込み済みでなければ取得
+    if (this.ceList.length === 0) {
+        try {
+            const snap = await window.database
+                .ref(`${window.DATA_ROOT}/workSchedules`)
+                .limitToLast(1).once('value');
+            const schedules = snap.val() || {};
+            for (const pd of Object.values(schedules))
+                this.ceList = pd.ceList || [];
+        } catch (e) {
+            console.warn('CEリスト取得失敗:', e);
+        }
+    }
 
-                const list = document.getElementById('srqCEList');
+    const list = document.getElementById('srqCEList');
                 if (!list) return;
 
                 if (this.ceList.length === 0) {
