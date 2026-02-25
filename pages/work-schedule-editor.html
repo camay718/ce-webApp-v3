@@ -595,6 +595,210 @@
             font-weight: 600;
         }
 
+        /* ===== 勤務希望管理 ダイアログ共通 ===== */
+.srm-dialog-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 16px;
+}
+
+.srm-dialog {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    width: 100%;
+    max-width: 480px;
+    max-height: 92vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.srm-dialog-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.srm-dialog-header h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.srm-dialog-header p {
+    font-size: 12px;
+    color: #6b7280;
+    margin: 4px 0 0;
+}
+
+.srm-dialog-close {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    font-size: 18px;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: color 0.2s;
+}
+.srm-dialog-close:hover { color: #374151; }
+
+.srm-dialog-body {
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.srm-dialog-footer {
+    padding: 16px 24px;
+    border-top: 1px solid #f0f0f0;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+/* フィールドラベル */
+.srm-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 6px;
+}
+
+/* 日付範囲ピッカー */
+.srm-date-range {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 8px;
+}
+.srm-date-range .range-sep {
+    font-size: 12px;
+    color: #9ca3af;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* 日時ピッカー（input[type=date/time] ラッパー） */
+.srm-input {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #1f2937;
+    background: #f9fafb;
+    transition: border-color 0.2s, background 0.2s;
+    font-family: 'Noto Sans JP', sans-serif;
+    box-sizing: border-box;
+}
+.srm-input:focus {
+    outline: none;
+    border-color: #10b981;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(16,185,129,0.12);
+}
+
+/* 日時フィールド（date + time を横並び） */
+.srm-datetime-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+/* お知らせエリア */
+.srm-textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #1f2937;
+    background: #f9fafb;
+    resize: vertical;
+    min-height: 64px;
+    font-family: 'Noto Sans JP', sans-serif;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+.srm-textarea:focus {
+    outline: none;
+    border-color: #10b981;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(16,185,129,0.12);
+}
+
+/* プレビューバー */
+.srm-preview {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #065f46;
+    line-height: 1.6;
+}
+.srm-preview.error {
+    background: #fff1f2;
+    border-color: #fecdd3;
+    color: #9f1239;
+}
+
+/* 個別設定ラジオカード */
+.srm-radio-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.srm-radio-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 14px;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+.srm-radio-card:hover { border-color: #10b981; background: #f0fdf4; }
+.srm-radio-card input[type=radio] { margin-top: 2px; accent-color: #10b981; flex-shrink: 0; }
+.srm-radio-card.selected { border-color: #10b981; background: #f0fdf4; }
+
+.srm-radio-card .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1f2937;
+}
+.srm-radio-card .card-desc {
+    font-size: 11px;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+/* 個別締切フィールド（再受付時のみ表示） */
+#srmIndividualExpiry {
+    display: none;
+}
+#srmIndividualExpiry.visible {
+    display: block;
+}
+
 /* 印刷時は非表示 */
 @media print {
     .copy-toolbar {
@@ -781,7 +985,7 @@
     </div>
 </div>
 
-                                        <!-- 🆕 Phase 2: 勤務希望管理 -->
+                    <!-- 🆕 Phase 2: 勤務希望管理 -->
                     <div class="mb-6">
                         <h3 class="text-sm font-semibold mb-3">
                             <i class="fas fa-calendar-check mr-2"></i>勤務希望管理
@@ -793,17 +997,16 @@
                                 <div id="requestStatusDisplay" class="text-gray-500">
                                     <i class="fas fa-spinner fa-spin mr-1"></i>読み込み中...
                                 </div>
+                                <div id="requestPeriodRange" class="text-gray-400 mt-1" style="display:none;"></div>
                             </div>
                             
                             <!-- 操作ボタン -->
-                            <div class="grid grid-cols-2 gap-2">
-                                <button id="openRequestBtn" class="btn-unified btn-primary-unified btn-small">
-                                    <i class="fas fa-door-open mr-1"></i>開始
-                                </button>
-                                <button id="closeRequestBtn" class="btn-unified btn-outline-unified btn-small">
-                                    <i class="fas fa-door-closed mr-1"></i>締切
-                                </button>
-                            </div>
+                            <button id="openRequestBtn" class="btn-unified btn-primary-unified btn-small w-full">
+                                <i class="fas fa-calendar-plus mr-1"></i>受付期間を設定して開始
+                            </button>
+                            <button id="closeRequestBtn" class="btn-unified btn-outline-unified btn-small w-full">
+                                <i class="fas fa-door-closed mr-1"></i>受付を締め切る
+                            </button>
                             
                             <button id="manageIndividualBtn" class="btn-unified btn-outline-unified btn-small w-full">
                                 <i class="fas fa-users-cog mr-1"></i>個別受付・状況確認
@@ -812,6 +1015,7 @@
                             <!-- 提出状況サマリー -->
                             <div id="submissionSummary" class="text-xs text-gray-600 flex justify-between px-1">
                                 <span>提出: <span id="summarySubmitted" class="font-bold text-green-600">-</span></span>
+                                <span>希望なし: <span id="summaryNoRequest" class="font-bold text-gray-500">-</span></span>
                                 <span>未提出: <span id="summaryPending" class="font-bold text-orange-600">-</span></span>
                             </div>
                         </div>
@@ -1071,7 +1275,140 @@
     </div>
 </div>
 
-        <!-- 🆕 Phase 2: 個別受付管理モーダル -->
+        <!-- ===== 受付期間設定ダイアログ ===== -->
+    <div id="srmOpenDialog" class="srm-dialog-overlay" style="display:none;">
+        <div class="srm-dialog">
+            <div class="srm-dialog-header">
+                <div>
+                    <h3><i class="fas fa-calendar-plus text-green-600 mr-2"></i>勤務希望の受付設定</h3>
+                    <p>受付対象期間・締切日時を設定して受付を開始します</p>
+                </div>
+                <button class="srm-dialog-close" id="srmOpenDialogClose"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="srm-dialog-body">
+                <!-- 希望対象期間 -->
+                <div>
+                    <label class="srm-label"><i class="fas fa-calendar-alt mr-1 text-blue-500"></i>希望を受け付ける勤務期間</label>
+                    <div class="srm-date-range">
+                        <input type="date" id="srmTargetStart" class="srm-input">
+                        <span class="range-sep">〜</span>
+                        <input type="date" id="srmTargetEnd" class="srm-input">
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">例：3月分の勤務希望なら「3/1 〜 3/31」</p>
+                </div>
+
+                <!-- 締切日時 -->
+                <div>
+                    <label class="srm-label"><i class="fas fa-clock mr-1 text-orange-500"></i>希望提出の締切日時</label>
+                    <div class="srm-datetime-row">
+                        <div>
+                            <label class="srm-label" style="font-weight:400; color:#6b7280;">日付</label>
+                            <input type="date" id="srmDeadlineDate" class="srm-input">
+                        </div>
+                        <div>
+                            <label class="srm-label" style="font-weight:400; color:#6b7280;">時刻</label>
+                            <input type="time" id="srmDeadlineTime" class="srm-input" value="23:59">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- お知らせメッセージ（任意） -->
+                <div>
+                    <label class="srm-label"><i class="fas fa-comment-alt mr-1 text-purple-500"></i>スタッフへのお知らせ <span style="font-weight:400; color:#9ca3af;">（任意）</span></label>
+                    <textarea id="srmAnnouncement" class="srm-textarea" placeholder="例：3月分の勤務希望を受け付けています。なるべく早めに提出してください。"></textarea>
+                </div>
+
+                <!-- プレビュー -->
+                <div id="srmOpenPreview" class="srm-preview error">
+                    期間・締切を設定してください
+                </div>
+            </div>
+            <div class="srm-dialog-footer">
+                <button id="srmOpenDialogCancel" class="btn-unified btn-outline-unified">キャンセル</button>
+                <button id="srmOpenDialogSave" class="btn-unified btn-primary-unified" disabled>
+                    <i class="fas fa-door-open mr-1"></i>受付を開始する
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 個別受付設定ダイアログ ===== -->
+    <div id="srmIndividualDialog" class="srm-dialog-overlay" style="display:none;">
+        <div class="srm-dialog">
+            <div class="srm-dialog-header">
+                <div>
+                    <h3 id="srmIndividualDialogTitle"><i class="fas fa-user-cog text-blue-600 mr-2"></i>個別受付設定</h3>
+                    <p>このスタッフの受付状態を個別に設定します</p>
+                </div>
+                <button class="srm-dialog-close" id="srmIndividualDialogClose"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="srm-dialog-body">
+                <!-- ラジオカード -->
+                <div>
+                    <label class="srm-label">受付状態を選択してください</label>
+                    <div class="srm-radio-cards" id="srmRadioCards">
+                        <label class="srm-radio-card" onclick="this.classList.add('selected'); document.querySelectorAll('.srm-radio-card').forEach(c=>{if(c!==this)c.classList.remove('selected')}); window.shiftRequestManager.onStatusChange('open')">
+                            <input type="radio" name="srmStatus" value="open">
+                            <div>
+                                <div class="card-title">🟢 再受付を開始する</div>
+                                <div class="card-desc">このスタッフのみ希望の入力・編集を許可します</div>
+                            </div>
+                        </label>
+                        <label class="srm-radio-card" onclick="this.classList.add('selected'); document.querySelectorAll('.srm-radio-card').forEach(c=>{if(c!==this)c.classList.remove('selected')}); window.shiftRequestManager.onStatusChange('no_request')">
+                            <input type="radio" name="srmStatus" value="no_request">
+                            <div>
+                                <div class="card-title">⚫ 希望提出が不要</div>
+                                <div class="card-desc">管理職など、希望提出が必要ないスタッフに設定</div>
+                            </div>
+                        </label>
+                        <label class="srm-radio-card" onclick="this.classList.add('selected'); document.querySelectorAll('.srm-radio-card').forEach(c=>{if(c!==this)c.classList.remove('selected')}); window.shiftRequestManager.onStatusChange('closed')">
+                            <input type="radio" name="srmStatus" value="closed">
+                            <div>
+                                <div class="card-title">🔴 個別に締め切る</div>
+                                <div class="card-desc">このスタッフのみ入力を不可にします</div>
+                            </div>
+                        </label>
+                        <label class="srm-radio-card" onclick="this.classList.add('selected'); document.querySelectorAll('.srm-radio-card').forEach(c=>{if(c!==this)c.classList.remove('selected')}); window.shiftRequestManager.onStatusChange('default')">
+                            <input type="radio" name="srmStatus" value="default">
+                            <div>
+                                <div class="card-title">🔵 全体設定に合わせる</div>
+                                <div class="card-desc">個別設定を解除し、全体の受付状態に従います</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 個別締切（再受付時のみ表示） -->
+                <div id="srmIndividualExpiry">
+                    <label class="srm-label"><i class="fas fa-clock mr-1 text-orange-500"></i>個別締切日時 <span style="font-weight:400; color:#9ca3af;">（省略可・省略時は無期限）</span></label>
+                    <div class="srm-datetime-row">
+                        <div>
+                            <label class="srm-label" style="font-weight:400; color:#6b7280;">日付</label>
+                            <input type="date" id="srmIndivExpiryDate" class="srm-input">
+                        </div>
+                        <div>
+                            <label class="srm-label" style="font-weight:400; color:#6b7280;">時刻</label>
+                            <input type="time" id="srmIndivExpiryTime" class="srm-input" value="23:59">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 理由 -->
+                <div>
+                    <label class="srm-label"><i class="fas fa-comment mr-1 text-gray-400"></i>設定理由 <span style="font-weight:400; color:#9ca3af;">（任意・記録用）</span></label>
+                    <input type="text" id="srmIndivReason" class="srm-input" placeholder="例：予定変更のため再受付、管理職のため不要">
+                </div>
+            </div>
+            <div class="srm-dialog-footer">
+                <button id="srmIndividualDialogCancel" class="btn-unified btn-outline-unified">キャンセル</button>
+                <button id="srmIndividualDialogSave" class="btn-unified btn-primary-unified">
+                    <i class="fas fa-save mr-1"></i>保存する
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 🆕 Phase 2: 個別受付管理モーダル -->
     <div id="individualAccessModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="display:none;">
         <div class="bg-white rounded-lg w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl">
             <!-- ヘッダー -->
@@ -1096,6 +1433,9 @@
                     <button class="filter-tab" data-filter="submitted">
                         提出済 (<span id="countSubmitted">0</span>)
                     </button>
+                    <button class="filter-tab" data-filter="no_request">
+                        希望なし (<span id="countNoRequest">0</span>)
+                    </button>
                     <button class="filter-tab" data-filter="not_submitted">
                         未提出 (<span id="countNotSubmitted">0</span>)
                     </button>
@@ -1104,6 +1444,7 @@
                     </button>
                 </div>
             </div>
+
             
             <!-- CEリスト（スクロールエリア） -->
             <div class="flex-1 p-4 overflow-y-auto bg-gray-50">
@@ -3388,19 +3729,24 @@ cellLeaveHandler = (e) => {
     }
 
                     // 🆕 Phase 2: 勤務希望管理クラス
+    // =====================================================
+    // ShiftRequestManager（Phase 2 完全版）
+    // =====================================================
     class ShiftRequestManager {
         constructor(editor) {
             this.editor = editor;
-            this.currentPeriodKey = null;
+            this.currentPeriodKey = '';
             this.periodData = null;
             this.ceAccessData = {};
             this.requestData = {};
+            this._pendingCEId = null;
+            this._pendingCEName = null;
             this.init();
         }
 
         init() {
             this.setupUI();
-            
+
             // 期間変更を監視してデータをリロード
             const originalRender = this.editor.renderScheduleTable.bind(this.editor);
             this.editor.renderScheduleTable = () => {
@@ -3409,22 +3755,37 @@ cellLeaveHandler = (e) => {
             };
         }
 
+        // --------------------------------------------------
+        // UI セットアップ
+        // --------------------------------------------------
         setupUI() {
             // サイドバーボタン
-            const openBtn = document.getElementById('openRequestBtn');
+            const openBtn  = document.getElementById('openRequestBtn');
             const closeBtn = document.getElementById('closeRequestBtn');
             const manageBtn = document.getElementById('manageIndividualBtn');
-            
-            if (openBtn) openBtn.addEventListener('click', () => this.openRequestPeriod());
-            if (closeBtn) closeBtn.addEventListener('click', () => this.closeRequestPeriod());
+
+            if (openBtn)   openBtn.addEventListener('click',  () => this.showOpenDialog());
+            if (closeBtn)  closeBtn.addEventListener('click', () => this.closeRequestPeriod());
             if (manageBtn) manageBtn.addEventListener('click', () => this.openIndividualModal());
 
-            // モーダル操作
-            const closeModalBtn = document.getElementById('closeIndividualModal');
-            const refreshModalBtn = document.getElementById('refreshIndividualModal');
-            
-            if (closeModalBtn) closeModalBtn.addEventListener('click', () => this.closeIndividualModal());
-            if (refreshModalBtn) refreshModalBtn.addEventListener('click', () => this.loadIndividualData());
+            // 受付設定ダイアログ
+            document.getElementById('srmOpenDialogClose')?.addEventListener('click',  () => this.hideOpenDialog());
+            document.getElementById('srmOpenDialogCancel')?.addEventListener('click', () => this.hideOpenDialog());
+            document.getElementById('srmOpenDialogSave')?.addEventListener('click',   () => this.saveOpenDialog());
+
+            // 受付設定ダイアログ — 入力変更でプレビュー更新
+            ['srmTargetStart','srmTargetEnd','srmDeadlineDate','srmDeadlineTime'].forEach(id => {
+                document.getElementById(id)?.addEventListener('change', () => this.updateOpenPreview());
+            });
+
+            // 個別設定ダイアログ
+            document.getElementById('srmIndividualDialogClose')?.addEventListener('click',  () => this.hideIndividualDialog());
+            document.getElementById('srmIndividualDialogCancel')?.addEventListener('click', () => this.hideIndividualDialog());
+            document.getElementById('srmIndividualDialogSave')?.addEventListener('click',   () => this.saveIndividualDialog());
+
+            // 個別管理モーダル
+            document.getElementById('closeIndividualModal')?.addEventListener('click',   () => this.closeIndividualModal());
+            document.getElementById('refreshIndividualModal')?.addEventListener('click', () => this.loadIndividualData());
 
             // フィルタリング
             document.querySelectorAll('.filter-tab').forEach(tab => {
@@ -3437,75 +3798,166 @@ cellLeaveHandler = (e) => {
                     }
                 });
             });
+
+            // オーバーレイクリックで閉じる
+            document.getElementById('srmOpenDialog')?.addEventListener('click', (e) => {
+                if (e.target.id === 'srmOpenDialog') this.hideOpenDialog();
+            });
+            document.getElementById('srmIndividualDialog')?.addEventListener('click', (e) => {
+                if (e.target.id === 'srmIndividualDialog') this.hideIndividualDialog();
+            });
         }
 
         getCurrentPeriodKey() {
             const start = this.editor.formatDateKey(this.editor.currentPeriod.startDate);
-            const end = this.editor.formatDateKey(this.editor.currentPeriod.endDate);
+            const end   = this.editor.formatDateKey(this.editor.currentPeriod.endDate);
             return `${start}_${end}`;
         }
 
+        // --------------------------------------------------
+        // 期間データ読み込み・サイドバー表示更新
+        // --------------------------------------------------
         async loadPeriodData() {
             this.currentPeriodKey = this.getCurrentPeriodKey();
             const statusDisplay = document.getElementById('requestStatusDisplay');
-            
+            const rangeDisplay  = document.getElementById('requestPeriodRange');
             if (!statusDisplay) return;
-            
+
             try {
-                const snapshot = await window.database.ref(`${window.DATA_ROOT}/shiftRequestPeriods/${this.currentPeriodKey}`).once('value');
+                const snapshot = await window.database.ref(
+                    `${window.DATA_ROOT}/shiftRequestPeriods/${this.currentPeriodKey}`
+                ).once('value');
                 this.periodData = snapshot.val();
-                
-                // ステータス表示更新
+
                 if (!this.periodData) {
                     statusDisplay.innerHTML = '<span class="text-gray-400">未設定</span>';
-                } else if (this.periodData.status === 'open') {
-                    const deadline = new Date(this.periodData.requestDeadline).toLocaleString('ja-JP', {
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                    statusDisplay.innerHTML = `
-                        <span class="text-green-600 font-bold">🟢 受付中</span><br>
-                        <span class="text-xs">締切: ${deadline}</span>
-                    `;
+                    if (rangeDisplay) rangeDisplay.style.display = 'none';
                 } else {
-                    statusDisplay.innerHTML = '<span class="text-red-600 font-bold">🔴 締切済み</span>';
+                    // 受付対象期間を表示
+                    if (rangeDisplay && this.periodData.targetStartDate && this.periodData.targetEndDate) {
+                        rangeDisplay.textContent =
+                            `対象: ${this.periodData.targetStartDate} 〜 ${this.periodData.targetEndDate}`;
+                        rangeDisplay.style.display = 'block';
+                    }
+
+                    if (this.periodData.status === 'open') {
+                        const deadline = new Date(this.periodData.requestDeadline).toLocaleString('ja-JP', {
+                            month: '2-digit', day: '2-digit',
+                            hour: '2-digit', minute: '2-digit'
+                        });
+                        statusDisplay.innerHTML =
+                            `<span class="text-green-600 font-bold">🟢 受付中</span><br>` +
+                            `<span class="text-xs">締切: ${deadline}</span>`;
+                    } else {
+                        statusDisplay.innerHTML = '<span class="text-red-600 font-bold">🔴 締切済み</span>';
+                    }
                 }
-                
-                // サマリー更新
+
                 this.updateSidebarSummary();
-                
             } catch (error) {
                 console.error('期間データ読み込みエラー:', error);
                 statusDisplay.textContent = 'エラー';
             }
         }
 
-        async openRequestPeriod() {
-            // デフォルト締切日：今日から7日後（タイムゾーン対応）
-            const defaultDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-            const defaultStr = new Date(defaultDate.getTime() - (defaultDate.getTimezoneOffset() * 60000))
-                .toISOString().slice(0, 16).replace('T', ' ');
-            
-            const deadline = prompt(
-                '希望提出の締切日時を入力してください\n例: 2025-02-25 23:59',
-                defaultStr
-            );
-            
-            if (!deadline) return;
+        // --------------------------------------------------
+        // 受付設定ダイアログ — 表示
+        // --------------------------------------------------
+        showOpenDialog() {
+            // 初期値：勤務表の現在期間を自動セット
+            const startStr = this.editor.formatDateKey(this.editor.currentPeriod.startDate);
+            const endStr   = this.editor.formatDateKey(this.editor.currentPeriod.endDate);
+
+            document.getElementById('srmTargetStart').value = startStr;
+            document.getElementById('srmTargetEnd').value   = endStr;
+
+            // 締切日時：今日から7日後の23:59をデフォルト
+            const deadlineDefault = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+            const deadlineDateStr = this.editor.formatDateKey(deadlineDefault);
+            document.getElementById('srmDeadlineDate').value = deadlineDateStr;
+            document.getElementById('srmDeadlineTime').value = '23:59';
+
+            // お知らせ
+            document.getElementById('srmAnnouncement').value =
+                (this.periodData?.announcement) || '';
+
+            this.updateOpenPreview();
+            document.getElementById('srmOpenDialog').style.display = 'flex';
+        }
+
+        hideOpenDialog() {
+            document.getElementById('srmOpenDialog').style.display = 'none';
+        }
+
+        // プレビュー更新
+        updateOpenPreview() {
+            const tsv = document.getElementById('srmTargetStart').value;
+            const tev = document.getElementById('srmTargetEnd').value;
+            const ddv = document.getElementById('srmDeadlineDate').value;
+            const dtv = document.getElementById('srmDeadlineTime').value;
+            const preview = document.getElementById('srmOpenPreview');
+            const saveBtn = document.getElementById('srmOpenDialogSave');
+
+            if (!tsv || !tev || !ddv) {
+                preview.className = 'srm-preview error';
+                preview.textContent = '期間・締切日付を入力してください';
+                saveBtn.disabled = true;
+                return;
+            }
+
+            if (tev < tsv) {
+                preview.className = 'srm-preview error';
+                preview.textContent = '終了日は開始日以降にしてください';
+                saveBtn.disabled = true;
+                return;
+            }
+
+            const deadlineDt = new Date(`${ddv}T${dtv || '23:59'}:00`);
+            const deadlineStr = deadlineDt.toLocaleString('ja-JP', {
+                year: 'numeric', month: 'long', day: 'numeric',
+                hour: '2-digit', minute: '2-digit', weekday: 'short'
+            });
+
+            preview.className = 'srm-preview';
+            preview.innerHTML =
+                `📅 <strong>対象期間：</strong>${tsv} 〜 ${tev}<br>` +
+                `⏰ <strong>締切：</strong>${deadlineStr}`;
+            saveBtn.disabled = false;
+        }
+
+        // 受付設定ダイアログ — 保存
+        async saveOpenDialog() {
+            const tsv  = document.getElementById('srmTargetStart').value;
+            const tev  = document.getElementById('srmTargetEnd').value;
+            const ddv  = document.getElementById('srmDeadlineDate').value;
+            const dtv  = document.getElementById('srmDeadlineTime').value || '23:59';
+            const ann  = document.getElementById('srmAnnouncement').value.trim();
+
+            if (!tsv || !tev || !ddv) {
+                window.showMessage('期間・締切日付を入力してください', 'warning');
+                return;
+            }
+
+            const deadlineISO = new Date(`${ddv}T${dtv}:00`).toISOString();
 
             try {
                 const updateData = {
-                    startDate: this.editor.formatDateKey(this.editor.currentPeriod.startDate),
-                    endDate: this.editor.formatDateKey(this.editor.currentPeriod.endDate),
-                    requestDeadline: new Date(deadline.replace(' ', 'T')).toISOString(),
-                    status: 'open',
-                    createdAt: firebase.database.ServerValue.TIMESTAMP,
-                    createdBy: window.currentUserData?.displayName || 'admin'
+                    startDate:        this.editor.formatDateKey(this.editor.currentPeriod.startDate),
+                    endDate:          this.editor.formatDateKey(this.editor.currentPeriod.endDate),
+                    targetStartDate:  tsv,
+                    targetEndDate:    tev,
+                    requestDeadline:  deadlineISO,
+                    status:           'open',
+                    announcement:     ann || null,
+                    createdAt:        firebase.database.ServerValue.TIMESTAMP,
+                    createdBy:        window.currentUserData?.displayName || 'admin'
                 };
 
-                await window.database.ref(`${window.DATA_ROOT}/shiftRequestPeriods/${this.currentPeriodKey}`).update(updateData);
+                await window.database.ref(
+                    `${window.DATA_ROOT}/shiftRequestPeriods/${this.currentPeriodKey}`
+                ).update(updateData);
+
+                this.hideOpenDialog();
                 window.showMessage('勤務希望の受付を開始しました', 'success');
                 this.loadPeriodData();
             } catch (error) {
@@ -3514,19 +3966,20 @@ cellLeaveHandler = (e) => {
             }
         }
 
+        // --------------------------------------------------
+        // 受付締切
+        // --------------------------------------------------
         async closeRequestPeriod() {
             if (!this.periodData || this.periodData.status !== 'open') {
                 window.showMessage('現在、受付中ではありません', 'warning');
                 return;
             }
-
             if (!confirm('勤務希望の受付を締め切りますか？\nスタッフは希望の編集ができなくなります（個別再開は可能です）。')) return;
 
             try {
-                await window.database.ref(`${window.DATA_ROOT}/shiftRequestPeriods/${this.currentPeriodKey}`).update({
-                    status: 'closed',
-                    closedAt: firebase.database.ServerValue.TIMESTAMP
-                });
+                await window.database.ref(
+                    `${window.DATA_ROOT}/shiftRequestPeriods/${this.currentPeriodKey}`
+                ).update({ status: 'closed', closedAt: firebase.database.ServerValue.TIMESTAMP });
                 window.showMessage('受付を締め切りました', 'success');
                 this.loadPeriodData();
             } catch (error) {
@@ -3535,7 +3988,9 @@ cellLeaveHandler = (e) => {
             }
         }
 
-        // 個別管理モーダル関連
+        // --------------------------------------------------
+        // 個別管理モーダル
+        // --------------------------------------------------
         async openIndividualModal() {
             const modal = document.getElementById('individualAccessModal');
             if (modal) {
@@ -3551,19 +4006,18 @@ cellLeaveHandler = (e) => {
 
         async loadIndividualData() {
             try {
-                // 個別設定と希望データを並列取得
                 const [accessSnap, requestSnap] = await Promise.all([
                     window.database.ref(`${window.DATA_ROOT}/shiftRequestPeriods/${this.currentPeriodKey}/individualAccess`).once('value'),
                     window.database.ref(`${window.DATA_ROOT}/shiftRequests/${this.currentPeriodKey}`).once('value')
                 ]);
 
-                this.ceAccessData = accessSnap.val() || {};
-                this.requestData = requestSnap.val() || {};
+                this.ceAccessData  = accessSnap.val()  || {};
+                this.requestData   = requestSnap.val() || {};
 
-                this.renderCEList('all');
+                const activeFilter = document.querySelector('.filter-tab.active')?.dataset.filter || 'all';
+                this.renderCEList(activeFilter);
                 this.updateCounts();
                 this.updateSidebarSummary();
-
             } catch (error) {
                 console.error('データ読み込みエラー:', error);
                 window.showMessage('データの読み込みに失敗しました', 'error');
@@ -3573,143 +4027,231 @@ cellLeaveHandler = (e) => {
         renderCEList(filter) {
             const container = document.getElementById('ceAccessList');
             if (!container) return;
-            
             container.innerHTML = '';
 
+            let shown = 0;
             this.editor.ceList.forEach(ce => {
-                const access = this.ceAccessData[ce.id] || { status: 'default' };
+                const access      = this.ceAccessData[ce.id] || { status: 'default' };
                 const requestMeta = this.requestData[ce.id]?._meta || {};
-                const isSubmitted = !!requestMeta.submitted;
-                const isNoRequest = access.status === 'no_request' || requestMeta.noRequestDeclared;
-                const isReopened = access.status === 'open';
+                const isSubmitted  = !!requestMeta.submitted;
+                const isNoRequest  = access.status === 'no_request' || !!requestMeta.noRequestDeclared;
+                const isReopened   = access.status === 'open';
 
                 // フィルタリング
-                if (filter === 'submitted' && !isSubmitted) return;
-                if (filter === 'not_submitted' && isSubmitted) return;
-                if (filter === 'reopened' && !isReopened) return;
+                if (filter === 'submitted'     && !isSubmitted)  return;
+                if (filter === 'not_submitted' && isSubmitted)   return;
+                if (filter === 'reopened'      && !isReopened)   return;
+                if (filter === 'no_request'    && !isNoRequest)  return;
 
-                // UI生成
+                shown++;
+
+                // バッジ
+                let badgeHtml = '';
+                if (isReopened)                          badgeHtml = '<span class="badge-unified badge-info">再受付中</span>';
+                else if (access.status === 'no_request') badgeHtml = '<span class="badge-unified badge-secondary">希望不要</span>';
+                else if (requestMeta.noRequestDeclared)  badgeHtml = '<span class="badge-unified badge-success">希望なし提出</span>';
+                else if (isSubmitted)                    badgeHtml = '<span class="badge-unified badge-success">提出済み</span>';
+                else                                     badgeHtml = '<span class="badge-unified badge-danger">未提出</span>';
+
+                const expiryHtml = access.expiresAt
+                    ? `<span class="text-xs text-blue-600 ml-1">期限: ${new Date(access.expiresAt).toLocaleDateString('ja-JP')}</span>`
+                    : '';
+                const reasonHtml = access.reason
+                    ? `<div class="text-xs text-gray-400 mt-1"><i class="fas fa-comment mr-1"></i>${access.reason}</div>`
+                    : '';
+
                 const div = document.createElement('div');
                 div.className = 'bg-white border rounded-lg p-3 flex justify-between items-center hover:shadow-sm transition';
-                
-                // ステータスバッジ判定
-                let badgeHtml = '';
-                if (isReopened) badgeHtml = '<span class="badge-unified badge-info">再受付中</span>';
-                else if (access.status === 'no_request') badgeHtml = '<span class="badge-unified badge-secondary">希望不要</span>';
-                else if (requestMeta.noRequestDeclared) badgeHtml = '<span class="badge-unified badge-success">希望なし提出</span>';
-                else if (isSubmitted) badgeHtml = '<span class="badge-unified badge-success">提出済み</span>';
-                else badgeHtml = '<span class="badge-unified badge-danger">未提出</span>';
-
                 div.innerHTML = `
                     <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-600 text-xs">
+                        <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-600 text-xs flex-shrink-0">
                             ${ce.iconName || ce.name.slice(0,2)}
                         </div>
                         <div>
                             <div class="font-bold text-sm text-gray-800">${ce.fullName}</div>
-                            <div class="flex items-center gap-2 mt-1">
-                                ${badgeHtml}
-                                ${access.expiresAt ? `<span class="text-xs text-blue-600">期限: ${new Date(access.expiresAt).toLocaleDateString('ja-JP')}</span>` : ''}
+                            <div class="flex flex-wrap items-center gap-1 mt-1">
+                                ${badgeHtml}${expiryHtml}
                             </div>
+                            ${reasonHtml}
                         </div>
                     </div>
-                    <div>
-                        <button class="btn-unified btn-outline-unified btn-small" onclick="window.shiftRequestManager.editCEAccess('${ce.id}', '${ce.fullName}')">
-                            <i class="fas fa-cog"></i> 設定
-                        </button>
-                    </div>
+                    <button class="btn-unified btn-outline-unified btn-small flex-shrink-0"
+                            onclick="window.shiftRequestManager.editCEAccess('${ce.id}', '${ce.fullName}')">
+                        <i class="fas fa-cog"></i> 設定
+                    </button>
                 `;
                 container.appendChild(div);
             });
+
+            if (shown === 0) {
+                container.innerHTML = '<p class="text-center text-gray-400 py-8 text-sm">該当するスタッフはいません</p>';
+            }
         }
 
-        async editCEAccess(ceId, ceName) {
-            const current = this.ceAccessData[ceId] || { status: 'default' };
-            
-            const action = prompt(
-                `${ceName} の設定を変更します:\n\n` +
-                `1: 再受付を開始（個別オープン）\n` +
-                `2: 希望不要に設定\n` +
-                `3: 個別締切（クローズ）\n` +
-                `0: 設定をクリア（全体設定に従う）\n\n` +
-                `番号を入力してください:`, 
-                '1'
-            );
+        // --------------------------------------------------
+        // 個別設定ダイアログ — 表示
+        // --------------------------------------------------
+        editCEAccess(ceId, ceName) {
+            this._pendingCEId   = ceId;
+            this._pendingCEName = ceName;
 
-            if (!action) return;
+            const current = this.ceAccessData[ceId] || { status: 'default' };
+
+            // タイトル
+            document.getElementById('srmIndividualDialogTitle').innerHTML =
+                `<i class="fas fa-user-cog text-blue-600 mr-2"></i>${ceName} の受付設定`;
+
+            // ラジオ初期化
+            document.querySelectorAll('input[name="srmStatus"]').forEach(r => {
+                r.checked = (r.value === (current.status || 'default'));
+            });
+            document.querySelectorAll('.srm-radio-card').forEach(card => {
+                const radio = card.querySelector('input[type=radio]');
+                card.classList.toggle('selected', radio?.checked || false);
+            });
+
+            // 個別締切
+            const expEl = document.getElementById('srmIndividualExpiry');
+            if (current.status === 'open') {
+                expEl.classList.add('visible');
+                if (current.expiresAt) {
+                    const d = new Date(current.expiresAt);
+                    document.getElementById('srmIndivExpiryDate').value = this.editor.formatDateKey(d);
+                    document.getElementById('srmIndivExpiryTime').value =
+                        d.toTimeString().slice(0,5);
+                } else {
+                    document.getElementById('srmIndivExpiryDate').value = '';
+                    document.getElementById('srmIndivExpiryTime').value = '23:59';
+                }
+            } else {
+                expEl.classList.remove('visible');
+                document.getElementById('srmIndivExpiryDate').value = '';
+            }
+
+            // 理由
+            document.getElementById('srmIndivReason').value = current.reason || '';
+
+            document.getElementById('srmIndividualDialog').style.display = 'flex';
+        }
+
+        // ラジオ変更時に個別締切フィールドを表示/非表示
+        onStatusChange(status) {
+            const expEl = document.getElementById('srmIndividualExpiry');
+            if (status === 'open') {
+                expEl.classList.add('visible');
+            } else {
+                expEl.classList.remove('visible');
+            }
+        }
+
+        hideIndividualDialog() {
+            document.getElementById('srmIndividualDialog').style.display = 'none';
+            this._pendingCEId   = null;
+            this._pendingCEName = null;
+        }
+
+        // 個別設定ダイアログ — 保存
+        async saveIndividualDialog() {
+            const ceId  = this._pendingCEId;
+            if (!ceId) return;
+
+            const selectedStatus = document.querySelector('input[name="srmStatus"]:checked')?.value;
+            if (!selectedStatus) {
+                window.showMessage('受付状態を選択してください', 'warning');
+                return;
+            }
+
+            const reason     = document.getElementById('srmIndivReason').value.trim() || null;
+            const expiryDate = document.getElementById('srmIndivExpiryDate').value;
+            const expiryTime = document.getElementById('srmIndivExpiryTime').value || '23:59';
 
             const path = `${window.DATA_ROOT}/shiftRequestPeriods/${this.currentPeriodKey}/individualAccess/${ceId}`;
 
-            if (action === '0') {
-                await window.database.ref(path).remove();
-            } else {
-                const updateData = {
-                    setAt: firebase.database.ServerValue.TIMESTAMP,
-                    setBy: window.currentUserData?.displayName || 'admin'
-                };
-
-                if (action === '1') {
-                    updateData.status = 'open';
-                    updateData.expiresAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
-                    updateData.reason = '管理者による個別再開';
-                } else if (action === '2') {
-                    updateData.status = 'no_request';
-                    updateData.reason = '管理者による設定';
-                } else if (action === '3') {
-                    updateData.status = 'closed';
-                    updateData.reason = '管理者による個別締切';
+            try {
+                if (selectedStatus === 'default') {
+                    await window.database.ref(path).remove();
                 } else {
-                    return;
+                    const updateData = {
+                        status:  selectedStatus,
+                        reason:  reason,
+                        setAt:   firebase.database.ServerValue.TIMESTAMP,
+                        setBy:   window.currentUserData?.displayName || 'admin'
+                    };
+
+                    if (selectedStatus === 'open') {
+                        updateData.reopenedAt  = firebase.database.ServerValue.TIMESTAMP;
+                        updateData.reopenedBy  = updateData.setBy;
+                        updateData.expiresAt   = expiryDate
+                            ? new Date(`${expiryDate}T${expiryTime}:00`).toISOString()
+                            : null;
+                    }
+
+                    await window.database.ref(path).set(updateData);
                 }
 
-                await window.database.ref(path).set(updateData);
+                this.hideIndividualDialog();
+                window.showMessage('設定を更新しました', 'success');
+                this.loadIndividualData();
+            } catch (error) {
+                console.error('設定保存エラー:', error);
+                window.showMessage('保存に失敗しました', 'error');
             }
-
-            window.showMessage('設定を更新しました', 'success');
-            this.loadIndividualData();
         }
 
+        // --------------------------------------------------
+        // カウント更新
+        // --------------------------------------------------
         updateCounts() {
-            let counts = { all: this.editor.ceList.length, submitted: 0, not_submitted: 0, reopened: 0 };
-            
+            let counts = { all: this.editor.ceList.length, submitted: 0, no_request: 0, not_submitted: 0, reopened: 0 };
+
             this.editor.ceList.forEach(ce => {
                 const access = this.ceAccessData[ce.id] || {};
-                const meta = this.requestData[ce.id]?._meta || {};
-                
-                if (meta.submitted) counts.submitted++;
-                else counts.not_submitted++;
-                
-                if (access.status === 'open') counts.reopened++;
+                const meta   = this.requestData[ce.id]?._meta || {};
+
+                if (meta.submitted)    counts.submitted++;
+                else                   counts.not_submitted++;
+
+                if (access.status === 'no_request' || meta.noRequestDeclared) counts.no_request++;
+                if (access.status === 'open')  counts.reopened++;
             });
 
-            const setCount = (id, value) => {
-                const el = document.getElementById(id);
-                if (el) el.textContent = value;
-            };
-
-            setCount('countAll', counts.all);
-            setCount('countSubmitted', counts.submitted);
-            setCount('countNotSubmitted', counts.not_submitted);
-            setCount('countReopened', counts.reopened);
+            const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+            set('countAll',          counts.all);
+            set('countSubmitted',    counts.submitted);
+            set('countNoRequest',    counts.no_request);
+            set('countNotSubmitted', counts.not_submitted);
+            set('countReopened',     counts.reopened);
         }
 
+        // --------------------------------------------------
+        // サイドバーサマリー更新
+        // --------------------------------------------------
         async updateSidebarSummary() {
             try {
-                const requestSnap = await window.database.ref(`${window.DATA_ROOT}/shiftRequests/${this.currentPeriodKey}`).once('value');
+                const requestSnap = await window.database.ref(
+                    `${window.DATA_ROOT}/shiftRequests/${this.currentPeriodKey}`
+                ).once('value');
                 const data = requestSnap.val() || {};
-                
-                let submitted = 0;
+
+                let submitted  = 0;
+                let noRequest  = 0;
+                const total    = this.editor.ceList.length;
+
                 this.editor.ceList.forEach(ce => {
-                    if (data[ce.id]?._meta?.submitted) submitted++;
+                    const meta   = data[ce.id]?._meta || {};
+                    const access = this.ceAccessData?.[ce.id] || {};
+                    if (meta.submitted) {
+                        submitted++;
+                        if (meta.noRequestDeclared) noRequest++;
+                    } else if (access.status === 'no_request') {
+                        noRequest++;
+                    }
                 });
 
-                const total = this.editor.ceList.length;
-                
-                const submittedEl = document.getElementById('summarySubmitted');
-                const pendingEl = document.getElementById('summaryPending');
-                
-                if (submittedEl) submittedEl.textContent = submitted;
-                if (pendingEl) pendingEl.textContent = total - submitted;
+                const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+                setEl('summarySubmitted',  submitted);
+                setEl('summaryNoRequest',  noRequest);
+                setEl('summaryPending',    total - submitted);
             } catch (error) {
                 console.error('サマリー更新エラー:', error);
             }
