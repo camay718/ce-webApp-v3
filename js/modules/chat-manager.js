@@ -1,58 +1,77 @@
-// ============================================================
-// js/modules/chat-manager.js
-// チャット管理モジュール（完全修正版）
-// ============================================================
+/**
+ * js/modules/chat-manager.js
+ * チャット管理モジュール 完全版
+ *
+ * 依存:
+ *   ../config/firebase-config.js  → window.database, window.DATA_ROOT, window.waitForFirebase
+ *   ../utils/auth-guard.js        → sessionStorage: targetUID, currentUsername, userRole
+ */
+
+'use strict';
 
 class ChatManager {
+
   constructor() {
-    this.currentUser = null;   // { uid, username, displayName, role }
-    this.allUsers    = {};      // { uid: userData }
-    this.rooms       = {};      // { roomId: roomData }
-    this.currentRoomId = null;
-    this.currentChatType = 'direct'; // 'direct' | 'group'
-    this.selectedUsers = [];
-    this._roomsListener = null;
-    this._msgListener   = null;
-    this._editingMsgId  = null;
-    this._editingRoomId = null;
-    this._db = null;
+    /* ── 状態 ── */
+    this.currentUser    = null;   // { uid, username, displayName, role }
+    this.allUsers       = {};     // { uid: userData }
+    this.rooms          = {};     // { roomId: roomData }  自分がメンバーのもの
+    this.currentRoomId  = null;
+
+    /* 新規チャット作成 */
+    this.chatType      = 'direct';   // 'direct' | 'group'
+    this.selectedUids  = [];
+
+    /* 編集中メッセージ */
+    this._editRoomId = null;
+    this._editMsgId  = null;
+
+    /* Firebase リスナー参照 */
+    this._roomsRef = null;
+    this._msgsRef  = null;
+
+    /* DB・ルートパス（init後にセット） */
+    this._db   = null;
     this._root = null;
   }
 
-  // ─────────────────────────────────────────
-  // 初期化
-  // ─────────────────────────────────────────
+  /* ============================================================
+     初期化
+  ============================================================ */
   async init() {
     try {
       await this._waitForFirebase();
       this._db   = window.database;
-      this._root = window.DATA_ROOT;
+      this._root = window.DATA_ROOT;   // 'ceScheduleV3'
 
       await this._loadCurrentUser();
       await this._loadAllUsers();
-      this._setupRoomsListener();
-      this._bindUIEvents();
+      this._listenRooms();
+      this._bindUI();
       this._openRoomFromURL();
 
-      console.log('✅ ChatManager 初期化完了:', this.currentUser);
-    } catch (e) {
-      console.error('❌ ChatManager 初期化エラー:', e);
+      console.log('✅ ChatManager 初期化完了:', this.currentUser.displayName);
+    } catch (err) {
+      console.error('❌ ChatManager 初期化エラー:', err);
     }
   }
 
+  /* Firebase 準備待ち */
   async _waitForFirebase() {
+    if (window.waitForFirebase) return window.waitForFirebase();
     for (let i = 0; i < 50; i++) {
       if (window.database && window.DATA_ROOT && window.auth) return;
-      await new Promise(r => setTimeout(r, 100));
+      await this._sleep(100);
     }
     throw new Error('Firebase 初期化タイムアウト');
   }
 
-  // ─────────────────────────────────────────
-  // ユーザー読み込み
-  // ─────────────────────────────────────────
+  _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  /* ============================================================
+     ユーザー読み込み
+  ============================================================ */
   async _loadCurrentUser() {
-    // 1. AuthGuard → sessionStorage
     const uid      = sessionStorage.getItem('targetUID');
     const username = sessionStorage.getItem('currentUsername');
     const role     = sessionStorage.getItem('userRole') || 'viewer';
@@ -63,7 +82,7 @@ class ChatManager {
       throw new Error('未認証');
     }
 
-    // Firebase からフル情報を取得
+    /* Firebase からフル情報取得 */
     const snap = await this._db.ref(`${this._root}/users/${uid}`).once('value');
     const data = snap.val() || {};
 
@@ -77,251 +96,296 @@ class ChatManager {
 
   async _loadAllUsers() {
     const snap = await this._db.ref(`${this._root}/users`).once('value');
-    const data = snap.val() || {};
-    this.allUsers = data;
+    this.allUsers = snap.val() || {};
   }
 
-  // ─────────────────────────────────────────
-  // ルームリスナー
-  // ─────────────────────────────────────────
-  _setupRoomsListener() {
-    const ref = this._db.ref(`${this._root}/chats/rooms`);
-    this._roomsListener = ref.on('value', snap => {
+  /* ============================================================
+     ルーム一覧リスナー
+  ============================================================ */
+  _listenRooms() {
+    const uid     = this.currentUser.uid;
+    const isAdmin = this.currentUser.role === 'admin';
+
+    this._roomsRef = this._db.ref(`${this._root}/chats/rooms`);
+    this._roomsRef.on('value', snap => {
       const all = snap.val() || {};
-      // 自分がメンバーのルームのみ（admin は全件見れる）
-      const myRooms = {};
-      const uid   = this.currentUser.uid;
-      const isAdmin = this.currentUser.role === 'admin';
+      /* admin は全件、一般ユーザーは自分がメンバーのみ */
+      this.rooms = {};
       Object.entries(all).forEach(([id, room]) => {
-        if (isAdmin || (room.members && room.members[uid])) {
-          myRooms[id] = room;
+        if (isAdmin || room.members?.[uid]) {
+          this.rooms[id] = room;
         }
       });
-      this.rooms = myRooms;
-      this._renderRoomList();
+      this._renderRooms();
     });
   }
 
-  // ─────────────────────────────────────────
-  // サイドバー描画
-  // ─────────────────────────────────────────
-  _renderRoomList() {
-    const list = document.getElementById('roomsList');
-    const totalBadge = document.getElementById('totalUnreadBadge');
+  /* ============================================================
+     サイドバー描画
+  ============================================================ */
+  _renderRooms() {
+    const list  = document.getElementById('roomsList');
+    const badge = document.getElementById('totalUnreadBadge');
     if (!list) return;
 
     const uid = this.currentUser.uid;
-    const sorted = Object.entries(this.rooms).sort((a, b) => {
-      return (b[1].lastMessageAt || b[1].createdAt || 0) - (a[1].lastMessageAt || a[1].createdAt || 0);
-    });
 
+    /* 最終メッセージ時刻の降順ソート */
+    const sorted = Object.entries(this.rooms).sort(([, a], [, b]) =>
+      (b.lastMessageAt || b.createdAt || 0) - (a.lastMessageAt || a.createdAt || 0)
+    );
+
+    /* 全未読合計 */
     let totalUnread = 0;
-    if (sorted.length === 0) {
-      list.innerHTML = `<div style="padding:20px;text-align:center;color:#888;font-size:0.85rem;">トークはありません</div>`;
-    } else {
-      list.innerHTML = sorted.map(([id, room]) => {
-        const unread = (room.unreadCount && room.unreadCount[uid]) ? room.unreadCount[uid] : 0;
-        totalUnread += unread;
-        const isGroup = room.type === 'group';
-        const avatar  = isGroup
-          ? `<div class="room-avatar group-avatar"><i class="fas fa-users"></i></div>`
-          : `<div class="room-avatar">${this._initials(room.name || '?')}</div>`;
-        const timeStr = room.lastMessageAt ? this._fmtTimeAgo(room.lastMessageAt) : '';
-        return `
-          <div class="room-item ${id === this.currentRoomId ? 'active' : ''}"
-               onclick="chatManager.selectRoom('${id}')">
-            ${avatar}
-            <div class="room-info">
-              <div class="room-name">${this._esc(room.name || '無名')}</div>
-              <div class="room-last-msg">${this._esc(room.lastMessage || '')}</div>
-            </div>
-            <div class="room-meta">
-              <span class="room-time">${timeStr}</span>
-              ${unread > 0 ? `<span class="unread-badge">${unread > 99 ? '99+' : unread}</span>` : ''}
-            </div>
-          </div>`;
-      }).join('');
+    sorted.forEach(([, r]) => { totalUnread += r.unreadCount?.[uid] || 0; });
+    if (badge) {
+      badge.textContent   = totalUnread > 99 ? '99+' : totalUnread;
+      badge.style.display = totalUnread > 0 ? 'inline-block' : 'none';
     }
 
-    // 合計未読バッジ
-    if (totalBadge) {
-      totalBadge.textContent = totalUnread > 99 ? '99+' : totalUnread;
-      totalBadge.style.display = totalUnread > 0 ? 'inline-block' : 'none';
+    if (sorted.length === 0) {
+      list.innerHTML = `
+        <div style="padding:24px 16px; text-align:center;
+                    color:var(--text-muted); font-size:0.82rem;">
+          トークルームはありません
+        </div>`;
+      return;
     }
+
+    list.innerHTML = sorted.map(([id, room]) => {
+      const unread  = room.unreadCount?.[uid] || 0;
+      const isGroup = room.type === 'group';
+      const timeStr = room.lastMessageAt ? this._timeAgo(room.lastMessageAt) : '';
+      const avatarCls = isGroup ? 'room-avatar grp' : 'room-avatar';
+      const avatarInner = isGroup
+        ? '<i class="fas fa-users"></i>'
+        : this._initials(room.name || '?');
+
+      return `
+        <div class="room-item ${id === this.currentRoomId ? 'active' : ''}"
+             onclick="chatManager.selectRoom('${id}')">
+          <div class="${avatarCls}">${avatarInner}</div>
+          <div class="room-info">
+            <div class="room-name">${this._esc(room.name || '無名')}</div>
+            <div class="room-last">${this._esc(room.lastMessage || '')}</div>
+          </div>
+          <div class="room-meta">
+            <span class="room-time">${timeStr}</span>
+            ${unread > 0
+              ? `<span class="unread-badge">${unread > 99 ? '99+' : unread}</span>`
+              : ''}
+          </div>
+        </div>`;
+    }).join('');
   }
 
-  // ─────────────────────────────────────────
-  // ルーム選択
-  // ─────────────────────────────────────────
+  /* ============================================================
+     ルーム選択
+  ============================================================ */
   async selectRoom(roomId) {
-    if (this._msgListener && this.currentRoomId) {
+    /* 前のメッセージリスナーを解除 */
+    if (this._msgsRef && this.currentRoomId) {
       this._db.ref(`${this._root}/chats/messages/${this.currentRoomId}`).off();
-      this._msgListener = null;
+      this._msgsRef = null;
     }
+
     this.currentRoomId = roomId;
     const room = this.rooms[roomId];
     if (!room) return;
 
-    // ルームヘッダー更新
-    document.getElementById('chatEmptyState').style.display   = 'none';
+    /* ── UI 切り替え ── */
+    document.getElementById('chatEmpty').style.display     = 'none';
     const area = document.getElementById('chatRoomArea');
     area.style.display = 'flex';
 
-    const isGroup = room.type === 'group';
-    const avatarEl = document.getElementById('chatRoomAvatar');
-    avatarEl.textContent = isGroup ? '' : this._initials(room.name || '?');
-    if (isGroup) {
-      avatarEl.innerHTML = '<i class="fas fa-users"></i>';
-      avatarEl.className = 'room-avatar group-avatar';
+    /* アバター */
+    const avEl = document.getElementById('chatRoomAvatar');
+    if (room.type === 'group') {
+      avEl.innerHTML  = '<i class="fas fa-users"></i>';
+      avEl.className  = 'room-avatar grp';
     } else {
-      avatarEl.className = 'room-avatar';
+      avEl.textContent = this._initials(room.name || '?');
+      avEl.className   = 'room-avatar';
     }
-    document.getElementById('chatRoomTitle').textContent = room.name || '無名';
 
-    // メンバー名一覧
+    /* タイトル・メンバー */
+    document.getElementById('chatRoomTitle').textContent = room.name || '無名';
     if (room.members) {
-      const memberNames = Object.keys(room.members).map(uid => {
+      const names = Object.keys(room.members).map(uid => {
         const u = this.allUsers[uid];
         return u ? (u.displayName || u.username) : uid;
       });
-      document.getElementById('chatRoomMembers').textContent = memberNames.join('、');
+      document.getElementById('chatRoomSub').textContent = names.join('、');
     }
 
+    /* 送信ボタン有効化 */
     document.getElementById('sendBtn').disabled = false;
 
-    // サイドバーの active 状態更新
-    document.querySelectorAll('.room-item').forEach(el => el.classList.remove('active'));
-    const items = document.querySelectorAll('.room-item');
-    items.forEach(el => {
-      if (el.onclick && el.getAttribute('onclick')?.includes(roomId)) el.classList.add('active');
-    });
-    this._renderRoomList(); // active 再描画
+    /* サイドバーのアクティブ状態を再描画 */
+    this._renderRooms();
 
-    // 未読をクリア（Firebase）
+    /* 未読クリア */
     await this._markAsRead(roomId);
 
-    // メッセージリスナー起動
-    this._setupMessageListener(roomId);
+    /* メッセージリスナー開始 */
+    this._listenMessages(roomId);
 
-    // スマホ: サイドバー閉じる
-    if (window.innerWidth <= 600) {
-      document.getElementById('roomsSidebar').classList.add('hidden-mobile');
-    }
+    /* スマホ: サイドバーを閉じる */
+    document.getElementById('roomsSidebar')?.classList.remove('sp-open');
+    document.getElementById('spBackdrop')?.classList.remove('sp-open');
   }
 
-  // ─────────────────────────────────────────
-  // 未読クリア
-  // ─────────────────────────────────────────
+  /* ============================================================
+     未読クリア（Firebase）
+  ============================================================ */
   async _markAsRead(roomId) {
     const uid = this.currentUser.uid;
     try {
-      // unreadCount[uid] = 0
-      await this._db.ref(`${this._root}/chats/rooms/${roomId}/unreadCount/${uid}`).set(0);
+      await this._db
+        .ref(`${this._root}/chats/rooms/${roomId}/unreadCount/${uid}`)
+        .set(0);
     } catch (e) {
       console.warn('未読クリアエラー:', e);
     }
   }
 
-  // ─────────────────────────────────────────
-  // メッセージリスナー & 描画
-  // ─────────────────────────────────────────
-  _setupMessageListener(roomId) {
-    const ref = this._db.ref(`${this._root}/chats/messages/${roomId}`)
-      .orderByChild('timestamp').limitToLast(100);
-    this._msgListener = ref.on('value', snap => {
-      const data = snap.val() || {};
-      this._renderMessages(data, roomId);
+  /* ============================================================
+     メッセージリスナー
+  ============================================================ */
+  _listenMessages(roomId) {
+    const ref = this._db
+      .ref(`${this._root}/chats/messages/${roomId}`)
+      .orderByChild('timestamp')
+      .limitToLast(100);
+
+    this._msgsRef = ref;
+    ref.on('value', snap => {
+      this._renderMessages(snap.val() || {});
     });
   }
 
-  _renderMessages(data, roomId) {
+  /* ============================================================
+     メッセージ描画
+  ============================================================ */
+  _renderMessages(data) {
     const area = document.getElementById('messagesArea');
     if (!area) return;
-    const uid = this.currentUser.uid;
+
+    const uid  = this.currentUser.uid;
     const msgs = Object.entries(data)
       .map(([id, m]) => ({ id, ...m }))
       .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
 
+    if (msgs.length === 0) {
+      area.innerHTML = `
+        <div style="flex:1; display:flex; flex-direction:column;
+                    align-items:center; justify-content:center;
+                    color:var(--text-muted); gap:10px; padding:40px;">
+          <i class="fas fa-comment-slash" style="font-size:2rem; opacity:0.25;"></i>
+          <p style="font-size:0.85rem;">まだメッセージがありません</p>
+        </div>`;
+      return;
+    }
+
     let lastDate = '';
-    let html = '';
-
-    msgs.forEach(msg => {
-      // 日付区切り
-      const d = new Date(msg.timestamp || 0);
-      const dateStr = d.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+    const html = msgs.map(msg => {
+      /* 日付区切り */
+      const d       = new Date(msg.timestamp || 0);
+      const dateStr = d.toLocaleDateString('ja-JP', {
+        year: 'numeric', month: 'long', day: 'numeric', weekday: 'short'
+      });
+      let dateDivider = '';
       if (dateStr !== lastDate) {
-        html += `<div class="date-divider"><span>${dateStr}</span></div>`;
         lastDate = dateStr;
+        dateDivider = `
+          <div class="date-sep"><span>${dateStr}</span></div>`;
       }
 
-      const isSelf   = msg.senderUid === uid;
-      const isSystem = msg.type === 'system';
-      const timeStr  = new Date(msg.timestamp || 0).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-      const senderName = msg.senderName || '不明';
-      const readCount  = msg.readBy ? Object.keys(msg.readBy).filter(k => k !== msg.senderUid).length : 0;
-      const editedMark = msg.editedAt ? '<span class="msg-edited">(編集済)</span>' : '';
-
-      if (isSystem) {
-        html += `<div class="msg-row system"><div class="msg-bubble">${this._esc(msg.content)}</div></div>`;
-        return;
+      /* システムメッセージ */
+      if (msg.type === 'system') {
+        return `${dateDivider}
+          <div class="msg-row system">
+            <div class="msg-bubble">${this._esc(msg.content)}</div>
+          </div>`;
       }
 
-      // アバター（相手のみ）
-      const avatarHtml = !isSelf
-        ? `<div class="msg-avatar">${this._initials(senderName)}</div>`
+      const isSelf    = msg.senderUid === uid;
+      const timeStr   = d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+      const sender    = msg.senderName || '不明';
+      const readCnt   = msg.readBy
+        ? Object.keys(msg.readBy).filter(k => k !== msg.senderUid).length
+        : 0;
+      const editMark  = msg.editedAt
+        ? '<span class="msg-edited">（編集済）</span>'
         : '';
 
-      // アクションボタン（自分のメッセージのみ編集・削除）
-      const actionBtns = isSelf ? `
+      /* アクションボタン（自分のメッセージのみ） */
+      const actions = isSelf ? `
         <div class="msg-actions">
-          <button class="msg-action-btn" title="編集"
-            onclick="chatManager.openEditModal('${roomId}','${msg.id}',\`${this._escAttr(msg.content)}\`)">
+          <button class="act-btn" title="編集"
+            onclick="chatManager.openEditModal('${this.currentRoomId}','${msg.id}',\`${this._escTpl(msg.content)}\`)">
             <i class="fas fa-edit"></i>
           </button>
-          <button class="msg-action-btn delete" title="削除"
-            onclick="chatManager.deleteMessage('${roomId}','${msg.id}')">
+          <button class="act-btn del" title="削除"
+            onclick="chatManager.deleteMessage('${this.currentRoomId}','${msg.id}')">
             <i class="fas fa-trash"></i>
           </button>
         </div>` : '';
 
-      html += `
+      /* アバター（相手のみ） */
+      const avatar = !isSelf
+        ? `<div class="msg-av">${this._initials(sender)}</div>`
+        : '';
+
+      /* 送信者名（相手のみ） */
+      const senderLine = !isSelf
+        ? `<div class="msg-sender">${this._esc(sender)}</div>`
+        : '';
+
+      return `${dateDivider}
         <div class="msg-row ${isSelf ? 'self' : 'other'}">
-          ${!isSelf ? `<div class="msg-sender-name">${this._esc(senderName)}</div>` : ''}
-          <div class="msg-bubble-wrap">
-            ${avatarHtml}
-            <div>
-              <div class="msg-bubble">${this._esc(msg.content)}</div>
-            </div>
-            ${actionBtns}
+          ${senderLine}
+          <div class="msg-bubble-row">
+            ${avatar}
+            <div class="msg-bubble">${this._esc(msg.content)}</div>
+            ${actions}
           </div>
           <div class="msg-meta">
             <span class="msg-time">${timeStr}</span>
-            ${editedMark}
-            ${isSelf && readCount > 0 ? `<span class="msg-read">✓✓ 既読${readCount}</span>` : ''}
+            ${editMark}
+            ${isSelf && readCnt > 0
+              ? `<span class="msg-read">✓✓ 既読${readCnt}</span>`
+              : ''}
           </div>
         </div>`;
-    });
+    }).join('');
 
-    area.innerHTML = html || `<div class="chat-empty"><i class="fas fa-comment-slash"></i><p>まだメッセージがありません</p></div>`;
+    area.innerHTML = html;
+
+    /* 最下部へスクロール */
     area.scrollTop = area.scrollHeight;
   }
 
-  // ─────────────────────────────────────────
-  // メッセージ送信
-  // ─────────────────────────────────────────
+  /* ============================================================
+     メッセージ送信
+  ============================================================ */
   async sendMessage() {
-    const input = document.getElementById('chatInput');
-    const content = input.value.trim();
+    const input   = document.getElementById('chatInput');
+    const content = input?.value.trim();
     if (!content || !this.currentRoomId) return;
 
     const uid  = this.currentUser.uid;
     const room = this.rooms[this.currentRoomId];
+
+    /* 入力欄をすぐクリア */
     input.value = '';
     input.style.height = '44px';
-    document.getElementById('sendBtn').disabled = true;
 
     try {
-      const msgRef = this._db.ref(`${this._root}/chats/messages/${this.currentRoomId}`).push();
+      /* メッセージ書き込み */
+      const msgRef = this._db
+        .ref(`${this._root}/chats/messages/${this.currentRoomId}`)
+        .push();
       await msgRef.set({
         content,
         senderUid:  uid,
@@ -330,130 +394,164 @@ class ChatManager {
         readBy:     { [uid]: true },
       });
 
-      // ルーム最終メッセージ & 未読カウント更新
+      /* ルームの lastMessage / unreadCount を一括更新 */
       const updates = {
-        [`${this._root}/chats/rooms/${this.currentRoomId}/lastMessage`]:   content,
-        [`${this._root}/chats/rooms/${this.currentRoomId}/lastMessageAt`]: Date.now(),
+        [`${this._root}/chats/rooms/${this.currentRoomId}/lastMessage`]:
+          content.length > 40 ? content.substring(0, 40) + '…' : content,
+        [`${this._root}/chats/rooms/${this.currentRoomId}/lastMessageAt`]:
+          Date.now(),
       };
-      if (room && room.members) {
+
+      if (room?.members) {
         Object.keys(room.members).forEach(memberId => {
           if (memberId !== uid) {
-            updates[`${this._root}/chats/rooms/${this.currentRoomId}/unreadCount/${memberId}`]
-              = (room.unreadCount?.[memberId] || 0) + 1;
+            const cur = room.unreadCount?.[memberId] || 0;
+            updates[
+              `${this._root}/chats/rooms/${this.currentRoomId}/unreadCount/${memberId}`
+            ] = cur + 1;
           }
         });
       }
       await this._db.ref().update(updates);
-    } catch (e) {
-      console.error('送信エラー:', e);
+
+    } catch (err) {
+      console.error('送信エラー:', err);
+      alert('送信に失敗しました');
     } finally {
-      document.getElementById('sendBtn').disabled = false;
       input.focus();
     }
   }
 
-  // ─────────────────────────────────────────
-  // 削除・編集
-  // ─────────────────────────────────────────
+  /* ============================================================
+     メッセージ削除
+  ============================================================ */
   async deleteMessage(roomId, msgId) {
     if (!confirm('このメッセージを削除しますか？')) return;
     try {
-      await this._db.ref(`${this._root}/chats/messages/${roomId}/${msgId}`).remove();
-    } catch (e) {
-      console.error('削除エラー:', e);
+      await this._db
+        .ref(`${this._root}/chats/messages/${roomId}/${msgId}`)
+        .remove();
+    } catch (err) {
+      console.error('削除エラー:', err);
       alert('削除に失敗しました');
     }
   }
 
+  /* ============================================================
+     メッセージ編集
+  ============================================================ */
   openEditModal(roomId, msgId, content) {
-    this._editingRoomId = roomId;
-    this._editingMsgId  = msgId;
-    document.getElementById('editInput').value = content;
-    document.getElementById('editModal').classList.remove('hidden');
-    document.getElementById('editInput').focus();
+    this._editRoomId = roomId;
+    this._editMsgId  = msgId;
+    const input = document.getElementById('editInput');
+    if (input) input.value = content;
+    document.getElementById('editModal')?.classList.remove('hidden');
+    input?.focus();
   }
 
   async submitEdit() {
-    const newContent = document.getElementById('editInput').value.trim();
-    if (!newContent || !this._editingMsgId) return;
+    const newContent = document.getElementById('editInput')?.value.trim();
+    if (!newContent || !this._editMsgId) return;
+
     try {
-      await this._db.ref(`${this._root}/chats/messages/${this._editingRoomId}/${this._editingMsgId}`).update({
-        content:  newContent,
-        editedAt: Date.now(),
-      });
-      document.getElementById('editModal').classList.add('hidden');
-    } catch (e) {
-      console.error('編集エラー:', e);
+      await this._db
+        .ref(`${this._root}/chats/messages/${this._editRoomId}/${this._editMsgId}`)
+        .update({ content: newContent, editedAt: Date.now() });
+
+      document.getElementById('editModal')?.classList.add('hidden');
+    } catch (err) {
+      console.error('編集エラー:', err);
       alert('編集に失敗しました');
+    } finally {
+      this._editRoomId = null;
+      this._editMsgId  = null;
     }
   }
 
-  // ─────────────────────────────────────────
-  // 新規チャット作成
-  // ─────────────────────────────────────────
+  /* ============================================================
+     新規ルーム作成
+  ============================================================ */
   switchChatType(type) {
-    this.currentChatType = type;
-    this.selectedUsers = [];
-    document.getElementById('tab1on1').classList.toggle('active', type === 'direct');
-    document.getElementById('tabGroup').classList.toggle('active', type === 'group');
-    document.getElementById('groupNameInput').style.display = type === 'group' ? 'block' : 'none';
-    this._renderUserSelectList();
-    this._updateCreateBtnState();
+    this.chatType     = type;
+    this.selectedUids = [];
+
+    document.getElementById('tab1on1')
+      .classList.toggle('active', type === 'direct');
+    document.getElementById('tabGroup')
+      .classList.toggle('active', type === 'group');
+
+    const grpInput = document.getElementById('groupNameInput');
+    if (grpInput) grpInput.style.display = type === 'group' ? 'block' : 'none';
+
+    this._renderUserList();
+    this._updateCreateBtn();
   }
 
-  _renderUserSelectList() {
+  _renderUserList() {
     const list  = document.getElementById('userSelectList');
+    if (!list) return;
+
     const myUid = this.currentUser.uid;
     const users = Object.entries(this.allUsers)
       .filter(([uid]) => uid !== myUid)
-      .sort((a, b) => (a[1].displayName || '').localeCompare(b[1].displayName || ''));
+      .sort(([, a], [, b]) =>
+        (a.displayName || '').localeCompare(b.displayName || '', 'ja')
+      );
 
     if (users.length === 0) {
-      list.innerHTML = `<div style="padding:16px; text-align:center; color:#888;">ユーザーが見つかりません</div>`;
+      list.innerHTML = `
+        <div style="padding:16px; text-align:center;
+                    color:var(--text-muted); font-size:0.82rem;">
+          ユーザーが見つかりません
+        </div>`;
       return;
     }
 
     list.innerHTML = users.map(([uid, u]) => {
-      const name    = u.displayName || u.username || uid;
-      const sel     = this.selectedUsers.includes(uid);
+      const name = u.displayName || u.username || uid;
+      const sel  = this.selectedUids.includes(uid);
       return `
-        <div class="user-select-item ${sel ? 'selected' : ''}"
-             onclick="chatManager.toggleUserSelect('${uid}')">
-          <div class="usr-avatar">${this._initials(name)}</div>
+        <div class="usr-item ${sel ? 'sel' : ''}"
+             onclick="chatManager.toggleUser('${uid}')">
+          <div class="usr-av">${this._initials(name)}</div>
           <span class="usr-name">${this._esc(name)}</span>
-          <div class="usr-check">${sel ? '<i class="fas fa-check"></i>' : ''}</div>
+          <div class="usr-check">
+            ${sel ? '<i class="fas fa-check"></i>' : ''}
+          </div>
         </div>`;
     }).join('');
   }
 
-  toggleUserSelect(uid) {
-    const idx = this.selectedUsers.indexOf(uid);
-    if (this.currentChatType === 'direct') {
-      // 1対1: 1人だけ選択
-      this.selectedUsers = idx >= 0 ? [] : [uid];
+  toggleUser(uid) {
+    const idx = this.selectedUids.indexOf(uid);
+    if (this.chatType === 'direct') {
+      /* 1対1: 選択は1人だけ */
+      this.selectedUids = idx >= 0 ? [] : [uid];
     } else {
-      if (idx >= 0) this.selectedUsers.splice(idx, 1);
-      else this.selectedUsers.push(uid);
+      if (idx >= 0) this.selectedUids.splice(idx, 1);
+      else          this.selectedUids.push(uid);
     }
-    this._renderUserSelectList();
-    this._updateCreateBtnState();
+    this._renderUserList();
+    this._updateCreateBtn();
   }
 
-  _updateCreateBtnState() {
-    const btn = document.getElementById('createRoomBtn');
-    const ok  = this.selectedUsers.length > 0
-      && (this.currentChatType === 'direct' || document.getElementById('groupNameInput').value.trim() !== '');
-    btn.disabled = !ok;
+  _updateCreateBtn() {
+    const btn    = document.getElementById('createRoomBtn');
+    if (!btn) return;
+    const grpOk  = this.chatType === 'direct' ||
+                   document.getElementById('groupNameInput')?.value.trim() !== '';
+    btn.disabled = this.selectedUids.length === 0 || !grpOk;
   }
 
   async createRoom() {
-    if (this.selectedUsers.length === 0) return;
-    const uid  = this.currentUser.uid;
-    const type = this.currentChatType;
+    if (this.selectedUids.length === 0) return;
 
-    // 1対1の場合：既存ルームをチェック
+    const uid  = this.currentUser.uid;
+    const type = this.chatType;
+
+    /* 1対1: 既存ルームを再利用 */
     if (type === 'direct') {
-      const existing = await this._findExistingDirectRoom(uid, this.selectedUsers[0]);
+      const existing = await this._findDirectRoom(uid, this.selectedUids[0]);
       if (existing) {
         this._closeNewChatModal();
         this.selectRoom(existing);
@@ -461,15 +559,15 @@ class ChatManager {
       }
     }
 
-    const otherUid  = this.selectedUsers[0];
-    const otherUser = this.allUsers[otherUid];
-    const groupName = document.getElementById('groupNameInput').value.trim();
+    /* ルーム名を決定 */
+    const otherUser = this.allUsers[this.selectedUids[0]];
     const roomName  = type === 'direct'
       ? (otherUser?.displayName || otherUser?.username || '不明')
-      : groupName;
+      : (document.getElementById('groupNameInput')?.value.trim() || 'グループ');
 
+    /* メンバーオブジェクト */
     const members = { [uid]: true };
-    this.selectedUsers.forEach(id => { members[id] = true; });
+    this.selectedUids.forEach(id => { members[id] = true; });
 
     const roomRef = this._db.ref(`${this._root}/chats/rooms`).push();
     await roomRef.set({
@@ -484,145 +582,186 @@ class ChatManager {
     });
 
     this._closeNewChatModal();
+    await this._sleep(300); // リスナー更新を待つ
     this.selectRoom(roomRef.key);
   }
 
-  async _findExistingDirectRoom(uid1, uid2) {
+  async _findDirectRoom(uid1, uid2) {
     const snap = await this._db.ref(`${this._root}/chats/rooms`).once('value');
     const all  = snap.val() || {};
     for (const [id, room] of Object.entries(all)) {
-      if (room.type === 'direct' && room.members?.[uid1] && room.members?.[uid2]
-          && Object.keys(room.members).length === 2) {
+      if (
+        room.type === 'direct' &&
+        room.members?.[uid1] &&
+        room.members?.[uid2] &&
+        Object.keys(room.members).length === 2
+      ) {
         return id;
       }
     }
     return null;
   }
 
-  // ─────────────────────────────────────────
-  // UIイベント
-  // ─────────────────────────────────────────
-  _bindUIEvents() {
-    // 新規チャットボタン
-    document.getElementById('newChatBtn')?.addEventListener('click', () => {
-      this.openNewChatModal();
-    });
-    document.getElementById('modalCloseBtn')?.addEventListener('click', () => {
-      this._closeNewChatModal();
-    });
-    document.getElementById('newChatModal')?.addEventListener('click', e => {
-      if (e.target === document.getElementById('newChatModal')) this._closeNewChatModal();
-    });
-
-    // 作成ボタン
-    document.getElementById('createRoomBtn')?.addEventListener('click', () => {
-      this.createRoom();
-    });
-
-    // グループ名入力
-    document.getElementById('groupNameInput')?.addEventListener('input', () => {
-      this._updateCreateBtnState();
-    });
-
-    // 送信ボタン
-    document.getElementById('sendBtn')?.addEventListener('click', () => {
-      this.sendMessage();
-    });
-
-    // テキストエリア: Enter → 改行、送信ボタンのみで送信
-    const input = document.getElementById('chatInput');
-    if (input) {
-      input.addEventListener('keydown', e => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          // Enter 単独では何もしない（改行扱い）—デフォルト通り
-          // ※ 送信はボタンのみ
-          // e.preventDefault(); // コメントアウト: 改行を許可
-        }
-      });
-      input.addEventListener('input', () => {
-        input.style.height = 'auto';
-        input.style.height = Math.min(input.scrollHeight, 120) + 'px';
-      });
-    }
-
-    // スマホ: サイドバートグル
-    document.getElementById('sidebarToggle')?.addEventListener('click', () => {
-      document.getElementById('roomsSidebar').classList.remove('hidden-mobile');
-    });
-    document.getElementById('sidebarCloseBtn')?.addEventListener('click', () => {
-      document.getElementById('roomsSidebar').classList.add('hidden-mobile');
-    });
-  }
-
+  /* ============================================================
+     モーダル開閉
+  ============================================================ */
   openNewChatModal() {
-    this.selectedUsers = [];
-    this.currentChatType = 'direct';
-    document.getElementById('tab1on1').classList.add('active');
-    document.getElementById('tabGroup').classList.remove('active');
-    document.getElementById('groupNameInput').style.display = 'none';
-    document.getElementById('groupNameInput').value = '';
+    this.chatType     = 'direct';
+    this.selectedUids = [];
+
+    document.getElementById('tab1on1')?.classList.add('active');
+    document.getElementById('tabGroup')?.classList.remove('active');
+    const grpInput = document.getElementById('groupNameInput');
+    if (grpInput) { grpInput.style.display = 'none'; grpInput.value = ''; }
     document.getElementById('createRoomBtn').disabled = true;
-    document.getElementById('newChatModal').classList.remove('hidden');
-    this._renderUserSelectList();
+    document.getElementById('newChatModal')?.classList.remove('hidden');
+    this._renderUserList();
   }
 
   _closeNewChatModal() {
-    document.getElementById('newChatModal').classList.add('hidden');
-    this.selectedUsers = [];
+    document.getElementById('newChatModal')?.classList.add('hidden');
+    this.selectedUids = [];
   }
 
+  /* ============================================================
+     UIイベントバインド
+  ============================================================ */
+  _bindUI() {
+
+    /* ── 新規トーク ── */
+    document.getElementById('newChatBtn')
+      ?.addEventListener('click', () => this.openNewChatModal());
+    document.getElementById('emptyNewBtn')
+      ?.addEventListener('click', () => this.openNewChatModal());
+
+    /* モーダル閉じる */
+    document.getElementById('modalCloseBtn')
+      ?.addEventListener('click', () => this._closeNewChatModal());
+    document.getElementById('newChatModal')
+      ?.addEventListener('click', e => {
+        if (e.target === document.getElementById('newChatModal'))
+          this._closeNewChatModal();
+      });
+
+    /* タブ切り替え */
+    document.getElementById('tab1on1')
+      ?.addEventListener('click', () => this.switchChatType('direct'));
+    document.getElementById('tabGroup')
+      ?.addEventListener('click', () => this.switchChatType('group'));
+
+    /* グループ名入力 */
+    document.getElementById('groupNameInput')
+      ?.addEventListener('input', () => this._updateCreateBtn());
+
+    /* 作成ボタン */
+    document.getElementById('createRoomBtn')
+      ?.addEventListener('click', () => this.createRoom());
+
+    /* ── 送信 ── */
+    /* 送信ボタン */
+    document.getElementById('sendBtn')
+      ?.addEventListener('click', () => this.sendMessage());
+
+    /* テキストエリア:
+         Enter       → 改行（デフォルト動作、preventDefault しない）
+         Ctrl+Enter  → 送信
+         Shift+Enter → 改行（デフォルト動作）
+         自動高さ調整 */
+    const textarea = document.getElementById('chatInput');
+    if (textarea) {
+      textarea.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          this.sendMessage();
+        }
+        /* Enter のみ・Shift+Enter はデフォルト（改行）のまま */
+      });
+      textarea.addEventListener('input', () => {
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 130) + 'px';
+      });
+    }
+
+    /* ── スマホ: サイドバートグル ── */
+    document.getElementById('spToggleBtn')
+      ?.addEventListener('click', () => {
+        document.getElementById('roomsSidebar')?.classList.toggle('sp-open');
+        document.getElementById('spBackdrop')?.classList.toggle('sp-open');
+      });
+    document.getElementById('spBackdrop')
+      ?.addEventListener('click', () => {
+        document.getElementById('roomsSidebar')?.classList.remove('sp-open');
+        document.getElementById('spBackdrop')?.classList.remove('sp-open');
+      });
+  }
+
+  /* URLパラメータ ?room=xxx でルームを直接開く */
   _openRoomFromURL() {
-    const params = new URLSearchParams(location.search);
-    const roomId = params.get('room');
-    if (roomId) setTimeout(() => this.selectRoom(roomId), 500);
+    const roomId = new URLSearchParams(location.search).get('room');
+    if (roomId) setTimeout(() => this.selectRoom(roomId), 600);
   }
 
-  // ─────────────────────────────────────────
-  // ユーティリティ
-  // ─────────────────────────────────────────
+  /* ============================================================
+     ユーティリティ
+  ============================================================ */
+
+  /* イニシャル（アバター用）*/
   _initials(name) {
-    return (name || '?').trim().charAt(0).toUpperCase();
+    return String(name || '?').trim().charAt(0).toUpperCase();
   }
 
+  /* HTML エスケープ（XSS対策・改行→<br>） */
   _esc(str) {
     return String(str || '')
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/\n/g, '<br>');
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/\n/g, '<br>');
   }
 
-  _escAttr(str) {
-    return String(str || '').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+  /* テンプレートリテラル属性用エスケープ（バックティック・$ を無効化）*/
+  _escTpl(str) {
+    return String(str || '')
+      .replace(/\\/g, '\\\\')
+      .replace(/`/g,  '\\`')
+      .replace(/\$/g, '\\$');
   }
 
-  _fmtTimeAgo(ts) {
+  /* 経過時間フォーマット */
+  _timeAgo(ts) {
     const diff = Date.now() - ts;
-    const m = Math.floor(diff / 60000);
-    const h = Math.floor(diff / 3600000);
-    const d = Math.floor(diff / 86400000);
-    if (m < 1)  return 'たった今';
-    if (m < 60) return `${m}分前`;
-    if (h < 24) return `${h}時間前`;
-    if (d < 7)  return `${d}日前`;
-    return new Date(ts).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' });
+    const m = Math.floor(diff / 60_000);
+    const h = Math.floor(diff / 3_600_000);
+    const d = Math.floor(diff / 86_400_000);
+    if (m  <  1) return 'たった今';
+    if (m  < 60) return `${m}分前`;
+    if (h  < 24) return `${h}時間前`;
+    if (d  <  7) return `${d}日前`;
+    return new Date(ts).toLocaleDateString('ja-JP',
+      { month: '2-digit', day: '2-digit' });
   }
 
+  /* ============================================================
+     クリーンアップ
+  ============================================================ */
   destroy() {
-    if (this._db && this._root && this.currentRoomId) {
-      this._db.ref(`${this._root}/chats/messages/${this.currentRoomId}`).off();
-    }
-    if (this._db && this._root) {
+    if (this._roomsRef) {
       this._db.ref(`${this._root}/chats/rooms`).off();
+    }
+    if (this._msgsRef && this.currentRoomId) {
+      this._db.ref(`${this._root}/chats/messages/${this.currentRoomId}`).off();
     }
   }
 }
 
-// ─────────────────────────────────────────
-// グローバル登録 & 自動初期化
-// ─────────────────────────────────────────
+/* ============================================================
+   グローバル登録 & 自動初期化
+============================================================ */
 window.chatManager = new ChatManager();
 
 document.addEventListener('DOMContentLoaded', () => {
-  // AuthGuard チェック後に初期化
+  /* 未認証ならログイン画面へ */
   const uid = sessionStorage.getItem('targetUID');
   if (!uid) {
     location.href = '../index.html';
